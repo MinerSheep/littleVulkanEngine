@@ -48,12 +48,15 @@ void DestroyDebugUtilsMessengerEXT(
 
 // class member functions
 LveDevice::LveDevice(LveWindow &window) : window{window} {
-  createInstance();  // initializes a vulkan instance for our application
+  createInstance();  
+  // initializes a vulkan instance for our application
   setupDebugMessenger();
   createSurface();   // surface uses glfw. connects window and vulkan's ability to display result
-  pickPhysicalDevice();  // whatever device works with vulkan 
+  pickPhysicalDevice();  
+  // whatever device works with vulkan 
   createLogicalDevice();
-  createCommandPool();   // command buffer allocation
+  createCommandPool();   
+  // command buffer allocation
 }
 
 LveDevice::~LveDevice() {

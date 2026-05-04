@@ -7,7 +7,22 @@
 
 namespace lve {
   // we want our app to be able to configure the pipeline and share the config info
-  struct PipelineConfigInfo {};
+  struct PipelineConfigInfo {
+  VkViewport viewport;
+  VkRect2D scissor;
+  VkPipelineViewportStateCreateInfo viewportInfo;
+  VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo; // <-
+  VkPipelineRasterizationStateCreateInfo rasterizationInfo;
+  VkPipelineMultisampleStateCreateInfo multisampleInfo;
+  VkPipelineColorBlendAttachmentState colorBlendAttachment;
+  VkPipelineColorBlendStateCreateInfo colorBlendInfo;
+  VkPipelineDepthStencilStateCreateInfo depthStencilInfo;
+
+  // Externally set
+  VkPipelineLayout pipelineLayout = nullptr;
+  VkRenderPass renderPass = nullptr;
+  uint32_t subpass = 0;
+};
 
 class LvePipeline {
  public:
@@ -32,6 +47,8 @@ class LvePipeline {
   void createShaderModule(const std::vector<char>& code, VkShaderModule* shaderModule);
 
   LveDevice& lveDevice;  // dangerous: if device is released before our pipeline is, dereferencing this would be unsafe
+  // However device should always outlive the pipeline
+
   VkPipeline graphicsPipeline;
   VkShaderModule vertShaderModule;
   VkShaderModule fragShaderModule;
