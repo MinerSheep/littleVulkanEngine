@@ -6,6 +6,8 @@
 #include <stdexcept>
 #include <vector>
 
+#include <assert.h>
+
 namespace lve {
 
 LvePipeline::LvePipeline(
@@ -145,6 +147,9 @@ void LvePipeline::createGraphicsPipeline(
   // std::cout << "Vertex Shader Code Size: " << vertCode.size() << '\n';
   // std::cout << "Fragment Shader Code Size: " << fragCode.size() << '\n';
 
+  assert(configInfo.pipelineLayout != VK_NULL_HANDLE && "Cannot create graphics pipeline without pipeline layout");
+  assert(configInfo.renderPass != VK_NULL_HANDLE && "Cannot create graphics pipeline without render pass");
+
   // more implementation to come I think
   createShaderModule(vertCode, &vertShaderModule);
   createShaderModule(fragCode, &fragShaderModule);
@@ -183,6 +188,7 @@ void LvePipeline::createGraphicsPipeline(
     pipelineInfo.pInputAssemblyState = &configInfo.inputAssemblyInfo;
     pipelineInfo.pViewportState = &configInfo.viewportInfo;
     pipelineInfo.pRasterizationState = &configInfo.rasterizationInfo;
+    pipelineInfo.pMultisampleState = &configInfo.multisampleInfo;
     pipelineInfo.pColorBlendState = &configInfo.colorBlendInfo;
     pipelineInfo.pDepthStencilState = &configInfo.depthStencilInfo;
     pipelineInfo.pDynamicState = nullptr; // optional - used for further configuration
