@@ -17,7 +17,7 @@ $(TARGET): *.cpp *.hpp
 
 # make shader targets
 %.spv: %
-	${GLSLC} $< -o $@
+	glslangValidator -V $< -o $@
 
 .PHONY: test clean
 
@@ -26,4 +26,4 @@ test: a.out
 
 clean:
 	rm -f a.out
-	rm -f *.spv
+	rm -f shaders/*.spv
