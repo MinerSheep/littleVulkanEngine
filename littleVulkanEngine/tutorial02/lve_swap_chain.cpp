@@ -371,6 +371,9 @@ VkSurfaceFormatKHR LveSwapChain::chooseSwapSurfaceFormat(
   return availableFormats[0];
 }
 
+// MAILBOX MODE: Never idle gpu, overwrites oldest buffer when idle
+// IMMEDIATE MODE: Use for FPS measuring, very expensive and overheats
+// FIFO MODE (default): Computes all buffers, then idles until a buffer is discarded
 VkPresentModeKHR LveSwapChain::chooseSwapPresentMode(
     const std::vector<VkPresentModeKHR> &availablePresentModes) {
   for (const auto &availablePresentMode : availablePresentModes) {

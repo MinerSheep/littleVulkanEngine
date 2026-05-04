@@ -50,13 +50,6 @@ LvePipeline::LvePipeline(
       pipelineInfo.scissor.offset = { 0, 0 };
       pipelineInfo.scissor.extent = {width, height};
 
-      // viewport info (viewport + scissor)
-      pipelineInfo.viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-      pipelineInfo.viewportInfo.viewportCount = 1;
-      pipelineInfo.viewportInfo.pViewports = &pipelineInfo.viewport;
-      pipelineInfo.viewportInfo.scissorCount = 1;
-      pipelineInfo.viewportInfo.pScissors = &pipelineInfo.scissor;
-
       // Rasterization stage, break up triangle into fragments for each pixel overlap
       pipelineInfo.rasterizationInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
       pipelineInfo.rasterizationInfo.depthClampEnable = VK_FALSE;  // forces z component to be [0, 1], 0 = behind camera, 1 = too far to see
@@ -179,6 +172,15 @@ void LvePipeline::createGraphicsPipeline(
       vertexInputInfo.pVertexAttributeDescriptions = nullptr;
       vertexInputInfo.pVertexBindingDescriptions = nullptr;
 
+      VkPipelineViewportStateCreateInfo viewportInfo{};
+
+      // viewport info (viewport + scissor)
+      viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+      viewportInfo.viewportCount = 1;
+      viewportInfo.pViewports = &configInfo.viewport;
+      viewportInfo.scissorCount = 1;
+      viewportInfo.pScissors = &configInfo.scissor;
+
     // put it all together - this is tedious, however, now the pipeline is easily reproduceable
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -186,7 +188,7 @@ void LvePipeline::createGraphicsPipeline(
     pipelineInfo.pStages = shaderStages;
     pipelineInfo.pVertexInputState = &vertexInputInfo;
     pipelineInfo.pInputAssemblyState = &configInfo.inputAssemblyInfo;
-    pipelineInfo.pViewportState = &configInfo.viewportInfo;
+    pipelineInfo.pViewportState = &viewportInfo;
     pipelineInfo.pRasterizationState = &configInfo.rasterizationInfo;
     pipelineInfo.pMultisampleState = &configInfo.multisampleInfo;
     pipelineInfo.pColorBlendState = &configInfo.colorBlendInfo;
