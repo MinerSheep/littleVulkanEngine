@@ -15,3 +15,5 @@ Can define PresentMode to MAILBOX, IMMEDIATE, OR FIFO.
 Fixed issue where viewportInfo from PipelineConfigInfo referenced local struct variables like viewport and scissor
 ^ THAT leads to an issue where silent shallow copying occurs and new objects reference viewport & scissor from the old object   
 In FirstApp, we create PIPELINE LAYOUT & RENDER PASS, along with changing pipelineConfig to a std::unique_ptr
+
+5_2 - **Command buffers overview**,
