@@ -26,9 +26,9 @@ void FirstApp::run() {
 }
 void sierpinski(std::vector<LveModel::Vertex> &vertices, int depth, glm::vec2 left, glm::vec2 right, glm::vec2 top) {
   if (depth <= 0) {
-    vertices.push_back({top});
-    vertices.push_back({right});
-    vertices.push_back({left});
+    vertices.push_back({top, {1.0f, 0.0f, 0.0f}});
+    vertices.push_back({right, {1.0f, 0.0f, 0.0f}});
+    vertices.push_back({left, {1.0f, 0.0f, 0.0f}});
   } else {
     auto leftTop = 0.5f * (left + top);
     auto rightTop = 0.5f * (right + top);
@@ -40,9 +40,9 @@ void sierpinski(std::vector<LveModel::Vertex> &vertices, int depth, glm::vec2 le
 }
 void FirstApp::loadModels() {
   std::vector<LveModel::Vertex> vertices {
-    {{0.0f, -0.5f}},
-    {{0.5f, 0.5f}},
-    {{-0.5f, 0.5f}}
+    {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
   };
 
   //sierpinski(vertices, 5, {-0.5f, 0.5f}, {0.5f, 0.5f}, {0.0f, -0.5f});

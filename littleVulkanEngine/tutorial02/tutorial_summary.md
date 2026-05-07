@@ -24,3 +24,8 @@ We bind these commandBuffers to the graphicsPipeline, and each drawFrame, reques
 6 - **Create vertex buffer**, we use a model that takes Vertex structs as vertices to create its vertexBuffer and memory
 We map the vertexBuffer to its memory and then memcpy it into a data ptr for us to use
 When creating the model, we just specify the vertices in a constructor list, now the model can be reused for binding and drawing with the command buffer
+
+7 - **Adding color output to vertex shader**, including in vec3 color; out vec3 fragColor;
+We can send color data based on a vertice to a frag shader.  If a position is not exactly on a vertice, it takes a barycentric coordinate between the vertices colors.
+In order to utilize this in code, all we have to do is alter the Vertex class within our model to include a color glm::vec3.  This way whenever we initialize a vertex, include the color.
+offsetof is a SUPER COOL macro you can use to determine byte offset of member variable within a class so use it.
