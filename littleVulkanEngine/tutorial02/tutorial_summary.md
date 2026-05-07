@@ -16,4 +16,7 @@ Fixed issue where viewportInfo from PipelineConfigInfo referenced local struct v
 ^ THAT leads to an issue where silent shallow copying occurs and new objects reference viewport & scissor from the old object   
 In FirstApp, we create PIPELINE LAYOUT & RENDER PASS, along with changing pipelineConfig to a std::unique_ptr
 
-5_2 - **Command buffers overview**,
+5_2 - **Command buffers overview**, primary command buffers are submitted to a queue for execution and can call 2ndary cmd buffers
+We create a commandBuffer pool, similar to a ThreadPool so that we can reuse allocated data
+Each commandBuffer is recorded and attributed to a frameBuffer so there's no resource confusion, it has 2 clear values for color and depth
+We bind these commandBuffers to the graphicsPipeline, and each drawFrame, request the commandBuffer w the next frameBuffer
