@@ -1,7 +1,8 @@
 #include "lve_model.hpp"
 #include <cstring>
 
-lve::LveModel::LveModel(LveDevice& device, const std::vector<Vertex>& vertices) {
+lve::LveModel::LveModel(LveDevice& device, const std::vector<Vertex>& vertices)
+    : lveDevice(device) {
     createVertexBuffers(vertices);
 }
 
@@ -11,16 +12,16 @@ lve::LveModel::~LveModel() {
 }
 
 void lve::LveModel::bind(VkCommandBuffer commandBuffer) {
-    // This is responsible for putting multiple shader variable offsets into a single vertex buffers I think
-    vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0);
-}
-
-void lve::LveModel::draw(VkCommandBuffer commandBuffer) {
     VkBuffer buffers[] = {vertexBuffer};
     VkDeviceSize offsets[] = {0};
 
     // Bind one vertex buffer starting at binding 0  with a {0} offset
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
+}
+
+void lve::LveModel::draw(VkCommandBuffer commandBuffer) {
+    // This is responsible for putting multiple shader variable offsets into a single vertex buffers I think
+    vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0);
 }
 
 void lve::LveModel::createVertexBuffers(const std::vector<Vertex>& vertices) {
@@ -40,4 +41,25 @@ void lve::LveModel::createVertexBuffers(const std::vector<Vertex>& vertices) {
     vkMapMemory(lveDevice.device(), vertexBufferMemory, 0, bufferSize, 0, &data);
     memcpy(data, vertices.data(), static_cast<size_t>(bufferSize));
     vkUnmapMemory(lveDevice.device(), vertexBufferMemory);
+}
+
+std::vector<VkVertexInputBindingDescription> lve::LveModel::Vertex::getBindingDescriptions()
+{
+    std::vector<VkVertexInputBindingDescription> bindingDescriptions(1);
+    bindingDescriptions[0].binding = 0;
+    bindingDescriptions[0].stride = sizeof(Vertex);
+    bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    return bindingDescriptions;
+}
+std::vector<VkVertexInputAttributeDescription> lve::LveModel::Vertex::getAttributeDescriptions()
+{
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions(1);
+
+    attributeDescriptions[0].binding = 0;
+    attributeDescriptions[0].location = 0;
+    attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+    attributeDescriptions[0].offset = 0;
+
+    return attributeDescriptions;
+
 }

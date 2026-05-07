@@ -3,6 +3,7 @@
 
 namespace lve {
 FirstApp::FirstApp() {
+  loadModels();
   createPipelineLayout();
   createPipeline();
   createCommandBuffers();
@@ -22,6 +23,31 @@ void FirstApp::run() {
   // If you get many messages on close, it's likely because a command buffer was still being executed
   // This is the fix
   vkDeviceWaitIdle(lveDevice.device());
+}
+void sierpinski(std::vector<LveModel::Vertex> &vertices, int depth, glm::vec2 left, glm::vec2 right, glm::vec2 top) {
+  if (depth <= 0) {
+    vertices.push_back({top});
+    vertices.push_back({right});
+    vertices.push_back({left});
+  } else {
+    auto leftTop = 0.5f * (left + top);
+    auto rightTop = 0.5f * (right + top);
+    auto leftRight = 0.5f * (left + right);
+    sierpinski(vertices, depth - 1, left, leftRight, leftTop);
+    sierpinski(vertices, depth - 1, leftRight, right, rightTop);
+    sierpinski(vertices, depth - 1, leftTop, rightTop, top);
+  }
+}
+void FirstApp::loadModels() {
+  std::vector<LveModel::Vertex> vertices {
+    {{0.0f, -0.5f}},
+    {{0.5f, 0.5f}},
+    {{-0.5f, 0.5f}}
+  };
+
+  //sierpinski(vertices, 5, {-0.5f, 0.5f}, {0.5f, 0.5f}, {0.0f, -0.5f});
+
+  lveModel = std::make_unique<LveModel>(lveDevice, vertices);
 }
 void FirstApp::createPipelineLayout() {
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -98,7 +124,9 @@ void FirstApp::createCommandBuffers() {
 
     lvePipeline->bind(commandBuffers[i]);
     // 3 vertices, 1 instance, firstIndex, firstInstance
-    vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
+    // vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
+    lveModel->bind(commandBuffers[i]);
+    lveModel->draw(commandBuffers[i]);
 
     // end recording
     vkCmdEndRenderPass(commandBuffers[i]);
