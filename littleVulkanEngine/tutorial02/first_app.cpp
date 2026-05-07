@@ -16,7 +16,12 @@ FirstApp::~FirstApp() {
 void FirstApp::run() {
   while (!lveWindow.shouldClose()) {
     glfwPollEvents();
+    drawFrame();
   }
+
+  // If you get many messages on close, it's likely because a command buffer was still being executed
+  // This is the fix
+  vkDeviceWaitIdle(lveDevice.device());
 }
 void FirstApp::createPipelineLayout() {
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -90,7 +95,28 @@ void FirstApp::createCommandBuffers() {
 
     // Inline here means that renderPass will be embedded in the commandBuffers
     vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    lvePipeline->bind(commandBuffers[i]);
+    // 3 vertices, 1 instance, firstIndex, firstInstance
+    vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
+
+    // end recording
+    vkCmdEndRenderPass(commandBuffers[i]);
+    if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS)
+      throw std::runtime_error("Failed to record command buffer");
   }
 }
-void FirstApp::drawFrame() {}
+void FirstApp::drawFrame() {
+  uint32_t imageIndex;
+  // Fetch the next index in renderFrame
+  auto result = lveSwapChain.acquireNextImage(&imageIndex);
+
+  if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+    throw std::runtime_error("Failed to acquire swapChain image!");
+
+  result = lveSwapChain.submitCommandBuffers(&commandBuffers[imageIndex], &imageIndex);
+  if (result != VK_SUCCESS)
+    throw std::runtime_error("Failed to draw frame!");
+
+}
 }  // namespace lve

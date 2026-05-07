@@ -28,6 +28,12 @@ LvePipeline::LvePipeline(
       vkDestroyPipeline(lveDevice.device(), graphicsPipeline, nullptr);
     }
 
+    void LvePipeline::bind(VkCommandBuffer commandBuffer) {
+      // Need to signal that this is a graphics pipeline we are binding to
+      // (Other pipelines include COMPUTE and RAY TRACE pipelines)
+      vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+    }
+
     PipelineConfigInfo LvePipeline::defaultPipelineConfigInfo(uint32_t width, uint32_t height) {
       PipelineConfigInfo pipelineInfo{};
 
