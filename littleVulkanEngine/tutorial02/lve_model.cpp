@@ -39,7 +39,7 @@ void lve::LveModel::createVertexBuffers(const std::vector<Vertex>& vertices) {
     void* data;
     // This makes it so we have a ptr to vertexData on our Host CPU and we can write to it, which flushes to the Device GPU 
     vkMapMemory(lveDevice.device(), vertexBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, vertices.data(), static_cast<size_t>(bufferSize));
+    memcpy(data, vertices.data(), static_cast<size_t>(bufferSize));  // will copy the new color data as well
     vkUnmapMemory(lveDevice.device(), vertexBufferMemory);
 }
 
@@ -47,18 +47,23 @@ std::vector<VkVertexInputBindingDescription> lve::LveModel::Vertex::getBindingDe
 {
     std::vector<VkVertexInputBindingDescription> bindingDescriptions(1);
     bindingDescriptions[0].binding = 0;
-    bindingDescriptions[0].stride = sizeof(Vertex);
+    bindingDescriptions[0].stride = sizeof(Vertex);  // stride is adjusted to match any changes to a Vertex's description
     bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
     return bindingDescriptions;
 }
 std::vector<VkVertexInputAttributeDescription> lve::LveModel::Vertex::getAttributeDescriptions()
 {
-    std::vector<VkVertexInputAttributeDescription> attributeDescriptions(1);
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions(2);
 
     attributeDescriptions[0].binding = 0;
     attributeDescriptions[0].location = 0;
     attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
-    attributeDescriptions[0].offset = 0;
+    attributeDescriptions[0].offset = offsetof(Vertex, position);
+
+    attributeDescriptions[1].binding = 0;
+    attributeDescriptions[1].location = 1; // match location used in vertex shader
+    attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    attributeDescriptions[1].offset = offsetof(Vertex, color);
 
     return attributeDescriptions;
 
