@@ -28,12 +28,14 @@ class FirstApp {
   void createPipeline();
   void createCommandBuffers();
   void drawFrame();
+  void recreateSwapChain();
+  void recordCommandBuffer(int imageIndex);
 
   // ORDER MATTERS!
   // Initialize from top to bottom, DESTROY from bottom to top
   LveWindow lveWindow{WIDTH, HEIGHT, "Hello Vulkan!"};
   LveDevice lveDevice{lveWindow};
-  LveSwapChain lveSwapChain{lveDevice, lveWindow.getExtent()};
+  std::unique_ptr<LveSwapChain> lveSwapChain; // {lveDevice, lveWindow.getExtent()};
   std::unique_ptr<LvePipeline> lvePipeline; // {lveDevice, "shaders/simple_shader.vert.spv", "shaders/simple_shader.frag.spv", LvePipeline::defaultPipelineConfigInfo(WIDTH, HEIGHT)};
   VkPipelineLayout pipelineLayout;
   std::vector<VkCommandBuffer> commandBuffers;

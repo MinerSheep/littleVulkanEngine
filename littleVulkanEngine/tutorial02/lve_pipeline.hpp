@@ -8,6 +8,9 @@
 namespace lve {
   // we want our app to be able to configure the pipeline and share the config info
   struct PipelineConfigInfo {
+  PipelineConfigInfo(const PipelineConfigInfo&) = delete;
+  PipelineConfigInfo& operator=(const PipelineConfigInfo&) = delete;
+
   VkViewport viewport;
   VkRect2D scissor;
   VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo; // <-
@@ -30,7 +33,7 @@ class LvePipeline {
 
   // delete copy constructors
   LvePipeline(const LvePipeline& other) = delete;
-  void operator=(const LvePipeline& other) = delete;
+  LvePipeline& operator=(const LvePipeline& other) = delete;
 
   // WRONG move operation, not copy
   LvePipeline(LvePipeline && other) = delete;

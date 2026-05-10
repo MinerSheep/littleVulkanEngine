@@ -29,3 +29,6 @@ When creating the model, we just specify the vertices in a constructor list, now
 We can send color data based on a vertice to a frag shader.  If a position is not exactly on a vertice, it takes a barycentric coordinate between the vertices colors.
 In order to utilize this in code, all we have to do is alter the Vertex class within our model to include a color glm::vec3.  This way whenever we initialize a vertex, include the color.
 offsetof is a SUPER COOL macro you can use to determine byte offset of member variable within a class so use it.
+
+8 - **Resizing window means recreating swap chain & viewport** - This happens because swap chain works with a const window size
+Instead of initializing the swapchain and command buffer at startup, we check if its dirty inside the DrawFrame function
