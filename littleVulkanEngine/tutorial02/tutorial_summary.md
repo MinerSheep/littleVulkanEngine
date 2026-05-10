@@ -31,4 +31,8 @@ In order to utilize this in code, all we have to do is alter the Vertex class wi
 offsetof is a SUPER COOL macro you can use to determine byte offset of member variable within a class so use it.
 
 8 - **Resizing window means recreating swap chain & viewport** - This happens because swap chain works with a const window size
+Callback listens to GLFW Window changes
 Instead of initializing the swapchain and command buffer at startup, we check if its dirty inside the DrawFrame function
+Using a dynamic viewport so that the graphics pipeline is no longer dependent  (on the swapchain's dimensions)
+
+RenderPass is a BLUEPRINT for the GraphicsPipeline to know what to expect from a FrameBuffer

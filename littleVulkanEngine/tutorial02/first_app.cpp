@@ -72,8 +72,11 @@ void FirstApp::createPipelineLayout() {
   }
 }
 void FirstApp::createPipeline() {
-  auto pipelineConfig =
-      LvePipeline::defaultPipelineConfigInfo(lveSwapChain->width(), lveSwapChain->height());
+  assert(lveSwapChain != nullptr && "Cannot create pipeline before swap chain");
+  assert(pipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
+
+  PipelineConfigInfo pipelineConfig{};
+  LvePipeline::defaultPipelineConfigInfo(pipelineConfig);
   pipelineConfig.renderPass = lveSwapChain->getRenderPass();  // render pass describes structure and
                                                               // format of our frame buffer objects
   pipelineConfig.pipelineLayout = pipelineLayout;
@@ -96,15 +99,17 @@ void FirstApp::createCommandBuffers() {
                                                       // execution, CANNOT be called by others
   // secondary CANNOT be submitted to queue, so must be called by a PRIMARY command buffer
 
-  allocInfo.commandPool =
-      lveDevice
-          .getCommandPool();  // commandBuffers need a pool so that memory allocation is done ONCE
+  allocInfo.commandPool = lveDevice.getCommandPool();  // commandBuffers need a pool so that memory allocation is done ONCE
   allocInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
 
   if (vkAllocateCommandBuffers(lveDevice.device(), &allocInfo, commandBuffers.data()) !=
       VK_SUCCESS) {
     throw std::runtime_error("Failed to allocate command buffers");
   }
+}
+void FirstApp::freeCommandBuffers() {
+  vkFreeCommandBuffers(lveDevice.device(), lveDevice.getCommandPool(), static_cast<float>(commandBuffers.size()), commandBuffers.data());
+  commandBuffers.clear();
 }
 void FirstApp::drawFrame() {
   uint32_t imageIndex;
@@ -142,7 +147,22 @@ void FirstApp::recreateSwapChain() {
   }
 
   vkDeviceWaitIdle(lveDevice.device());
-  lveSwapChain = std::make_unique<LveSwapChain>(lveDevice, extent);
+
+  // std::move sets old value to nullptr to prevent memory issues since we no longer need it
+  if (lveSwapChain == nullptr)
+    lveSwapChain = std::make_unique<LveSwapChain>(lveDevice, extent);
+  else
+  {
+    lveSwapChain = std::make_unique<LveSwapChain>(lveDevice, extent, std::move(lveSwapChain));
+    if (lveSwapChain->imageCount() != commandBuffers.size())
+    {
+      freeCommandBuffers();
+      createCommandBuffers();
+    }
+  }
+
+  // Good idea to check render pass compatibility here.  If its compatible then pipeline doesnt need to be recreated
+  // Since it can use the same blueprint for submitted framebuffers and be just fine
   createPipeline();
 }
 void FirstApp::recordCommandBuffer(int imageIndex) {
@@ -172,6 +192,18 @@ void FirstApp::recordCommandBuffer(int imageIndex) {
 
   // Inline here means that renderPass will be embedded in the commandBuffers
   vkCmdBeginRenderPass(commandBuffers[imageIndex], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+  // Dynamically recompute viewport BEFORE submitting the command buffer
+  VkViewport viewport{};
+  viewport.x = 0.0f;
+  viewport.y = 0.0f;
+  viewport.width = static_cast<float>(lveSwapChain->getSwapChainExtent().width);
+  viewport.height = static_cast<float>(lveSwapChain->getSwapChainExtent().height);
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+  VkRect2D scissor{{0, 0}, lveSwapChain->getSwapChainExtent()};
+  vkCmdSetViewport(commandBuffers[imageIndex], 0, 1, &viewport);
+  vkCmdSetScissor(commandBuffers[imageIndex], 0, 1, &scissor);
 
   lvePipeline->bind(commandBuffers[imageIndex]);
   // 3 vertices, 1 instance, firstIndex, firstInstance
