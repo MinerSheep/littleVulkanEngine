@@ -10,27 +10,28 @@
 #include <stdexcept>
 
 namespace lve {
-  
-  LveSwapChain::LveSwapChain(LveDevice &deviceRef, VkExtent2D extent)
-  : device{deviceRef}, windowExtent{extent} {
-    init();  
-  }
-  LveSwapChain::LveSwapChain(LveDevice &deviceRef, VkExtent2D extent, std::shared_ptr<LveSwapChain> previous)
-  : device{deviceRef}, windowExtent{extent}, oldSwapChain{previous} {
-    init();  
 
-    // clean up old swap chain
-    oldSwapChain = nullptr;
-  }
+LveSwapChain::LveSwapChain(LveDevice& deviceRef, VkExtent2D extent)
+    : device{deviceRef}, windowExtent{extent} {
+  init();
+}
+LveSwapChain::LveSwapChain(
+    LveDevice& deviceRef, VkExtent2D extent, std::shared_ptr<LveSwapChain> previous)
+    : device{deviceRef}, windowExtent{extent}, oldSwapChain{previous} {
+  init();
 
-  void LveSwapChain::init() {
-    createSwapChain();
-    createImageViews();
-    createRenderPass();
-    createDepthResources();
-    createFramebuffers();
-    createSyncObjects();
-  }
+  // clean up old swap chain
+  oldSwapChain = nullptr;
+}
+
+void LveSwapChain::init() {
+  createSwapChain();
+  createImageViews();
+  createRenderPass();
+  createDepthResources();
+  createFramebuffers();
+  createSyncObjects();
+}
 
 LveSwapChain::~LveSwapChain() {
   for (auto imageView : swapChainImageViews) {
@@ -63,7 +64,7 @@ LveSwapChain::~LveSwapChain() {
   }
 }
 
-VkResult LveSwapChain::acquireNextImage(uint32_t *imageIndex) {
+VkResult LveSwapChain::acquireNextImage(uint32_t* imageIndex) {
   vkWaitForFences(
       device.device(),
       1,
@@ -82,8 +83,7 @@ VkResult LveSwapChain::acquireNextImage(uint32_t *imageIndex) {
   return result;
 }
 
-VkResult LveSwapChain::submitCommandBuffers(
-    const VkCommandBuffer *buffers, uint32_t *imageIndex) {
+VkResult LveSwapChain::submitCommandBuffers(const VkCommandBuffer* buffers, uint32_t* imageIndex) {
   if (imagesInFlight[*imageIndex] != VK_NULL_HANDLE) {
     vkWaitForFences(device.device(), 1, &imagesInFlight[*imageIndex], VK_TRUE, UINT64_MAX);
   }
@@ -129,7 +129,6 @@ VkResult LveSwapChain::submitCommandBuffers(
 
   return result;
 }
-
 
 void LveSwapChain::createSwapChain() {
   SwapChainSupportDetails swapChainSupport = device.getSwapChainSupport();
@@ -301,6 +300,7 @@ void LveSwapChain::createFramebuffers() {
 
 void LveSwapChain::createDepthResources() {
   VkFormat depthFormat = findDepthFormat();
+  swapChainDepthFormat = depthFormat;
   VkExtent2D swapChainExtent = getSwapChainExtent();
 
   depthImages.resize(imageCount());
@@ -372,8 +372,8 @@ void LveSwapChain::createSyncObjects() {
 }
 
 VkSurfaceFormatKHR LveSwapChain::chooseSwapSurfaceFormat(
-    const std::vector<VkSurfaceFormatKHR> &availableFormats) {
-  for (const auto &availableFormat : availableFormats) {
+    const std::vector<VkSurfaceFormatKHR>& availableFormats) {
+  for (const auto& availableFormat : availableFormats) {
     if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
         availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
       return availableFormat;
@@ -387,8 +387,8 @@ VkSurfaceFormatKHR LveSwapChain::chooseSwapSurfaceFormat(
 // IMMEDIATE MODE: Use for FPS measuring, very expensive and overheats
 // FIFO MODE (default): Computes all buffers, then idles until a buffer is discarded
 VkPresentModeKHR LveSwapChain::chooseSwapPresentMode(
-    const std::vector<VkPresentModeKHR> &availablePresentModes) {
-  for (const auto &availablePresentMode : availablePresentModes) {
+    const std::vector<VkPresentModeKHR>& availablePresentModes) {
+  for (const auto& availablePresentMode : availablePresentModes) {
     if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
       std::cout << "Present mode: Mailbox" << std::endl;
       return availablePresentMode;
@@ -406,7 +406,7 @@ VkPresentModeKHR LveSwapChain::chooseSwapPresentMode(
   return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D LveSwapChain::chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities) {
+VkExtent2D LveSwapChain::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
   if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
     return capabilities.currentExtent;
   } else {

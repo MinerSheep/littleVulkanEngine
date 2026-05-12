@@ -50,3 +50,5 @@ Add a frame counter integer to the push constant offset and it makes an animatio
 
 10 - **Rendering game objects** - Storing translation, rotation, scale within entities, we can pass these to vulkan for rendering
 vec4(push.transform * position + push.offset, 0.0, 1.0); where push.transform is the scale * rotation,  offset is the translation
+
+11 - **Refactoring** - Strip out implementation from first_app into renderer component and system 
