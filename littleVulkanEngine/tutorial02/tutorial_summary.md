@@ -36,3 +36,14 @@ Instead of initializing the swapchain and command buffer at startup, we check if
 Using a dynamic viewport so that the graphics pipeline is no longer dependent  (on the swapchain's dimensions)
 
 RenderPass is a BLUEPRINT for the GraphicsPipeline to know what to expect from a FrameBuffer
+
+9 - **Push constants and animations** - Allows us to communicate data to both shaders, problem is that its a CONST size & shared between both shaders
+When defining push constant range in CREATE PIPELINE...
+Stage flags - Which shaders will utilize push constant data
+Offset - where does data for this stage begin
+Size - How many bytes of data are we reading
+
+Record data SimplePushConstantData push{}; and submit using vkCmdPushConstants --- IMPORTANT: PUSHDATA SHOULD BE 16 BYTE ALIGNED
+Shaders read x y - - / r g b -
+
+Add a frame counter integer to the push constant offset and it makes an animation!

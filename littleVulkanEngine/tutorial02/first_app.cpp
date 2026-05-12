@@ -1,8 +1,22 @@
 #include "first_app.hpp"
 
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE // necessary for vulkan, glfw uses -1 to 1 depth by default
+#include <glm/glm.hpp>
+
 #include <stdexcept>
 
 namespace lve {
+
+// alignas is NECESSARY here!
+// Push constants have alignment requirements.  Every entry is aligned to 16 bytes
+// / marks 16 bytes
+// Incorrect: x y r g / b - - -      Correct: x y - - / r g b - 
+struct SimplePushConstantData {
+  glm::vec2 offset;
+  alignas(16) glm::vec3 color;
+};
+
 FirstApp::FirstApp() {
   loadModels();
   createPipelineLayout();
@@ -56,6 +70,15 @@ void FirstApp::loadModels() {
   lveModel = std::make_unique<LveModel>(lveDevice, vertices);
 }
 void FirstApp::createPipelineLayout() {
+
+  // This is us PREDEFINING our **push constant range**
+  // stageFlags set to both shaders
+  // size is set to a PREDEFINED struct of what we want our pushdata to contain
+  VkPushConstantRange pushConstantRange{};
+  pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+  pushConstantRange.offset = 0; // (offset only used if you separate vertex and frag data)
+  pushConstantRange.size = sizeof(SimplePushConstantData);
+
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 
@@ -63,8 +86,8 @@ void FirstApp::createPipelineLayout() {
   pipelineLayoutInfo.setLayoutCount = 0;
   pipelineLayoutInfo.pSetLayouts = nullptr;
   // Sends small data to shader programs
-  pipelineLayoutInfo.pushConstantRangeCount = 0;
-  pipelineLayoutInfo.pPushConstantRanges = nullptr;
+  pipelineLayoutInfo.pushConstantRangeCount = 1;
+  pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
   if (vkCreatePipelineLayout(lveDevice.device(), &pipelineLayoutInfo, nullptr, &pipelineLayout) !=
       VK_SUCCESS) {
@@ -166,6 +189,8 @@ void FirstApp::recreateSwapChain() {
   createPipeline();
 }
 void FirstApp::recordCommandBuffer(int imageIndex) {
+  static int frame = 0;
+  frame = (frame + 1) % 100;
   // Record our draw commands to each buffer
   VkCommandBufferBeginInfo beginInfo{};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -185,7 +210,7 @@ void FirstApp::recordCommandBuffer(int imageIndex) {
 
   // Clear values - what we want initial value of A FRAME BUFFER to be after it is cleared
   std::array<VkClearValue, 2> clearValues{};
-  clearValues[0].color = {0.1f, 0.1f, 0.1f, 1.0f};  // first element
+  clearValues[0].color = {0.01f, 0.01f, 0.01f, 1.0f};  // first element
   clearValues[1].depthStencil = {1.0f, 0};          // 2nd element
   renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
   renderPassInfo.pClearValues = clearValues.data();
@@ -209,7 +234,25 @@ void FirstApp::recordCommandBuffer(int imageIndex) {
   // 3 vertices, 1 instance, firstIndex, firstInstance
   // vkCmdDraw(commandBuffers[imageIndex], 3, 1, 0, 0);
   lveModel->bind(commandBuffers[imageIndex]);
-  lveModel->draw(commandBuffers[imageIndex]);
+
+  // This
+  for (int j = 0; j < 4; j++) {
+    SimplePushConstantData push{};
+    push.offset = {-0.5f + frame * 0.02f, -0.4f + j * 0.25f};
+    push.color = {0.0f, 0.0f, 0.2f + 0.2f * j};
+
+    // RECORD our push constant data
+    vkCmdPushConstants(
+        commandBuffers[imageIndex],
+        pipelineLayout,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+        0,
+        sizeof(SimplePushConstantData),
+        &push);
+    
+    // draws 4 copies of model
+    lveModel->draw(commandBuffers[imageIndex]);
+  }
 
   // end recording
   vkCmdEndRenderPass(commandBuffers[imageIndex]);
