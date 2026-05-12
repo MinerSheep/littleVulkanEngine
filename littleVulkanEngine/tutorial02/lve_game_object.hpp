@@ -16,9 +16,16 @@ struct Transform2dComponent {
   glm::mat2 mat2() {
     const float s = glm::sin(rotation);
     const float c = glm::cos(rotation);
-    glm::mat2 rotMatrix{{c, s}, {-s, c}};
+    glm::mat2 rotMatrix{{c, s}, {-s, c}};  // rotation matrix
+    /*
+    [cos 0  -sin 0]
+    [sin 0   cos 0]
+    */
 
+    // GLM MATRIX CONSTRUCTOR constructs by COLUMNS
     glm::mat2 scaleMat{{scale.x, .0f}, {.0f, scale.y}};
+    // scale * rot = 3d effect
+    // rot * scale = 2d effect
     return rotMatrix * scaleMat;
   }
 };

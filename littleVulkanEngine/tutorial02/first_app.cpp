@@ -1,9 +1,9 @@
 #include "first_app.hpp"
 
 #define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE // necessary for vulkan, glfw uses -1 to 1 depth by default
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE  // necessary for vulkan, glfw uses -1 to 1 depth by default
 #include <glm/glm.hpp>
-
+#include <glm/gtc/constants.hpp>
 #include <stdexcept>
 
 namespace lve {
@@ -11,10 +11,10 @@ namespace lve {
 // alignas is NECESSARY here!
 // Push constants have alignment requirements.  Every entry is aligned to 16 bytes
 // / marks 16 bytes
-// Incorrect: x y r g / b - - -      Correct: x y - - / r g b - 
+// Incorrect: x y r g / b - - -      Correct: x y - - / r g b -
 struct SimplePushConstantData {
-  glm::mat2 transform{1.f};  // IDENTITY matrix
-  glm::vec2 offset; // 8 bytes - divisible by 4, fine!
+  glm::mat2 transform{1.f};     // IDENTITY matrix
+  glm::vec2 offset;             // 8 bytes - divisible by 4, fine!
   alignas(16) glm::vec3 color;  // bad because 12 bytes upscales to 16 bytes
 };
 
@@ -72,19 +72,22 @@ void FirstApp::loadGameObjects() {
 
   auto triangle = LveGameObject::createGameObject();
   triangle.model = lveModel;
-  triangle.color = {.1f,.8f,.1f};
+  triangle.color = {.1f, .8f, .1f};
   triangle.transform2d.translation.x = .2f;
+  triangle.transform2d.scale = {2.f, .5f};
+  // we are using radians.  So 2pi is 360 degrees.  We are taking .25 of that which is 90 degrees
+  // clockwise.
+  triangle.transform2d.rotation = .25f * glm::two_pi<float>();
 
   gameObjects.push_back(std::move(triangle));
 }
 void FirstApp::createPipelineLayout() {
-
   // This is us PREDEFINING our **push constant range**
   // stageFlags set to both shaders
   // size is set to a PREDEFINED struct of what we want our pushdata to contain
   VkPushConstantRange pushConstantRange{};
   pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-  pushConstantRange.offset = 0; // (offset only used if you separate vertex and frag data)
+  pushConstantRange.offset = 0;  // (offset only used if you separate vertex and frag data)
   pushConstantRange.size = sizeof(SimplePushConstantData);
 
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -130,7 +133,9 @@ void FirstApp::createCommandBuffers() {
                                                       // execution, CANNOT be called by others
   // secondary CANNOT be submitted to queue, so must be called by a PRIMARY command buffer
 
-  allocInfo.commandPool = lveDevice.getCommandPool();  // commandBuffers need a pool so that memory allocation is done ONCE
+  allocInfo.commandPool =
+      lveDevice
+          .getCommandPool();  // commandBuffers need a pool so that memory allocation is done ONCE
   allocInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
 
   if (vkAllocateCommandBuffers(lveDevice.device(), &allocInfo, commandBuffers.data()) !=
@@ -139,7 +144,11 @@ void FirstApp::createCommandBuffers() {
   }
 }
 void FirstApp::freeCommandBuffers() {
-  vkFreeCommandBuffers(lveDevice.device(), lveDevice.getCommandPool(), static_cast<float>(commandBuffers.size()), commandBuffers.data());
+  vkFreeCommandBuffers(
+      lveDevice.device(),
+      lveDevice.getCommandPool(),
+      static_cast<float>(commandBuffers.size()),
+      commandBuffers.data());
   commandBuffers.clear();
 }
 void FirstApp::drawFrame() {
@@ -182,23 +191,19 @@ void FirstApp::recreateSwapChain() {
   // std::move sets old value to nullptr to prevent memory issues since we no longer need it
   if (lveSwapChain == nullptr)
     lveSwapChain = std::make_unique<LveSwapChain>(lveDevice, extent);
-  else
-  {
+  else {
     lveSwapChain = std::make_unique<LveSwapChain>(lveDevice, extent, std::move(lveSwapChain));
-    if (lveSwapChain->imageCount() != commandBuffers.size())
-    {
+    if (lveSwapChain->imageCount() != commandBuffers.size()) {
       freeCommandBuffers();
       createCommandBuffers();
     }
   }
 
-  // Good idea to check render pass compatibility here.  If its compatible then pipeline doesnt need to be recreated
-  // Since it can use the same blueprint for submitted framebuffers and be just fine
+  // Good idea to check render pass compatibility here.  If its compatible then pipeline doesnt need
+  // to be recreated Since it can use the same blueprint for submitted framebuffers and be just fine
   createPipeline();
 }
 void FirstApp::recordCommandBuffer(int imageIndex) {
-  static int frame = 0;
-  frame = (frame + 1) % 100;
   // Record our draw commands to each buffer
   VkCommandBufferBeginInfo beginInfo{};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -219,7 +224,7 @@ void FirstApp::recordCommandBuffer(int imageIndex) {
   // Clear values - what we want initial value of A FRAME BUFFER to be after it is cleared
   std::array<VkClearValue, 2> clearValues{};
   clearValues[0].color = {0.01f, 0.01f, 0.01f, 1.0f};  // first element
-  clearValues[1].depthStencil = {1.0f, 0};          // 2nd element
+  clearValues[1].depthStencil = {1.0f, 0};             // 2nd element
   renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
   renderPassInfo.pClearValues = clearValues.data();
 
@@ -238,33 +243,65 @@ void FirstApp::recordCommandBuffer(int imageIndex) {
   vkCmdSetViewport(commandBuffers[imageIndex], 0, 1, &viewport);
   vkCmdSetScissor(commandBuffers[imageIndex], 0, 1, &scissor);
 
-  lvePipeline->bind(commandBuffers[imageIndex]);
-  // 3 vertices, 1 instance, firstIndex, firstInstance
-  // vkCmdDraw(commandBuffers[imageIndex], 3, 1, 0, 0);
-  lveModel->bind(commandBuffers[imageIndex]);
+  renderGameObjects(commandBuffers[imageIndex]);
+  {
+    /*
+    static int frame = 0;
+    frame = (frame + 1) % 100;
 
-  // This
-  for (int j = 0; j < 4; j++) {
-    SimplePushConstantData push{};
-    push.offset = {-0.5f + frame * 0.02f, -0.4f + j * 0.25f};
-    push.color = {0.0f, 0.0f, 0.2f + 0.2f * j};
+    lvePipeline->bind(commandBuffers[imageIndex]);
+    // 3 vertices, 1 instance, firstIndex, firstInstance
+    // vkCmdDraw(commandBuffers[imageIndex], 3, 1, 0, 0);
+    lveModel->bind(commandBuffers[imageIndex]);
 
-    // RECORD our push constant data
-    vkCmdPushConstants(
-        commandBuffers[imageIndex],
-        pipelineLayout,
-        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-        0,
-        sizeof(SimplePushConstantData),
-        &push);
-    
-    // draws 4 copies of model
-    lveModel->draw(commandBuffers[imageIndex]);
+    // This
+    for (int j = 0; j < 4; j++) {
+      SimplePushConstantData push{};
+      push.offset = {-0.5f + frame * 0.02f, -0.4f + j * 0.25f};
+      push.color = {0.0f, 0.0f, 0.2f + 0.2f * j};
+
+      // RECORD our push constant data
+      vkCmdPushConstants(
+          commandBuffers[imageIndex],
+          pipelineLayout,
+          VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+          0,
+          sizeof(SimplePushConstantData),
+          &push);
+
+      draws 4 copies of model
+      lveModel->draw(commandBuffers[imageIndex]);
+    }
+    */
   }
 
   // end recording
   vkCmdEndRenderPass(commandBuffers[imageIndex]);
   if (vkEndCommandBuffer(commandBuffers[imageIndex]) != VK_SUCCESS)
     throw std::runtime_error("Failed to record command buffer");
+}
+void FirstApp::renderGameObjects(VkCommandBuffer commandBuffer) {
+  lvePipeline->bind(commandBuffer);
+
+  for (auto& obj : gameObjects) {
+    obj.transform2d.rotation = glm::mod(obj.transform2d.rotation + 0.01f, glm::two_pi<float>());
+    
+    SimplePushConstantData push{};
+    push.offset = obj.transform2d.translation;
+    push.color = obj.color;
+    push.transform = obj.transform2d.mat2();
+
+    // RECORD our push constant data
+    vkCmdPushConstants(
+        commandBuffer,
+        pipelineLayout,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+        0,
+        sizeof(SimplePushConstantData),
+        &push);
+
+    obj.model->bind(commandBuffer);
+    obj.model->draw(commandBuffer);
+  }
 }
 }  // namespace lve

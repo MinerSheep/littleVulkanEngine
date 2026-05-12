@@ -47,3 +47,6 @@ Record data SimplePushConstantData push{}; and submit using vkCmdPushConstants -
 Shaders read x y - - / r g b -
 
 Add a frame counter integer to the push constant offset and it makes an animation!
+
+10 - **Rendering game objects** - Storing translation, rotation, scale within entities, we can pass these to vulkan for rendering
+vec4(push.transform * position + push.offset, 0.0, 1.0); where push.transform is the scale * rotation,  offset is the translation
