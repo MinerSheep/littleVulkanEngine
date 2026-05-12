@@ -43,7 +43,7 @@ void LveRenderer::recreateSwapChain() {
 
 void LveRenderer::createCommandBuffers() {
   // It is simplest to give each frameBuffer its own commandBuffer to record with, since it needs to
-  // be done every frame
+  // be done every frame.  MAX_FRAMES_IN_FLIGHT is 2 currently
   commandBuffers.resize(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
 
   VkCommandBufferAllocateInfo allocInfo{};
