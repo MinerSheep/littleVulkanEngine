@@ -13,12 +13,13 @@ namespace lve {
 // / marks 16 bytes
 // Incorrect: x y r g / b - - -      Correct: x y - - / r g b - 
 struct SimplePushConstantData {
-  glm::vec2 offset;
-  alignas(16) glm::vec3 color;
+  glm::mat2 transform{1.f};  // IDENTITY matrix
+  glm::vec2 offset; // 8 bytes - divisible by 4, fine!
+  alignas(16) glm::vec3 color;  // bad because 12 bytes upscales to 16 bytes
 };
 
 FirstApp::FirstApp() {
-  loadModels();
+  loadGameObjects();
   createPipelineLayout();
   recreateSwapChain();
   createCommandBuffers();
@@ -59,7 +60,7 @@ void sierpinski(
     sierpinski(vertices, depth - 1, leftTop, rightTop, top);
   }
 }
-void FirstApp::loadModels() {
+void FirstApp::loadGameObjects() {
   std::vector<LveModel::Vertex> vertices{
       {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
       {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
@@ -67,7 +68,14 @@ void FirstApp::loadModels() {
 
   // sierpinski(vertices, 5, {-0.5f, 0.5f}, {0.5f, 0.5f}, {0.0f, -0.5f});
 
-  lveModel = std::make_unique<LveModel>(lveDevice, vertices);
+  auto lveModel = std::make_shared<LveModel>(lveDevice, vertices);
+
+  auto triangle = LveGameObject::createGameObject();
+  triangle.model = lveModel;
+  triangle.color = {.1f,.8f,.1f};
+  triangle.transform2d.translation.x = .2f;
+
+  gameObjects.push_back(std::move(triangle));
 }
 void FirstApp::createPipelineLayout() {
 

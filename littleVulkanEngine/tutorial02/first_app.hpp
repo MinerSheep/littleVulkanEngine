@@ -2,8 +2,8 @@
 
 #include "lve_pipeline.hpp"
 #include "lve_window.hpp"
+#include "lve_game_object.hpp"
 #include "lve_swap_chain.hpp"
-#include "lve_model.hpp"
 
 #include <memory>
 #include <vector>
@@ -23,7 +23,7 @@ class FirstApp {
   void run();
 
  private:
-  void loadModels();
+  void loadGameObjects();
   void createPipelineLayout();
   void createPipeline();
   void createCommandBuffers();
@@ -31,6 +31,7 @@ class FirstApp {
   void drawFrame();
   void recreateSwapChain();
   void recordCommandBuffer(int imageIndex);
+  void renderGameObjects(VkCommandBuffer commandBuffer);
 
   // ORDER MATTERS!
   // Initialize from top to bottom, DESTROY from bottom to top
@@ -40,6 +41,6 @@ class FirstApp {
   std::unique_ptr<LvePipeline> lvePipeline; // {lveDevice, "shaders/simple_shader.vert.spv", "shaders/simple_shader.frag.spv", LvePipeline::defaultPipelineConfigInfo(WIDTH, HEIGHT)};
   VkPipelineLayout pipelineLayout;
   std::vector<VkCommandBuffer> commandBuffers;
-  std::unique_ptr<LveModel> lveModel;
+  std::vector<LveGameObject> gameObjects;
 };
 }  // namespace lve
