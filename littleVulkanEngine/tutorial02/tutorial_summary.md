@@ -55,3 +55,6 @@ vec4(push.transform * position + push.offset, 0.0, 1.0); where push.transform is
 
 12 - **3d Rendering** - Switching to a 3d rendering system requires affine transformations (which are when you add a column to the matrix with 1 at the bottom, the 1 represents a point i.e. an offset translation)
 We update our matrix computation to use glm's library and also to change vertex input in model (+ its attribute descriptions)
+Adjusting the shaders again, we can make each face of the cube a different color
+We are currently using INTRINSIC rotations which means rotation axis change based on ordering (L -> R   y -> x -> z)
+Doing it backwards makes it EXTRINSIC meaning rotation axis doesn't change apparently?  (I don't get this)
