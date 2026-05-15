@@ -7,7 +7,7 @@
 
 namespace lve {
 
-struct Transform2dComponent {
+struct TransformComponent {
   glm::vec2 translation{};  // (position offset)
   glm::vec2 scale{1.f, 1.f};
   float rotation;
@@ -52,7 +52,7 @@ class LveGameObject {
   // has a model shape,   color,   transform
   std::shared_ptr<LveModel> model{};
   glm::vec3 color{};
-  Transform2dComponent transform2d{};
+  TransformComponent transform2d{};
 
  private:
   LveGameObject(id_t objId) : id{objId} {}
