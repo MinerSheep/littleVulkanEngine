@@ -1,6 +1,7 @@
 #include "first_app.hpp"
 
 #include "simple_render_system.hpp"
+#include "lve_camera.hpp"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE  // necessary for vulkan, glfw uses -1 to 1 depth by default
@@ -16,17 +17,23 @@ FirstApp::~FirstApp() {}
 
 void FirstApp::run() {
   SimpleRenderSystem simpleRenderSystem{lveDevice, lveRenderer.getSwapChainRenderPass()};
-
+  LveCamera camera{};
+  
   while (!lveWindow.shouldClose()) {
     // this causes glitchiness on ubuntu because it blocks
     glfwPollEvents();
+
+    // This is responsible for maintaining object projection size
+    // across different window aspect ratios
+    float aspect = lveRenderer.getAspectRatio();
+    camera.setOrthographicProjection(-aspect, aspect, -1, 1, -1, 1);
 
     // Returns null if swap chain needs to be recreated!
     if (auto commandBuffer = lveRenderer.beginFrame()) {
       // Being able to control when the render pass begins and ends is helpful for post processing
       // effects
       lveRenderer.beginSwapChainRenderPass(commandBuffer);
-      simpleRenderSystem.renderGameObjects(commandBuffer, gameObjects);
+      simpleRenderSystem.renderGameObjects(commandBuffer, gameObjects, camera);
 
       lveRenderer.endSwapChainRenderPass(commandBuffer);
       lveRenderer.endFrame();
@@ -118,7 +125,7 @@ std::unique_ptr<LveModel> createCubeModel(LveDevice& device, glm::vec3 offset) {
 
 void FirstApp::loadGameObjects() {
   std::shared_ptr<LveModel> lveModel = createCubeModel(lveDevice, {.0f, .0f, .0f});
-  
+
   auto cube = LveGameObject::createGameObject();
   cube.model = lveModel;
   cube.transform.translation = {.0f, .0f, .5f};
