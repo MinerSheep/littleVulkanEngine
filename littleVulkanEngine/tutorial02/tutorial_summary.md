@@ -58,3 +58,8 @@ We update our matrix computation to use glm's library and also to change vertex 
 Adjusting the shaders again, we can make each face of the cube a different color
 We are currently using INTRINSIC rotations which means rotation axis change based on ordering (L -> R   y -> x -> z)
 Doing it backwards makes it EXTRINSIC meaning rotation axis doesn't change apparently?  (I don't get this)
+
+13 - **Homogenous Coordinates** - To build an orthographic perspective, we use a frustrum shape
+This computes the height of a 3d object on screen by taking ny/z  where n is distance viewer to screen and z is distance screen to obj
+In vertex shader code, gl_Position = push.transform * vec4(position, 1.0);, the w component divides the output by 1.0
+To replace it with z, we just need to alter the last row of the identity matrix to be 0,0,1,0 instead (this will take the z component and use it for our w, ignoring the 1.0)
