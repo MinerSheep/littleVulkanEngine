@@ -37,44 +37,92 @@ void FirstApp::run() {
   // executed This is the fix
   vkDeviceWaitIdle(lveDevice.device());
 }
-void sierpinski(
-    std::vector<LveModel::Vertex>& vertices,
-    int depth,
-    glm::vec2 left,
-    glm::vec2 right,
-    glm::vec2 top) {
-  if (depth <= 0) {
-    vertices.push_back({top, {1.0f, 0.0f, 0.0f}});
-    vertices.push_back({right, {1.0f, 0.0f, 0.0f}});
-    vertices.push_back({left, {1.0f, 0.0f, 0.0f}});
-  } else {
-    auto leftTop = 0.5f * (left + top);
-    auto rightTop = 0.5f * (right + top);
-    auto leftRight = 0.5f * (left + right);
-    sierpinski(vertices, depth - 1, left, leftRight, leftTop);
-    sierpinski(vertices, depth - 1, leftRight, right, rightTop);
-    sierpinski(vertices, depth - 1, leftTop, rightTop, top);
-  }
-}
-void FirstApp::loadGameObjects() {
+// void sierpinski(
+//     std::vector<LveModel::Vertex>& vertices,
+//     int depth,
+//     glm::vec2 left,
+//     glm::vec2 right,
+//     glm::vec2 top) {
+//   if (depth <= 0) {
+//     vertices.push_back({top, {1.0f, 0.0f, 0.0f}});
+//     vertices.push_back({right, {1.0f, 0.0f, 0.0f}});
+//     vertices.push_back({left, {1.0f, 0.0f, 0.0f}});
+//   } else {
+//     auto leftTop = 0.5f * (left + top);
+//     auto rightTop = 0.5f * (right + top);
+//     auto leftRight = 0.5f * (left + right);
+//     sierpinski(vertices, depth - 1, left, leftRight, leftTop);
+//     sierpinski(vertices, depth - 1, leftRight, right, rightTop);
+//     sierpinski(vertices, depth - 1, leftTop, rightTop, top);
+//   }
+// }
+
+// temporary helper function, creates a 1x1x1 cube centered at offset
+std::unique_ptr<LveModel> createCubeModel(LveDevice& device, glm::vec3 offset) {
   std::vector<LveModel::Vertex> vertices{
-      {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-      {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-      {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
 
-  // sierpinski(vertices, 5, {-0.5f, 0.5f}, {0.5f, 0.5f}, {0.0f, -0.5f});
+      // left face (white)
+      {{-.5f, -.5f, -.5f}, {.9f, .9f, .9f}},
+      {{-.5f, .5f, .5f}, {.9f, .9f, .9f}},
+      {{-.5f, -.5f, .5f}, {.9f, .9f, .9f}},
+      {{-.5f, -.5f, -.5f}, {.9f, .9f, .9f}},
+      {{-.5f, .5f, -.5f}, {.9f, .9f, .9f}},
+      {{-.5f, .5f, .5f}, {.9f, .9f, .9f}},
 
-  auto lveModel = std::make_shared<LveModel>(lveDevice, vertices);
+      // right face (yellow)
+      {{.5f, -.5f, -.5f}, {.8f, .8f, .1f}},
+      {{.5f, .5f, .5f}, {.8f, .8f, .1f}},
+      {{.5f, -.5f, .5f}, {.8f, .8f, .1f}},
+      {{.5f, -.5f, -.5f}, {.8f, .8f, .1f}},
+      {{.5f, .5f, -.5f}, {.8f, .8f, .1f}},
+      {{.5f, .5f, .5f}, {.8f, .8f, .1f}},
 
-  auto triangle = LveGameObject::createGameObject();
-  triangle.model = lveModel;
-  triangle.color = {.1f, .8f, .1f};
-  triangle.transform2d.translation.x = .2f;
-  triangle.transform2d.scale = {2.f, .5f};
-  // we are using radians.  So 2pi is 360 degrees.  We are taking .25 of that which is 90 degrees
-  // clockwise.
-  triangle.transform2d.rotation = .25f * glm::two_pi<float>();
+      // top face (orange, remember y axis points down)
+      {{-.5f, -.5f, -.5f}, {.9f, .6f, .1f}},
+      {{.5f, -.5f, .5f}, {.9f, .6f, .1f}},
+      {{-.5f, -.5f, .5f}, {.9f, .6f, .1f}},
+      {{-.5f, -.5f, -.5f}, {.9f, .6f, .1f}},
+      {{.5f, -.5f, -.5f}, {.9f, .6f, .1f}},
+      {{.5f, -.5f, .5f}, {.9f, .6f, .1f}},
 
-  gameObjects.push_back(std::move(triangle));
+      // bottom face (red)
+      {{-.5f, .5f, -.5f}, {.8f, .1f, .1f}},
+      {{.5f, .5f, .5f}, {.8f, .1f, .1f}},
+      {{-.5f, .5f, .5f}, {.8f, .1f, .1f}},
+      {{-.5f, .5f, -.5f}, {.8f, .1f, .1f}},
+      {{.5f, .5f, -.5f}, {.8f, .1f, .1f}},
+      {{.5f, .5f, .5f}, {.8f, .1f, .1f}},
+
+      // nose face (blue)
+      {{-.5f, -.5f, 0.5f}, {.1f, .1f, .8f}},
+      {{.5f, .5f, 0.5f}, {.1f, .1f, .8f}},
+      {{-.5f, .5f, 0.5f}, {.1f, .1f, .8f}},
+      {{-.5f, -.5f, 0.5f}, {.1f, .1f, .8f}},
+      {{.5f, -.5f, 0.5f}, {.1f, .1f, .8f}},
+      {{.5f, .5f, 0.5f}, {.1f, .1f, .8f}},
+
+      // tail face (green)
+      {{-.5f, -.5f, -0.5f}, {.1f, .8f, .1f}},
+      {{.5f, .5f, -0.5f}, {.1f, .8f, .1f}},
+      {{-.5f, .5f, -0.5f}, {.1f, .8f, .1f}},
+      {{-.5f, -.5f, -0.5f}, {.1f, .8f, .1f}},
+      {{.5f, -.5f, -0.5f}, {.1f, .8f, .1f}},
+      {{.5f, .5f, -0.5f}, {.1f, .8f, .1f}},
+
+  };
+  for (auto& v : vertices) {
+    v.position += offset;
+  }
+  return std::make_unique<LveModel>(device, vertices);
+}
+
+void FirstApp::loadGameObjects() {
+  std::shared_ptr<LveModel> lveModel = createCubeModel(lveDevice, {.0f, .0f, .0f});
+  
+  auto cube = LveGameObject::createGameObject();
+  cube.model = lveModel;
+  cube.transform.translation = {.0f, .0f, .5f};
+  cube.transform.scale = {.5f, .5f, .5f};
+  gameObjects.push_back(std::move(cube));
 }
 }  // namespace lve

@@ -18,8 +18,7 @@ namespace lve {
 // / marks 16 bytes
 // Incorrect: x y r g / b - - -      Correct: x y - - / r g b -
 struct SimplePushConstantData {
-  glm::mat2 transform{1.f};     // IDENTITY matrix
-  glm::vec2 offset;             // 8 bytes - divisible by 4, fine!
+  glm::mat4 transform{1.f};     // IDENTITY matrix
   alignas(16) glm::vec3 color;  // bad because 12 bytes upscales to 16 bytes
 };
 
@@ -82,12 +81,11 @@ void SimpleRenderSystem::renderGameObjects(
   lvePipeline->bind(commandBuffer);
 
   for (auto& obj : gameObjects) {
-    obj.transform2d.rotation = glm::mod(obj.transform2d.rotation + 0.01f, glm::two_pi<float>());
+    obj.transform.rotation.y = glm::mod(obj.transform.rotation.y + 0.01f, glm::two_pi<float>());
 
     SimplePushConstantData push{};
-    push.offset = obj.transform2d.translation;
     push.color = obj.color;
-    push.transform = obj.transform2d.mat2();
+    push.transform = obj.transform.mat4();
 
     // RECORD our push constant data
     vkCmdPushConstants(

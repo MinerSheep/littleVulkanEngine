@@ -52,3 +52,6 @@ Add a frame counter integer to the push constant offset and it makes an animatio
 vec4(push.transform * position + push.offset, 0.0, 1.0); where push.transform is the scale * rotation,  offset is the translation
 
 11 - **Refactoring** - Strip out implementation from first_app into renderer component and system 
+
+12 - **3d Rendering** - Switching to a 3d rendering system requires affine transformations (which are when you add a column to the matrix with 1 at the bottom, the 1 represents a point i.e. an offset translation)
+We update our matrix computation to use glm's library and also to change vertex input in model (+ its attribute descriptions)
