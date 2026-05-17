@@ -18,6 +18,10 @@ FirstApp::~FirstApp() {}
 void FirstApp::run() {
   SimpleRenderSystem simpleRenderSystem{lveDevice, lveRenderer.getSwapChainRenderPass()};
   LveCamera camera{};
+  //camera.setViewDirection(glm::vec3{0.f}, glm::vec3(0.5f,0.f,1.f));
+
+  // this is directly associated with setPerspectiveProjection btw, 10.f is far plane, if we go beyond that for position, we leave bounds
+  camera.setViewTarget(glm::vec3(-1.f,-2.f,2.f), glm::vec3(0.f,0.f,2.5f));
   
   while (!lveWindow.shouldClose()) {
     // this causes glitchiness on ubuntu because it blocks

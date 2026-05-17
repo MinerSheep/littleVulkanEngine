@@ -80,6 +80,8 @@ void SimpleRenderSystem::renderGameObjects(
     VkCommandBuffer commandBuffer, std::vector<LveGameObject>& gameObjects, const LveCamera& camera) {
   lvePipeline->bind(commandBuffer);
 
+  auto projectionView = camera.getProjection() * camera.getView();
+
   for (auto& obj : gameObjects) {
     obj.transform.rotation.y = glm::mod(obj.transform.rotation.y + 0.01f, glm::two_pi<float>());
     obj.transform.rotation.x = glm::mod(obj.transform.rotation.x + 0.005f, glm::two_pi<float>());
@@ -88,7 +90,7 @@ void SimpleRenderSystem::renderGameObjects(
     SimplePushConstantData push{};
     push.color = obj.color;
     // Game engines will typically not compute orthographic projection on the CPU
-    push.transform = camera.getProjection() * obj.transform.mat4();
+    push.transform = projectionView * obj.transform.mat4();
 
     // RECORD our push constant data
     vkCmdPushConstants(

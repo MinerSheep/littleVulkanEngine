@@ -67,3 +67,8 @@ To replace it with z, we just need to alter the last row of the identity matrix 
 Add orthographic projection computation by multiplying
 push.transform = camera.getProjection() * obj.transform.mat4();
 Currently this will scale the object based on window size, to remove this, make orthographic viewing aspect ratio = window aspect ratio
+
+14 - **Camera Transform** - In order to view the world through the lens of a movable camera, every object should have a relative position to the camera
+Currently the camera is static, we do the model transform, perspective projection transform onto cam, and map to viewport.
+However, if camera is dynamic, we can move every object in the world relative to the camera by positioning the camera at origin.
+Shift everything with the camera, then do the perspective projection.
