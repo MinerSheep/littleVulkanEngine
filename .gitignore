@@ -1,5 +1,4 @@
 **/a.out
-build
 build/**
 .vscode
 **/.env
@@ -10,4 +9,3 @@ littleVulkanEngine/sandbox/**
 textures_
 models/viking_room.obj
 imgui.ini
-.env.cmake
