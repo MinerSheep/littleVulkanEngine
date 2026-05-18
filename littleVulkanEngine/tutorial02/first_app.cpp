@@ -1,13 +1,18 @@
 #include "first_app.hpp"
 
+#include "keyboard_movement_controller.hpp"
 #include "simple_render_system.hpp"
 #include "lve_camera.hpp"
+
+#define MAX_FRAME_TIME 1.0f
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE  // necessary for vulkan, glfw uses -1 to 1 depth by default
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 #include <stdexcept>
+
+#include <chrono>
 
 namespace lve {
 
@@ -21,11 +26,27 @@ void FirstApp::run() {
   //camera.setViewDirection(glm::vec3{0.f}, glm::vec3(0.5f,0.f,1.f));
 
   // this is directly associated with setPerspectiveProjection btw, 10.f is far plane, if we go beyond that for position, we leave bounds
-  camera.setViewTarget(glm::vec3(-1.f,-2.f,2.f), glm::vec3(0.f,0.f,2.5f));
+  // camera.setViewTarget(glm::vec3(-1.f,-2.f,2.f), glm::vec3(0.f,0.f,2.5f));
+
+  // used to store the camera's state
+  auto viewerObject = LveGameObject::createGameObject();
+  KeyboardMovementController cameraController{};
+
+  auto currentTime = std::chrono::high_resolution_clock::now();
   
   while (!lveWindow.shouldClose()) {
     // this causes glitchiness on ubuntu because it blocks
     glfwPollEvents();
+
+    // Take the time after the block
+    auto newTime = std::chrono::high_resolution_clock::now();
+    float dt = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
+    currentTime = newTime;
+
+    dt = glm::min(dt, MAX_FRAME_TIME);
+
+    cameraController.moveInPlaneXZ(lveWindow.getGLFWWindow(), dt, viewerObject);
+    camera.setViewYXZ(viewerObject.transform.translation, viewerObject.transform.rotation);
 
     // This is responsible for maintaining object projection size
     // across different window aspect ratios

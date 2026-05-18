@@ -72,3 +72,8 @@ Currently this will scale the object based on window size, to remove this, make 
 Currently the camera is static, we do the model transform, perspective projection transform onto cam, and map to viewport.
 However, if camera is dynamic, we can move every object in the world relative to the camera by positioning the camera at origin.
 Shift everything with the camera, then do the perspective projection.
+
+15 - **Game Loop Timing** - Game Loops require i/o to be consistent across monitors with different refresh rates
+On top of other systems like AI, Physics, and Audio, they all need to match the timing of the renderer
+We can do this for now by making a camera controller and passing in dt during the application run function
+dt can be obtained using std::chrono's high resolution clock
