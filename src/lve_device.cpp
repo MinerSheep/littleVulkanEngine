@@ -48,15 +48,12 @@ void DestroyDebugUtilsMessengerEXT(
 
 // class member functions
 LveDevice::LveDevice(LveWindow &window) : window{window} {
-  createInstance();  
-  // initializes a vulkan instance for our application
+  createInstance();
   setupDebugMessenger();
-  createSurface();   // surface uses glfw. connects window and vulkan's ability to display result
-  pickPhysicalDevice();  
-  // whatever device works with vulkan 
+  createSurface();
+  pickPhysicalDevice();
   createLogicalDevice();
-  createCommandPool();   
-  // command buffer allocation
+  createCommandPool();
 }
 
 LveDevice::~LveDevice() {
@@ -118,12 +115,9 @@ void LveDevice::pickPhysicalDevice() {
     throw std::runtime_error("failed to find GPUs with Vulkan support!");
   }
   std::cout << "Device count: " << deviceCount << std::endl;
-
-  // getting devices
   std::vector<VkPhysicalDevice> devices(deviceCount);
   vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
-  // ask if device is suitable
   for (const auto &device : devices) {
     if (isDeviceSuitable(device)) {
       physicalDevice = device;
@@ -131,7 +125,6 @@ void LveDevice::pickPhysicalDevice() {
     }
   }
 
-  // no devices came up suitable - try on windows? not sure how
   if (physicalDevice == VK_NULL_HANDLE) {
     throw std::runtime_error("failed to find a suitable GPU!");
   }
@@ -157,7 +150,7 @@ void LveDevice::createLogicalDevice() {
   }
 
   VkPhysicalDeviceFeatures deviceFeatures = {};
-  //deviceFeatures.samplerAnisotropy = VK_TRUE;
+  deviceFeatures.samplerAnisotropy = VK_TRUE;
 
   VkDeviceCreateInfo createInfo = {};
   createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -216,13 +209,11 @@ bool LveDevice::isDeviceSuitable(VkPhysicalDevice device) {
   VkPhysicalDeviceFeatures supportedFeatures;
   vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
 
-  std::cout << indices.isComplete() << " " << extensionsSupported << " " << swapChainAdequate << " " << supportedFeatures.samplerAnisotropy << "\n";
-
-  return indices.isComplete() && extensionsSupported && swapChainAdequate /* && supportedFeatures.samplerAnisotropy */;
+  return indices.isComplete() && extensionsSupported && swapChainAdequate &&
+         supportedFeatures.samplerAnisotropy;
 }
 
-void LveDevice::populateDebugMessengerCreateInfo(
-    VkDebugUtilsMessengerCreateInfoEXT &createInfo) {
+void LveDevice::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo) {
   createInfo = {};
   createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
   createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
@@ -417,8 +408,6 @@ void LveDevice::createBuffer(
     VkMemoryPropertyFlags properties,
     VkBuffer &buffer,
     VkDeviceMemory &bufferMemory) {
-
-  // This may need to be rewritten if we make a memory allocator
   VkBufferCreateInfo bufferInfo{};
   bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
   bufferInfo.size = size;

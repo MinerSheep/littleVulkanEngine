@@ -12,11 +12,11 @@
 namespace lve {
 class LveRenderer {
  public:
-  LveRenderer(LveWindow& window, LveDevice& device);
+  LveRenderer(LveWindow &window, LveDevice &device);
   ~LveRenderer();
 
-  LveRenderer(const LveRenderer&) = delete;
-  LveRenderer& operator=(const LveRenderer&) = delete;
+  LveRenderer(const LveRenderer &) = delete;
+  LveRenderer &operator=(const LveRenderer &) = delete;
 
   VkRenderPass getSwapChainRenderPass() const { return lveSwapChain->getRenderPass(); }
   float getAspectRatio() const { return lveSwapChain->extentAspectRatio(); }
@@ -42,9 +42,9 @@ class LveRenderer {
   void freeCommandBuffers();
   void recreateSwapChain();
 
-  LveWindow& lveWindow;
-  LveDevice& lveDevice;
-  std::unique_ptr<LveSwapChain> lveSwapChain; // {lveDevice, lveWindow.getExtent()};
+  LveWindow &lveWindow;
+  LveDevice &lveDevice;
+  std::unique_ptr<LveSwapChain> lveSwapChain;
   std::vector<VkCommandBuffer> commandBuffers;
 
   uint32_t currentImageIndex;
