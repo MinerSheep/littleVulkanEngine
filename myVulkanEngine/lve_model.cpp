@@ -1,14 +1,21 @@
 #include "lve_model.hpp"
 #include <cstring>
 
-lve::LveModel::LveModel(LveDevice& device, const std::vector<Vertex>& vertices)
+lve::LveModel::LveModel(LveDevice& device, const LveModel::Builder& builder)
     : lveDevice(device) {
-    createVertexBuffers(vertices);
+    createVertexBuffers(builder.vertices);
+    createIndexBuffer(builder.indices);
 }
 
 lve::LveModel::~LveModel() {
     vkDestroyBuffer(lveDevice.device(), vertexBuffer, nullptr);
     vkFreeMemory(lveDevice.device(), vertexBufferMemory, nullptr);
+
+    if (hasIndexBuffer)
+    {
+        vkDestroyBuffer(lveDevice.device(), indexBuffer, nullptr);
+        vkFreeMemory(lveDevice.device(), indexBufferMemory, nullptr);
+    }
 }
 
 void lve::LveModel::bind(VkCommandBuffer commandBuffer) {
@@ -17,9 +24,18 @@ void lve::LveModel::bind(VkCommandBuffer commandBuffer) {
 
     // Bind one vertex buffer starting at binding 0  with a {0} offset
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
+
+    if (hasIndexBuffer) {
+        // can upgrade to uint64 for WAY complex models
+        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    }
 }
 
 void lve::LveModel::draw(VkCommandBuffer commandBuffer) {
+    if (hasIndexBuffer) {
+        vkCmdDrawIndexed(commandBuffer, indexCount, 1,0,0,0);
+    }
+    else
     // This is responsible for putting multiple shader variable offsets into a single vertex buffers I think
     vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0);
 }
@@ -32,7 +48,8 @@ void lve::LveModel::createVertexBuffers(const std::vector<Vertex>& vertices) {
 
     // VISIBLE BIT = memory is accessible from its host CPU (this is essentially an automatic flush)
     lveDevice.createBuffer(bufferSize, 
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
         vertexBuffer, vertexBufferMemory);
 
     // 0 offset, 0 flags 
@@ -41,6 +58,29 @@ void lve::LveModel::createVertexBuffers(const std::vector<Vertex>& vertices) {
     vkMapMemory(lveDevice.device(), vertexBufferMemory, 0, bufferSize, 0, &data);
     memcpy(data, vertices.data(), static_cast<size_t>(bufferSize));  // will copy the new color data as well
     vkUnmapMemory(lveDevice.device(), vertexBufferMemory);
+}
+
+void lve::LveModel::createIndexBuffer(const std::vector<uint32_t>& indices) {
+    indexCount = static_cast<uint32_t>(indices.size());
+    hasIndexBuffer = indexCount > 0;
+
+    if (!hasIndexBuffer)
+        return;
+
+    VkDeviceSize bufferSize = sizeof(indices[0]) * indexCount;
+
+    // VISIBLE BIT = memory is accessible from its host CPU (this is essentially an automatic flush)
+    lveDevice.createBuffer(bufferSize, 
+        VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+        indexBuffer, indexBufferMemory);
+
+    // 0 offset, 0 flags 
+    void* data;
+    // This makes it so we have a ptr to vertexData on our Host CPU and we can write to it, which flushes to the Device GPU 
+    vkMapMemory(lveDevice.device(), indexBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, indices.data(), static_cast<size_t>(bufferSize));  // will copy the new color data as well
+    vkUnmapMemory(lveDevice.device(), indexBufferMemory);
 }
 
 std::vector<VkVertexInputBindingDescription> lve::LveModel::Vertex::getBindingDescriptions()

@@ -79,3 +79,7 @@ We can do this for now by making a camera controller and passing in dt during th
 dt can be obtained using std::chrono's high resolution clock
 
 **To see renditions of the engine from before here, open tutorial 2 folder in littleVulkanEngine**
+
+16 - **Index & Staging Buffers** - Rendered objects like Squares are made up of triangles and they share vertices to make those triangles
+6 faces splits into 12 triangles = 12 * 3 = 36 vertices, 30 of which being duplicates (causes memory abuse for more complex models)
+This is why we use an index buffer, to tell the GPU to render index {0,1,2} of vertices list {0,1,2,3,4,5}
