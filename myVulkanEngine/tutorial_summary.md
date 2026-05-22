@@ -89,3 +89,7 @@ Therefore, we will use a staging buffer, which is what our buffer is now, but we
 This works best with static models, dynamic models will negate any performance gain we get from this
 
 17 - **Adding libraries and loading 3d models** - Add libraries to the project using libs folder and -Ilibs in Makefile
+pass in a filepath to tinyobj::LoadObj, we can read the shape.mesh.indices for lines attributed to the vertex, texcoord, & normal
+
+However, we are not using Index Buffer during this to reduce model memory consumption, it's not as straightforward here
+Since Waveform objs, they use separate vertices for the position, normal, and texcoord.  We need all these vertices grouped together
