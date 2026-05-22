@@ -93,3 +93,14 @@ pass in a filepath to tinyobj::LoadObj, we can read the shape.mesh.indices for l
 
 However, we are not using Index Buffer during this to reduce model memory consumption, it's not as straightforward here
 Since Waveform objs, they use separate vertices for the position, normal, and texcoord.  We need all these vertices grouped together
+(I did this by keeping track of unique vertices in a map
+putting each element in indexbuffer 
+towards the unique vertice index)
+
+18 - **Adding lighting** - Lighting is a very complicated formula to calculate, but for diffuse lighting, it can be simplified
+Diffuse lighting is calculated using ||a||||b||cos 0 which, when both vectors are normalized, turns out to cos 0 (capped from 1 to 0)
+Therefore we can use this to calculate the light % are every point on the model in regards to a light source
+
+We will start by using a skylight which is only a direction, no position
+
+This tutorial also shows how to export from Blender in order to achieve smooth vs flat shading (different visual effect, smooth is cheaper)

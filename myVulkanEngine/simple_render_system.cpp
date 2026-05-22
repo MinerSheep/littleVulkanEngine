@@ -19,7 +19,8 @@ namespace lve {
 // Incorrect: x y r g / b - - -      Correct: x y - - / r g b -
 struct SimplePushConstantData {
   glm::mat4 transform{1.f};     // IDENTITY matrix
-  alignas(16) glm::vec3 color;  // bad because 12 bytes upscales to 16 bytes
+  // alignas(16) glm::vec3 color;  // bad because 12 bytes upscales to 16 bytes
+  glm::mat4 modelMatrix{1.f};
 };
 
 SimpleRenderSystem::SimpleRenderSystem(LveDevice& device, VkRenderPass renderPass)
@@ -85,9 +86,11 @@ void SimpleRenderSystem::renderGameObjects(
   for (auto& obj : gameObjects) {
 
     SimplePushConstantData push{};
-    push.color = obj.color;
-    // Game engines will typically not compute orthographic projection on the CPU
-    push.transform = projectionView * obj.transform.mat4();
+    auto modelMatrix = obj.transform.mat4();
+
+    // We are now calculating on the GPU, not the CPU
+    push.transform = projectionView * modelMatrix;
+    push.modelMatrix = modelMatrix;
 
     // RECORD our push constant data
     vkCmdPushConstants(
