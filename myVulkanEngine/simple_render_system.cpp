@@ -20,7 +20,7 @@ namespace lve {
 struct SimplePushConstantData {
   glm::mat4 transform{1.f};     // IDENTITY matrix
   // alignas(16) glm::vec3 color;  // bad because 12 bytes upscales to 16 bytes
-  glm::mat4 modelMatrix{1.f};
+  glm::mat4 normalMatrix{1.f};
 };
 
 SimpleRenderSystem::SimpleRenderSystem(LveDevice& device, VkRenderPass renderPass)
@@ -90,7 +90,7 @@ void SimpleRenderSystem::renderGameObjects(
 
     // We are now calculating on the GPU, not the CPU
     push.transform = projectionView * modelMatrix;
-    push.modelMatrix = modelMatrix;
+    push.normalMatrix = obj.transform.normalMatrix();
 
     // RECORD our push constant data
     vkCmdPushConstants(

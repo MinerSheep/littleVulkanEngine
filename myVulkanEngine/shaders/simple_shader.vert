@@ -9,8 +9,8 @@ layout(location = 3) in vec2 uv;
 layout(location = 0) out vec3 fragColor;
 
 layout(push_constant) uniform Push {
-  mat4 transform;   // projection * view * model
-  mat4 modelMatrix;
+  mat4 transform;    // projection * view * model
+  mat4 normalMatrix; // keep as mat4 for alignment requirements, but truncate to mat3
 } push;
 
 // This is a SKY LIGHT, only direction, same for all vertices, no distance
@@ -24,8 +24,10 @@ void main() {
   // vec3 normalWorldSpace = normalize(mat3(push.modelMatrix) * normal);
 
   // This is expensive!! it scales correctly but expensive
-  mat3 normalMatrix = transpose(inverse(mat3(push.modelMatrix)));
-  vec3 normalWorldSpace = normalize(normalMatrix * normal);
+  // mat3 normalMatrix = transpose(inverse(mat3(push.modelMatrix)));
+  // vec3 normalWorldSpace = normalize(normalMatrix * normal);
+
+  vec3 normalWorldSpace = normalize(mat3(push.normalMatrix) * normal);
 
   // default to 0 if light on other side
   float lightIntensity = AMBIENT + max(dot(normalWorldSpace, DIRECTION_TO_LIGHT), 0);
