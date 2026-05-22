@@ -87,3 +87,5 @@ This is why we use an index buffer, to tell the GPU to render index {0,1,2} of v
 To make memory as fast as it can be, we need to set VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT which is not compatible with mutable buffer data
 Therefore, we will use a staging buffer, which is what our buffer is now, but we send to the buffer and then delete the stagingBuffer
 This works best with static models, dynamic models will negate any performance gain we get from this
+
+17 - **Adding libraries and loading 3d models** - Add libraries to the project using libs folder and -Ilibs in Makefile

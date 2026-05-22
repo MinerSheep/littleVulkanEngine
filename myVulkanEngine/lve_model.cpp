@@ -1,4 +1,9 @@
 #include "lve_model.hpp"
+
+//libs
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader/tiny_obj_loader.h"
+
 #include <cstring>
 
 lve::LveModel::LveModel(LveDevice& device, const LveModel::Builder& builder)
