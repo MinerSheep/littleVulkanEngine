@@ -108,3 +108,9 @@ This tutorial also shows how to export from Blender in order to achieve smooth v
 
 19 - **Uniform buffers** - Uniform buffers are used to replace push constants in shaders.  They work the same as Vertex buffers.
 Its important to note that 16 KB is how large you can go for mobile devices, must abide by the device's minOffsetAlignment.
+We also need to align by the device's nonCoherentAtomSize for incoherent buffers (where we have 2 buffers in one that are offsetted)
+This is because the host and device memory have a min size they can sync between
+I fixed this by taking the max value between minOffsetAlignment & nonCoherentAtomSize though it can also be solved with lcm or with separate uniform buffers.
+
+20 - **Descriptors** - Descriptors point to buffer data for the render pipeline to use.  They must be organized into SETS.
+At application start, we must define the Descriptor Set Layout.  When allocating the Set, we must allocate from a Descriptor Pool.
