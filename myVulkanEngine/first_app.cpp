@@ -3,6 +3,7 @@
 #include "keyboard_movement_controller.hpp"
 #include "simple_render_system.hpp"
 #include "lve_camera.hpp"
+#include "lve_buffer.hpp"
 
 #define MAX_FRAME_TIME 1.0f
 
@@ -16,11 +17,29 @@
 
 namespace lve {
 
+  struct GlobalUbo {
+    glm::mat4 projectionView{1.f};
+    glm::vec3 lightDirection = glm::normalize(glm::vec3{1.f,-3.f,-1.f});
+  };
+
 FirstApp::FirstApp() { loadGameObjects(); }
 
 FirstApp::~FirstApp() {}
 
 void FirstApp::run() {
+
+  // this should create 2 instances, so for each frame, we can use the one thats not being rendered
+  LveBuffer globalUboBuffer {
+    lveDevice,
+    sizeof(GlobalUbo),
+    LveSwapChain::MAX_FRAMES_IN_FLIGHT,  // 2 - how many frames can be submit for rendering simultaneously
+    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, // host coherent is disabled for SELECTIVE FLUSHING
+    lveDevice.properties.limits.minUniformBufferOffsetAlignment
+  };
+
+  globalUboBuffer.map();
+
   SimpleRenderSystem simpleRenderSystem{lveDevice, lveRenderer.getSwapChainRenderPass()};
   LveCamera camera{};
   //camera.setViewDirection(glm::vec3{0.f}, glm::vec3(0.5f,0.f,1.f));
@@ -56,10 +75,20 @@ void FirstApp::run() {
 
     // Returns null if swap chain needs to be recreated!
     if (auto commandBuffer = lveRenderer.beginFrame()) {
+      int frameIndex = lveRenderer.getFrameIndex();
+      FrameInfo frameInfo{frameIndex, dt, commandBuffer, camera};
+
+      // update
+      GlobalUbo ubo{};
+      ubo.projectionView = camera.getProjection() * camera.getView();
+      globalUboBuffer.writeToIndex(&ubo, frameIndex);
+      globalUboBuffer.flushIndex(frameIndex);
+
+      // render
       // Being able to control when the render pass begins and ends is helpful for post processing
       // effects
       lveRenderer.beginSwapChainRenderPass(commandBuffer);
-      simpleRenderSystem.renderGameObjects(commandBuffer, gameObjects, camera);
+      simpleRenderSystem.renderGameObjects(frameInfo, gameObjects);
 
       lveRenderer.endSwapChainRenderPass(commandBuffer);
       lveRenderer.endFrame();

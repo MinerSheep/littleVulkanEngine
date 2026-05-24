@@ -63,6 +63,9 @@ LveBuffer::~LveBuffer() {
  */
 VkResult LveBuffer::map(VkDeviceSize size, VkDeviceSize offset) {
   assert(buffer && memory && "Called map on buffer before create");
+
+  // 0 offset, 0 flags
+  // This makes it so we have a ptr to vertexData on our Host CPU and we can write to it, which flushes to the Device GPU 
   return vkMapMemory(lveDevice.device(), memory, offset, size, 0, &mapped);
 }
  
@@ -89,7 +92,7 @@ void LveBuffer::unmap() {
  */
 void LveBuffer::writeToBuffer(void *data, VkDeviceSize size, VkDeviceSize offset) {
   assert(mapped && "Cannot copy to unmapped buffer");
- 
+
   if (size == VK_WHOLE_SIZE) {
     memcpy(mapped, data, bufferSize);
   } else {

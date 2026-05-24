@@ -18,7 +18,7 @@ namespace lve {
 // / marks 16 bytes
 // Incorrect: x y r g / b - - -      Correct: x y - - / r g b -
 struct SimplePushConstantData {
-  glm::mat4 transform{1.f};     // IDENTITY matrix
+  glm::mat4 transform{1.f};  // IDENTITY matrix
   // alignas(16) glm::vec3 color;  // bad because 12 bytes upscales to 16 bytes
   glm::mat4 normalMatrix{1.f};
 };
@@ -35,6 +35,33 @@ SimpleRenderSystem::SimpleRenderSystem(LveDevice& device, VkRenderPass renderPas
 SimpleRenderSystem::~SimpleRenderSystem() {
   // Dont forget to destroy the pipeline layout in destructor, all vk objects needs to do this
   vkDestroyPipelineLayout(lveDevice.device(), pipelineLayout, nullptr);
+}
+
+void SimpleRenderSystem::renderGameObjects(
+    FrameInfo& frameInfo, std::vector<LveGameObject>& gameObjects) {
+  lvePipeline->bind(frameInfo.commandBuffer);
+
+  auto projectionView = frameInfo.camera.getProjection() * frameInfo.camera.getView();
+
+  for (auto& obj : gameObjects) {
+    SimplePushConstantData push{};
+    auto modelMatrix = obj.transform.mat4();
+
+    // We are now calculating on the GPU, not the CPU
+    push.transform = projectionView * modelMatrix;
+    push.normalMatrix = obj.transform.normalMatrix();
+
+    // RECORD our push constant data
+    vkCmdPushConstants(
+        frameInfo.commandBuffer,
+        pipelineLayout,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+        0,
+        sizeof(SimplePushConstantData),
+        &push);
+    obj.model->bind(frameInfo.commandBuffer);
+    obj.model->draw(frameInfo.commandBuffer);
+  }
 }
 
 void SimpleRenderSystem::createPipelineLayout() {
@@ -75,34 +102,6 @@ void SimpleRenderSystem::createPipeline(VkRenderPass renderPass) {
       "shaders/simple_shader.vert.spv",
       "shaders/simple_shader.frag.spv",
       pipelineConfig);
-}
-
-void SimpleRenderSystem::renderGameObjects(
-    VkCommandBuffer commandBuffer, std::vector<LveGameObject>& gameObjects, const LveCamera& camera) {
-  lvePipeline->bind(commandBuffer);
-
-  auto projectionView = camera.getProjection() * camera.getView();
-
-  for (auto& obj : gameObjects) {
-
-    SimplePushConstantData push{};
-    auto modelMatrix = obj.transform.mat4();
-
-    // We are now calculating on the GPU, not the CPU
-    push.transform = projectionView * modelMatrix;
-    push.normalMatrix = obj.transform.normalMatrix();
-
-    // RECORD our push constant data
-    vkCmdPushConstants(
-        commandBuffer,
-        pipelineLayout,
-        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-        0,
-        sizeof(SimplePushConstantData),
-        &push);
-    obj.model->bind(commandBuffer);
-    obj.model->draw(commandBuffer);
-  }
 }
 
 }  // namespace lve

@@ -105,3 +105,6 @@ We will start by using a skylight which is only a direction, no position
 Also if we scale the obj unevenly, it can look wrong.  This can be fixed with forced uniform scaling, OR by passing in the normal matrix which we do here
 
 This tutorial also shows how to export from Blender in order to achieve smooth vs flat shading (different visual effect, smooth is cheaper)
+
+19 - **Uniform buffers** - Uniform buffers are used to replace push constants in shaders.  They work the same as Vertex buffers.
+Its important to note that 16 KB is how large you can go for mobile devices, must abide by the device's minOffsetAlignment.

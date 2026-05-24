@@ -32,14 +32,7 @@ lve::LveModel::LveModel(LveDevice& device, const LveModel::Builder& builder)
 }
 
 lve::LveModel::~LveModel() {
-    vkDestroyBuffer(lveDevice.device(), vertexBuffer, nullptr);
-    vkFreeMemory(lveDevice.device(), vertexBufferMemory, nullptr);
 
-    if (hasIndexBuffer)
-    {
-        vkDestroyBuffer(lveDevice.device(), indexBuffer, nullptr);
-        vkFreeMemory(lveDevice.device(), indexBufferMemory, nullptr);
-    }
 }
 
 std::unique_ptr<lve::LveModel> lve::LveModel::createModelFromFile(
@@ -53,7 +46,7 @@ std::unique_ptr<lve::LveModel> lve::LveModel::createModelFromFile(
 }
 
 void lve::LveModel::bind(VkCommandBuffer commandBuffer) {
-  VkBuffer buffers[] = {vertexBuffer};
+  VkBuffer buffers[] = {vertexBuffer->getBuffer()};
   VkDeviceSize offsets[] = {0};
 
   // Bind one vertex buffer starting at binding 0  with a {0} offset
@@ -61,7 +54,7 @@ void lve::LveModel::bind(VkCommandBuffer commandBuffer) {
 
   if (hasIndexBuffer) {
     // can upgrade to uint64 for WAY complex models
-    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdBindIndexBuffer(commandBuffer, indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
   }
 }
 
@@ -79,32 +72,31 @@ void lve::LveModel::createVertexBuffers(const std::vector<Vertex>& vertices) {
     assert(vertexCount >= 3 && "Vertex count must be at least 3");
 
     VkDeviceSize bufferSize = sizeof(vertices[0]) * vertexCount;
+    uint32_t vertexSize = sizeof(vertices[0]);
 
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-
-    // VISIBLE BIT = memory is accessible from its host CPU (this is essentially an automatic flush)
-    lveDevice.createBuffer(bufferSize, 
+    // Remember we use staging buffer to transfer data from cpu to gpu and then store in device local memory
+    LveBuffer stagingBuffer{
+        lveDevice,
+        vertexSize,
+        vertexCount,
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,  // tell vulkan that buffer is used just as source location for memory transfer 
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-        stagingBuffer, stagingBufferMemory);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        // VISIBLE BIT = memory is accessible from its host CPU (this is essentially an automatic flush)
+    };
 
-    // 0 offset, 0 flags 
-    void* data;
-    // This makes it so we have a ptr to vertexData on our Host CPU and we can write to it, which flushes to the Device GPU 
-    vkMapMemory(lveDevice.device(), stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, vertices.data(), static_cast<size_t>(bufferSize));  // will copy the new color data as well
-    vkUnmapMemory(lveDevice.device(), stagingBufferMemory);
+    stagingBuffer.map();
+    // will copy the new color data as well
+    stagingBuffer.writeToBuffer((void*)vertices.data());
 
-    lveDevice.createBuffer(bufferSize, 
+    vertexBuffer = std::make_unique<LveBuffer>(
+        lveDevice,
+        vertexSize,
+        vertexCount,
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
-        vertexBuffer, vertexBufferMemory);
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    );
 
-    lveDevice.copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
-
-    vkDestroyBuffer(lveDevice.device(), stagingBuffer, nullptr);
-    vkFreeMemory(lveDevice.device(), stagingBufferMemory, nullptr);
+    lveDevice.copyBuffer(stagingBuffer.getBuffer(), vertexBuffer->getBuffer(), bufferSize);
 }
 
 void lve::LveModel::createIndexBuffer(const std::vector<uint32_t>& indices) {
@@ -115,32 +107,29 @@ void lve::LveModel::createIndexBuffer(const std::vector<uint32_t>& indices) {
         return;
 
     VkDeviceSize bufferSize = sizeof(indices[0]) * indexCount;
+    uint32_t indexSize = sizeof(indices[0]);
 
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-
-    // VISIBLE BIT = memory is accessible from its host CPU (this is essentially an automatic flush)
-    lveDevice.createBuffer(bufferSize, 
+    LveBuffer stagingBuffer {
+        lveDevice,
+        indexSize,
+        indexCount,
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,  // tell vulkan that buffer is used just as source location for memory transfer 
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-        stagingBuffer, stagingBufferMemory);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        // VISIBLE BIT = memory is accessible from its host CPU (this is essentially an automatic flush)
+    };
 
-    // 0 offset, 0 flags 
-    void* data;
-    // This makes it so we have a ptr to vertexData on our Host CPU and we can write to it, which flushes to the Device GPU 
-    vkMapMemory(lveDevice.device(), stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, indices.data(), static_cast<size_t>(bufferSize));  // will copy the new color data as well
-    vkUnmapMemory(lveDevice.device(), stagingBufferMemory);
+    stagingBuffer.map();
+    stagingBuffer.writeToBuffer((void*)indices.data());
 
-    lveDevice.createBuffer(bufferSize, 
+    indexBuffer = std::make_unique<LveBuffer>(
+        lveDevice,
+        indexSize,
+        indexCount,
         VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
-        indexBuffer, indexBufferMemory);
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    );
 
-    lveDevice.copyBuffer(stagingBuffer, indexBuffer, bufferSize);
-
-    vkDestroyBuffer(lveDevice.device(), stagingBuffer, nullptr);
-    vkFreeMemory(lveDevice.device(), stagingBufferMemory, nullptr);
+    lveDevice.copyBuffer(stagingBuffer.getBuffer(), indexBuffer->getBuffer(), bufferSize);
 }
 
 std::vector<VkVertexInputBindingDescription> lve::LveModel::Vertex::getBindingDescriptions()

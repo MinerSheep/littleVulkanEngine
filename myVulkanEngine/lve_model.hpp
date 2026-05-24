@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lve_device.hpp"
+#include "lve_buffer.hpp"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE // necessary for vulkan, glfw uses -1 to 1 depth by default
@@ -55,13 +56,11 @@ namespace lve
 
         LveDevice& lveDevice;
 
-        VkBuffer vertexBuffer;             // vertexBuffer is separate from its memory
-        VkDeviceMemory vertexBufferMemory;
+        std::unique_ptr<LveBuffer> vertexBuffer;
         uint32_t vertexCount; 
 
         bool hasIndexBuffer = false;
-        VkBuffer indexBuffer;       
-        VkDeviceMemory indexBufferMemory;
+        std::unique_ptr<LveBuffer> indexBuffer;
         uint32_t indexCount; 
     };
 } // namespace lve
