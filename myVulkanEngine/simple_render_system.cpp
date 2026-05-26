@@ -23,9 +23,9 @@ struct SimplePushConstantData {
   glm::mat4 normalMatrix{1.f};
 };
 
-SimpleRenderSystem::SimpleRenderSystem(LveDevice& device, VkRenderPass renderPass)
+SimpleRenderSystem::SimpleRenderSystem(LveDevice& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout)
     : lveDevice{device} {
-  createPipelineLayout();
+  createPipelineLayout(globalSetLayout);
 
   // Good idea to check render pass compatibility here.  If its compatible then pipeline doesnt need
   // to be recreated Since it can use the same blueprint for submitted framebuffers and be just fine
@@ -64,7 +64,7 @@ void SimpleRenderSystem::renderGameObjects(
   }
 }
 
-void SimpleRenderSystem::createPipelineLayout() {
+void SimpleRenderSystem::createPipelineLayout(VkDescriptorSetLayout globalSetLayout) {
   // This is us PREDEFINING our **push constant range**
   // stageFlags set to both shaders
   // size is set to a PREDEFINED struct of what we want our pushdata to contain
@@ -73,12 +73,15 @@ void SimpleRenderSystem::createPipelineLayout() {
   pushConstantRange.offset = 0;  // (offset only used if you separate vertex and frag data)
   pushConstantRange.size = sizeof(SimplePushConstantData);
 
+  std::vector<VkDescriptorSetLayout> descriptorSetLayouts{globalSetLayout};
+
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 
-  // Layouts are responsible for putting textures in
-  pipelineLayoutInfo.setLayoutCount = 0;
-  pipelineLayoutInfo.pSetLayouts = nullptr;
+  // LAYOUTS - this is where we tell it about the descriptor set layout
+  // It can take multiple layouts in the descriptorSetLayouts vector, just needs to index into that
+  pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
+  pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
 
   // Sends small data to shader programs
   pipelineLayoutInfo.pushConstantRangeCount = 1;

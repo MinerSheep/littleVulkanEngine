@@ -114,3 +114,6 @@ I fixed this by taking the max value between minOffsetAlignment & nonCoherentAto
 
 20 - **Descriptors** - Descriptors point to buffer data for the render pipeline to use.  They must be organized into SETS.
 At application start, we must define the Descriptor Set Layout.  When allocating the Set, we must allocate from a Descriptor Pool.
+
+We use a custom builder class that **returns a reference to itself so we can chain initialization** and also a writer class.
+Descriptor Pools can only allocate so many descriptors of a given type.  For example, allocate 2 uniform buffer descriptors, can't allocate 2 more uniform buffer descriptors unless it is specified during initialization (addPoolSize(TYPE_UNIFORM_BUFFER), 2);

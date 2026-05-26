@@ -199,7 +199,7 @@ bool LveDescriptorWriter::build(VkDescriptorSet &set) {
   return true;
 }
 
-// Tells all descriptor sets to write to the newly created set from BUILD
+// Tells all descriptor sets to write to the newly created set from BUILD   
 void LveDescriptorWriter::overwrite(VkDescriptorSet &set) {
   for (auto &write : writes) {
     write.dstSet = set;

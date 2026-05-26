@@ -22,23 +22,52 @@ namespace lve {
     glm::vec3 lightDirection = glm::normalize(glm::vec3{1.f,-3.f,-1.f});
   };
 
-FirstApp::FirstApp() { loadGameObjects(); }
+FirstApp::FirstApp() {
+  // since the fns return a reference, we can chain initialization here
+  globalPool = LveDescriptorPool::Builder(lveDevice)
+    // we can create 2 SETS
+    .setMaxSets(LveSwapChain::MAX_FRAMES_IN_FLIGHT)       
+    // we can create 2 UNIFORM BUFFER DESCRIPTORS to store in sets
+    .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, LveSwapChain::MAX_FRAMES_IN_FLIGHT) 
+    .build(); 
+
+  loadGameObjects();
+ }
 
 FirstApp::~FirstApp() {}
 
 void FirstApp::run() {
 
+  const int globalUniformBufferSize = LveSwapChain::MAX_FRAMES_IN_FLIGHT;
+
   // this should create 2 instances, so for each frame, we can use the one thats not being rendered
   LveBuffer globalUboBuffer {
     lveDevice,
     sizeof(GlobalUbo),
-    LveSwapChain::MAX_FRAMES_IN_FLIGHT,  // 2 - how many frames can be submit for rendering simultaneously
+    globalUniformBufferSize,  // 2 - how many frames can be submit for rendering simultaneously
     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, // host coherent is disabled for SELECTIVE FLUSHING
     lveDevice.properties.limits.minUniformBufferOffsetAlignment
   };
 
   globalUboBuffer.map();
+
+  auto globalSetLayout = LveDescriptorSetLayout::Builder(lveDevice)
+    .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+    .build();
+
+  std::vector<VkDescriptorSet> globalDescriptorSets(globalUniformBufferSize);
+
+  // this is currently taking 2 uniform buffers, I only have one...
+  for (int i = 0; i < globalUniformBufferSize; i++)
+  {
+    auto bufferInfo = globalUboBuffer.descriptorInfoForIndex(i);
+
+    // descriptor writer class handles moving uniform buffer info INTO the descriptor set
+    LveDescriptorWriter(*globalSetLayout, *globalPool)
+      .writeBuffer(0, &bufferInfo)
+      .build(globalDescriptorSets[i]);
+  }
 
   SimpleRenderSystem simpleRenderSystem{lveDevice, lveRenderer.getSwapChainRenderPass()};
   LveCamera camera{};
