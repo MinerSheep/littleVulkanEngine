@@ -115,5 +115,15 @@ I fixed this by taking the max value between minOffsetAlignment & nonCoherentAto
 20 - **Descriptors** - Descriptors point to buffer data for the render pipeline to use.  They must be organized into SETS.
 At application start, we must define the Descriptor Set Layout.  When allocating the Set, we must allocate from a Descriptor Pool.
 
-We use a custom builder class that **returns a reference to itself so we can chain initialization** and also a writer class.
-Descriptor Pools can only allocate so many descriptors of a given type.  For example, allocate 2 uniform buffer descriptors, can't allocate 2 more uniform buffer descriptors unless it is specified during initialization (addPoolSize(TYPE_UNIFORM_BUFFER), 2);
+We use a custom builder class that **returns a reference to itself so we can chain initialization**.
+When we write to each buffer/image, we can use the writer class.  Pass in the descriptorInfo() for each buffer.
+
+Descriptor Pools are given a fixed size and can only allocate so many descriptors of a given type.  For example, globalPool is given maxSets = MAX_FRAMES_IN_FLIGHT and poolSize = (VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
+
+This allows allocate 2 uniform buffer descriptors, but can't allocate 2 more uniform buffer descriptors unless it is specified during initialization (addPoolSize(TYPE_UNIFORM_BUFFER), 4);
+
+FINALLY, in our SimpleRenderSystem, before we do rendering for all gameObjects, call vkCmdBindDescriptorSets to bind descriptor set ONCE and then it is reused for all gameObjects that frame.
+
+Important to note that if a descriptorSet is overwritten, every descriptorSet that comes after also needs to be rewritten!
+
+There is A LOT going on in this one so definitely study later

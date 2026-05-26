@@ -18,7 +18,7 @@ namespace lve {
 // / marks 16 bytes
 // Incorrect: x y r g / b - - -      Correct: x y - - / r g b -
 struct SimplePushConstantData {
-  glm::mat4 transform{1.f};  // IDENTITY matrix
+  glm::mat4 modelMatrix{1.f};  // IDENTITY matrix
   // alignas(16) glm::vec3 color;  // bad because 12 bytes upscales to 16 bytes
   glm::mat4 normalMatrix{1.f};
 };
@@ -41,14 +41,23 @@ void SimpleRenderSystem::renderGameObjects(
     FrameInfo& frameInfo, std::vector<LveGameObject>& gameObjects) {
   lvePipeline->bind(frameInfo.commandBuffer);
 
-  auto projectionView = frameInfo.camera.getProjection() * frameInfo.camera.getView();
+  // Every set overwritten must overwrite every set that comes after it
+  // Bind it once, now ALL gameobjects can use it without need for rebinding
+  vkCmdBindDescriptorSets(
+      frameInfo.commandBuffer,
+      VK_PIPELINE_BIND_POINT_GRAPHICS,
+      pipelineLayout,
+      0,
+      1,
+      &frameInfo.globalDescriptorSet,
+      0, // dynamic offsets
+      nullptr);
 
   for (auto& obj : gameObjects) {
     SimplePushConstantData push{};
-    auto modelMatrix = obj.transform.mat4();
 
     // We are now calculating on the GPU, not the CPU
-    push.transform = projectionView * modelMatrix;
+    push.modelMatrix = obj.transform.mat4();
     push.normalMatrix = obj.transform.normalMatrix();
 
     // RECORD our push constant data

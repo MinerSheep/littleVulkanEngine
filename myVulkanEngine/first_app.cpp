@@ -18,8 +18,8 @@
 namespace lve {
 
   struct GlobalUbo {
-    glm::mat4 projectionView{1.f};
-    glm::vec3 lightDirection = glm::normalize(glm::vec3{1.f,-3.f,-1.f});
+    alignas(16) glm::mat4 projectionView{1.f};
+    alignas(16) glm::vec3 lightDirection = glm::normalize(glm::vec3{1.f,-3.f,-1.f});
   };
 
 FirstApp::FirstApp() {
@@ -54,8 +54,10 @@ void FirstApp::run() {
 
   auto globalSetLayout = LveDescriptorSetLayout::Builder(lveDevice)
     .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+    // .addBinding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
     .build();
 
+  // this will be destroyed when run ends
   std::vector<VkDescriptorSet> globalDescriptorSets(globalUniformBufferSize);
 
   // this is currently taking 2 uniform buffers, I only have one...
@@ -69,7 +71,7 @@ void FirstApp::run() {
       .build(globalDescriptorSets[i]);
   }
 
-  SimpleRenderSystem simpleRenderSystem{lveDevice, lveRenderer.getSwapChainRenderPass()};
+  SimpleRenderSystem simpleRenderSystem{lveDevice, lveRenderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
   LveCamera camera{};
   //camera.setViewDirection(glm::vec3{0.f}, glm::vec3(0.5f,0.f,1.f));
 
@@ -105,7 +107,7 @@ void FirstApp::run() {
     // Returns null if swap chain needs to be recreated!
     if (auto commandBuffer = lveRenderer.beginFrame()) {
       int frameIndex = lveRenderer.getFrameIndex();
-      FrameInfo frameInfo{frameIndex, dt, commandBuffer, camera};
+      FrameInfo frameInfo{frameIndex, dt, commandBuffer, camera, globalDescriptorSets[frameIndex]};
 
       // update
       GlobalUbo ubo{};
