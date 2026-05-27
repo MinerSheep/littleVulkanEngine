@@ -131,3 +131,7 @@ There is A LOT going on in this one so definitely study later
 21 - **Point Lights** - point lighting hits vertices at different angles compared to a global skylights
 The intensity of the light is defined as intensity / dist^2
 You can make it more artistic by adding constant, linear, and quadratic scaling to the denominator
+
+Making point lights work with our object means we need worldPosition for the object which is the modelMatrix * position
+float attenuation = 1.0 / dot(directionToLight, directionToLight); // distance squared
+^ multiply this by colorLight.xyz * colorLight.w (its intensity)

@@ -160,8 +160,15 @@ void FirstApp::loadGameObjects() {
 
   auto gameObj = LveGameObject::createGameObject();
   gameObj.model = lveModel;
-  gameObj.transform.translation = {.0f, .5f, 0.f};
+  gameObj.transform.translation = {-.5f, .5f, 0.f};
   gameObj.transform.scale = glm::vec3(3.f);
   gameObjects.push_back(std::move(gameObj));
+
+  lveModel = LveModel::createModelFromFile(lveDevice, "models/quad.obj");
+  auto floor = LveGameObject::createGameObject();
+  floor.model = lveModel;
+  floor.transform.translation = {.0f, .5f, 0.f};
+  floor.transform.scale = glm::vec3{3.f,1.f,3.f};
+  gameObjects.push_back(std::move(floor));
 }
 }  // namespace lve

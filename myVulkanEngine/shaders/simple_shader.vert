@@ -27,14 +27,14 @@ void main() {
   vec3 normalWorldSpace = normalize(mat3(push.normalMatrix) * normal);
 
   // xyz to convert to vec3
-  vec3 directionToLight = ubo.lightPosition - positionWorld.xyz;
+  vec3 directionToLight = ubo.lightPosition.xyz - positionWorld.xyz;
   float attenuation = 1.0 / dot(directionToLight, directionToLight); // distance squared
 
   vec3 lightColor = ubo.lightColor.xyz * ubo.lightColor.w * attenuation;
   vec3 ambientLight = ubo.ambientLightColor.xyz * ubo.ambientLightColor.w;
 
   // diffuse lighting is changed for colored lighting
-  vec3 diffuseLight = lightColor * max(dot(normalWorldSpace, normalize(directionToLight)), 0)
+  vec3 diffuseLight = lightColor * max(dot(normalWorldSpace, normalize(directionToLight)), 0);
 
   fragColor = (diffuseLight + ambientLight) * color;
 }
