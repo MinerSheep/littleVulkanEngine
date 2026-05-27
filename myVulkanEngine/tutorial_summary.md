@@ -127,3 +127,7 @@ FINALLY, in our SimpleRenderSystem, before we do rendering for all gameObjects, 
 Important to note that if a descriptorSet is overwritten, every descriptorSet that comes after also needs to be rewritten!
 
 There is A LOT going on in this one so definitely study later
+
+21 - **Point Lights** - point lighting hits vertices at different angles compared to a global skylights
+The intensity of the light is defined as intensity / dist^2
+You can make it more artistic by adding constant, linear, and quadratic scaling to the denominator

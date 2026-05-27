@@ -18,8 +18,10 @@
 namespace lve {
 
   struct GlobalUbo {
-    alignas(16) glm::mat4 projectionView{1.f};
-    alignas(16) glm::vec3 lightDirection = glm::normalize(glm::vec3{1.f,-3.f,-1.f});
+    glm::mat4 projectionView{1.f};
+    glm::vec4 ambientLightColor{1.f,1.f,1.f,0.02f};
+    glm::vec4 lightPosition{-1.f}; // ignore w - alignas for lightColor is other option or 4 byte padding
+    glm::vec4 lightColor{-1.f};    // w is light intensity
   };
 
 FirstApp::FirstApp() {
@@ -80,6 +82,7 @@ void FirstApp::run() {
 
   // used to store the camera's state
   auto viewerObject = LveGameObject::createGameObject();
+  viewerObject.transform.translation.z = -2.5f;
   KeyboardMovementController cameraController{};
 
   auto currentTime = std::chrono::high_resolution_clock::now();
@@ -157,7 +160,7 @@ void FirstApp::loadGameObjects() {
 
   auto gameObj = LveGameObject::createGameObject();
   gameObj.model = lveModel;
-  gameObj.transform.translation = {.0f, .5f, 2.5f};
+  gameObj.transform.translation = {.0f, .5f, 0.f};
   gameObj.transform.scale = glm::vec3(3.f);
   gameObjects.push_back(std::move(gameObj));
 }

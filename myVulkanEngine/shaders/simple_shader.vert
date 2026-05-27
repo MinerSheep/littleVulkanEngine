@@ -10,7 +10,9 @@ layout(location = 0) out vec3 fragColor;
 
 layout (set = 0, binding = 0) uniform GlobalUbo {
   mat4 projectionViewMatrix;
-  vec3 directionToLight;
+  vec4 ambientLightColor;
+  vec4 lightPosition;
+  vec4 lightColor;
 } ubo;
 
 layout(push_constant) uniform Push {
@@ -18,16 +20,21 @@ layout(push_constant) uniform Push {
   mat4 normalMatrix; // keep as mat4 for alignment requirements, but truncate to mat3
 } push;
 
-// This is a SKY LIGHT, only direction, same for all vertices, no distance
-const float AMBIENT = 0.02;
-
 void main() {
-  gl_Position = ubo.projectionViewMatrix * push.modelMatrix * vec4(position, 1.0);
+  vec4 positionWorld = push.modelMatrix * vec4(position, 1.0);
+  gl_Position = ubo.projectionViewMatrix * positionWorld;
 
   vec3 normalWorldSpace = normalize(mat3(push.normalMatrix) * normal);
 
-  // default to 0 if light on other side
-  float lightIntensity = AMBIENT + max(dot(normalWorldSpace, ubo.directionToLight), 0);
+  // xyz to convert to vec3
+  vec3 directionToLight = ubo.lightPosition - positionWorld.xyz;
+  float attenuation = 1.0 / dot(directionToLight, directionToLight); // distance squared
 
-  fragColor = lightIntensity * color;
+  vec3 lightColor = ubo.lightColor.xyz * ubo.lightColor.w * attenuation;
+  vec3 ambientLight = ubo.ambientLightColor.xyz * ubo.ambientLightColor.w;
+
+  // diffuse lighting is changed for colored lighting
+  vec3 diffuseLight = lightColor * max(dot(normalWorldSpace, normalize(directionToLight)), 0)
+
+  fragColor = (diffuseLight + ambientLight) * color;
 }
