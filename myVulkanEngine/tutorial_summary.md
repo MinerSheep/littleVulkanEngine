@@ -135,3 +135,7 @@ You can make it more artistic by adding constant, linear, and quadratic scaling 
 Making point lights work with our object means we need worldPosition for the object which is the modelMatrix * position
 float attenuation = 1.0 / dot(directionToLight, directionToLight); // distance squared
 ^ multiply this by colorLight.xyz * colorLight.w (its intensity)
+
+I ran into an issue where the window would not launch and it said WARN: COPY MODE on the window title
+The issue behind this had nothing to do with the code, but rather the wsl driver malfunctioning
+An easy fix was to do wsl --shutdown before rebooting wsl and the program
