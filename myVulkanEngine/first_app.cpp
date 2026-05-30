@@ -110,7 +110,7 @@ void FirstApp::run() {
     // Returns null if swap chain needs to be recreated!
     if (auto commandBuffer = lveRenderer.beginFrame()) {
       int frameIndex = lveRenderer.getFrameIndex();
-      FrameInfo frameInfo{frameIndex, dt, commandBuffer, camera, globalDescriptorSets[frameIndex]};
+      FrameInfo frameInfo{frameIndex, dt, commandBuffer, camera, globalDescriptorSets[frameIndex], gameObjects};
 
       // update
       GlobalUbo ubo{};
@@ -122,7 +122,7 @@ void FirstApp::run() {
       // Being able to control when the render pass begins and ends is helpful for post processing
       // effects
       lveRenderer.beginSwapChainRenderPass(commandBuffer);
-      simpleRenderSystem.renderGameObjects(frameInfo, gameObjects);
+      simpleRenderSystem.renderGameObjects(frameInfo);
 
       lveRenderer.endSwapChainRenderPass(commandBuffer);
       lveRenderer.endFrame();
@@ -162,13 +162,13 @@ void FirstApp::loadGameObjects() {
   gameObj.model = lveModel;
   gameObj.transform.translation = {-.5f, .5f, 0.f};
   gameObj.transform.scale = glm::vec3(3.f);
-  gameObjects.push_back(std::move(gameObj));
+  gameObjects.emplace(gameObj.getId(), std::move(gameObj));
 
   lveModel = LveModel::createModelFromFile(lveDevice, "models/quad.obj");
   auto floor = LveGameObject::createGameObject();
   floor.model = lveModel;
   floor.transform.translation = {.0f, .5f, 0.f};
   floor.transform.scale = glm::vec3{3.f,1.f,3.f};
-  gameObjects.push_back(std::move(floor));
+  gameObjects.emplace(floor.getId(), std::move(floor));
 }
 }  // namespace lve

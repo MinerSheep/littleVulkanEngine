@@ -38,7 +38,7 @@ SimpleRenderSystem::~SimpleRenderSystem() {
 }
 
 void SimpleRenderSystem::renderGameObjects(
-    FrameInfo& frameInfo, std::vector<LveGameObject>& gameObjects) {
+    FrameInfo& frameInfo) {
   lvePipeline->bind(frameInfo.commandBuffer);
 
   // Every set overwritten must overwrite every set that comes after it
@@ -53,7 +53,11 @@ void SimpleRenderSystem::renderGameObjects(
       0, // dynamic offsets
       nullptr);
 
-  for (auto& obj : gameObjects) {
+  for (auto& kv : frameInfo.gameObjects) {
+    auto& obj = kv.second;
+
+    if (obj.model == nullptr) continue;
+    
     SimplePushConstantData push{};
 
     // We are now calculating on the GPU, not the CPU
