@@ -21,7 +21,7 @@ namespace lve {
     glm::mat4 projectionView{1.f};
     glm::vec4 ambientLightColor{1.f,1.f,1.f,0.02f};
     glm::vec4 lightPosition{-1.f}; // ignore w - alignas for lightColor is other option or 4 byte padding
-    glm::vec4 lightColor{-1.f};    // w is light intensity
+    glm::vec4 lightColor{1.f,0.f,0.f,1.f};    // w is light intensity
   };
 
 FirstApp::FirstApp() {
@@ -55,7 +55,7 @@ void FirstApp::run() {
   globalUboBuffer.map();
 
   auto globalSetLayout = LveDescriptorSetLayout::Builder(lveDevice)
-    .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+    .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
     // .addBinding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
     .build();
 

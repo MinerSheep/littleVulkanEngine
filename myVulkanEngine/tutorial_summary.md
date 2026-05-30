@@ -139,3 +139,6 @@ float attenuation = 1.0 / dot(directionToLight, directionToLight); // distance s
 I ran into an issue where the window would not launch and it said WARN: COPY MODE on the window title
 The issue behind this had nothing to do with the code, but rather the wsl driver malfunctioning
 An easy fix was to do wsl --shutdown before rebooting wsl and the program
+
+22 - **Fragment Lighting** - currently the floor looks weird, and thats because it only has 4 vertices
+The color for the floor is interpolating between the color of the 4 vertices at each corner
