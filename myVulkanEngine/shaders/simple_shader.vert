@@ -27,7 +27,7 @@ void main() {
   vec3 normalWorldSpace = normalize(mat3(push.normalMatrix) * normal);
 
   // xyz to convert to vec3
-  vec3 directionToLight = ubo.lightPosition.xyz - positionWorld.xyz;
+  vec3 directionToLight = vec3(ubo.lightPosition) - positionWorld.xyz;
   float attenuation = 1.0 / dot(directionToLight, directionToLight); // distance squared
 
   vec3 lightColor = ubo.lightColor.xyz * ubo.lightColor.w * attenuation;

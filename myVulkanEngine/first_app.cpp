@@ -105,7 +105,7 @@ void FirstApp::run() {
     // across different window aspect ratios
     float aspect = lveRenderer.getAspectRatio();
     // camera.setOrthographicProjection(-aspect, aspect, -1, 1, -1, 1);
-    camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 10.f);
+    camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
 
     // Returns null if swap chain needs to be recreated!
     if (auto commandBuffer = lveRenderer.beginFrame()) {
