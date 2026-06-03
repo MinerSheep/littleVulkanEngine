@@ -2,7 +2,7 @@
 
 #include "keyboard_movement_controller.hpp"
 #include "systems/simple_render_system.hpp"
-// #include "systems/point_light_system.hpp"
+#include "systems/point_light_system.hpp"
 #include "lve_camera.hpp"
 #include "lve_buffer.hpp"
 
@@ -76,7 +76,7 @@ void FirstApp::run() {
   }
 
   SimpleRenderSystem simpleRenderSystem{lveDevice, lveRenderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
-  // PointLightSystem pointLightSystem{lveDevice, lveRenderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
+  PointLightSystem pointLightSystem{lveDevice, lveRenderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
   LveCamera camera{};
   //camera.setViewDirection(glm::vec3{0.f}, glm::vec3(0.5f,0.f,1.f));
 
@@ -127,7 +127,7 @@ void FirstApp::run() {
       // effects
       lveRenderer.beginSwapChainRenderPass(commandBuffer);
       simpleRenderSystem.renderGameObjects(frameInfo);
-      // pointLightSystem.render(frameInfo);
+      pointLightSystem.render(frameInfo);
 
       lveRenderer.endSwapChainRenderPass(commandBuffer);
       lveRenderer.endFrame();

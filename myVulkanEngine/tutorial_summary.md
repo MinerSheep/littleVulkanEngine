@@ -149,3 +149,6 @@ The biggest giveaway for this is to keep in mind that GPU excels at rendering a 
 
 24 - **Billboards** - A billboard is an object like in Baldis Basics, it always faces the camera and can be used for light objects
 We can make a new shader for this that draws 2d images to the screen by using gl_vertexIndex with an offset for each vertex
+The point light system draws 6 vertice indexes
+It uses the point light shader which gets the ubo's lightPosition value and draws EACH VERTEX on an offset around the position
+To make it into a circle, we can use the point's distance to discard; any value that is > 1.0 (radius)
