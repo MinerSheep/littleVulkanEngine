@@ -142,3 +142,10 @@ An easy fix was to do wsl --shutdown before rebooting wsl and the program
 
 22 - **Fragment Lighting** - currently the floor looks weird, and thats because it only has 4 vertices
 The color for the floor is interpolating between the color of the 4 vertices at each corner
+
+**A Vulkan Story** - If Vulkan rendering is taking a long time and you notice damage to the PCI (motherboard to gpu bus)
+Likely its because buffers are being stored and rendered through the cpu
+The biggest giveaway for this is to keep in mind that GPU excels at rendering a million objects. CPU doesnt
+
+24 - **Billboards** - A billboard is an object like in Baldis Basics, it always faces the camera and can be used for light objects
+We can make a new shader for this that draws 2d images to the screen by using gl_vertexIndex with an offset for each vertex
