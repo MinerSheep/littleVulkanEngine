@@ -34,9 +34,12 @@ layout(push_constant) uniform Push {
 } push;
 
 void main() {
+  // if we used method one (36 indices)  we would make following conversions  i = floor(gl_VertexIndex / 6)
+  // push.position -> pointLights[i].position  gl_VertexIndex -> gl_VertexIndex % 6
+  
   fragOffset = OFFSETS[gl_VertexIndex];
 
-  // these are in world space
+  // these are in world space - use PUSH CONSTANT for each light position
   vec3 cameraRightWorld = {ubo.view[0][0], ubo.view[1][0], ubo.view[2][0]};
   vec3 cameraUpWorld = {ubo.view[0][1], ubo.view[1][1], ubo.view[2][1]};
 

@@ -111,6 +111,7 @@ void FirstApp::run() {
       GlobalUbo ubo{};
       ubo.projection = camera.getProjection();
       ubo.view = camera.getView();
+      pointLightSystem.update(frameInfo, ubo);
       globalUboBuffer.writeToIndex(&ubo, frameIndex);
       globalUboBuffer.flushIndex(frameIndex);
 
@@ -167,5 +168,26 @@ void FirstApp::loadGameObjects() {
   floor.transform.translation = {.0f, .5f, 0.f};
   floor.transform.scale = glm::vec3{3.f,1.f,3.f};
   gameObjects.emplace(floor.getId(), std::move(floor));
+
+  std::vector<glm::vec3> lightColors{
+    {1.f, .1f, .1f},
+    {.1f, .1f, 1.f},
+    {.1f, 1.f, .1f},
+    {1.f, 1.f, .1f},
+    {.1f, 1.f, 1.f},
+    {1.f, 1.f, 1.f}
+  };
+  
+  // moving the variable with std::move means it becomes INACCESSIBLE, do not forget
+  for (int i = 0; i < lightColors.size(); i++) {
+    auto pointLight = LveGameObject::makePointLight(0.2f);
+    pointLight.color = lightColors[i];
+    auto rotateLight = glm::rotate(
+        glm::mat4(1.f),
+        (i * glm::two_pi<float>()) / lightColors.size(),  // 360 degrees divided by 6
+        {0.f, -1.f, 0.f});
+    pointLight.transform.translation = glm::vec3(rotateLight * glm::vec4(-1.f, -1.f, -1.f, 1.f));
+    gameObjects.emplace(pointLight.getId(), std::move(pointLight));
+  }
 }
 }  // namespace lve

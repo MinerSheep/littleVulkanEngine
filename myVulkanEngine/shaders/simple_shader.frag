@@ -30,6 +30,7 @@ void main() {
   vec3 diffuseLight = ubo.ambientLightColor.xyz * ubo.ambientLightColor.w;
   vec3 surfaceNormal = normalize(fragNormalWorld);
 
+  // here we loop through lights in ubo  (NOT USING PUSH)
   for (int i = 0; i < ubo.numLights; i++) {
     PointLight light = ubo.pointLights[i];
 
