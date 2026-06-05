@@ -21,10 +21,12 @@ class LveCamera {
 
   const glm::mat4& getProjection() const { return projectionMatrix; }
   const glm::mat4& getView() const { return viewMatrix; }
+  const glm::mat4& getInverseView() const { return inverseViewMatrix; }
 
 
  private:
   glm::mat4 projectionMatrix{1.f};
   glm::mat4 viewMatrix{1.f}; // camera transform
+  glm::mat4 inverseViewMatrix{1.f};
 };
 }  // namespace lve

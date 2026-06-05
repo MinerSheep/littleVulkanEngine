@@ -154,5 +154,15 @@ It uses the point light shader which gets the ubo's lightPosition value and draw
 To make it into a circle, we can use the point's distance to discard; any value that is > 1.0 (radius)
 
 25 - **Creating multiple lights as game objects** - We can make lights into gameObjects so its easier to render each one
-2 methods - put in an array and iterate through each one (within shader) with a single draw call
-or we can use push constant w position, color, & radius + multiple draw calls
+2 methods - draw all point light vertices in a single draw call, use vertex index to determine light index in ubo(single draw call)
+or we can do multiple draw calls & use push constant w position, color, & radius to pass in data for each light (we use this)
+
+total light is calculated by ambient diffuse light + ∑diffuse light from light source
+
+26 - **Specular lighting** - Objects reflect light through highlights, this changes based on camera's position
+The highlight bounces off the object like a mirror reflecting opposite where the light ray came from
+A simple way to calculate the intensity of the highlight is by using dot product of the reflection to the viewer's eyes
+(Perpendicular = 0, no hightlight, parallel dead on = 1, strong highlight, negative highlights don't exist)
+
+Blinn Phong model is best because it uses vector between light ray & direction to viewer, dot that with the normal of the surface
+Mimics the same behavior as dot product between reflection & direction to viewer, the difference is it can handle angles > 90 degrees

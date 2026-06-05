@@ -20,6 +20,7 @@ struct PointLight {
 layout(set = 0, binding = 0) uniform GlobalUbo {
   mat4 projection;
   mat4 view;
+  mat4 invView;
   vec4 ambientLightColor; // w is intensity
 
   // Here we can use SPECIALIZATION CONSTANTS - pass defines into shader
@@ -36,7 +37,7 @@ layout(push_constant) uniform Push {
 void main() {
   // if we used method one (36 indices)  we would make following conversions  i = floor(gl_VertexIndex / 6)
   // push.position -> pointLights[i].position  gl_VertexIndex -> gl_VertexIndex % 6
-  
+
   fragOffset = OFFSETS[gl_VertexIndex];
 
   // these are in world space - use PUSH CONSTANT for each light position

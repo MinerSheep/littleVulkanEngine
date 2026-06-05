@@ -18,7 +18,8 @@ namespace lve {
 
   struct GlobalUbo {
     glm::mat4 projection{1.f};
-    glm::mat4 view{1.f};
+    glm::mat4 view{1.f}; // world -> cam space
+    glm::mat4 inverseView{1.f}; // cam position can be extracted from last col - cam -> world space
     glm::vec4 ambientLightColor{1.f,1.f,1.f,0.02f};
     PointLight pointLights[MAX_LIGHTS];
     int numLights;
