@@ -13,6 +13,13 @@
 #include <iostream>
 
 namespace lve {
+  // we could render multiple lights through simple indexing with one draw call
+  // however multiple draw calls w push constant makes easier to add modifications to each light (+ shader code simpler)
+  struct PointLightPushConstant {
+    glm::vec4 position{};
+    glm::vec4 color{};
+    float radius;
+  };
 
 PointLightSystem::PointLightSystem(LveDevice& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout)
     : lveDevice{device} {
@@ -28,8 +35,24 @@ PointLightSystem::~PointLightSystem() {
   vkDestroyPipelineLayout(lveDevice.device(), pipelineLayout, nullptr);
 }
 
-void PointLightSystem::render(
-    FrameInfo& frameInfo) {
+void PointLightSystem::update(FrameInfo& frameInfo, GlobalUbo& ubo) {
+  int lightIndex = 0;
+  for (auto& kv : frameInfo.gameObjects)
+  {
+    auto& obj = kv.second;
+    // no point light component = not point light
+    if (obj.pointLight == nullptr) continue;
+
+    // copy light to the ubo
+    ubo.pointLights[lightIndex].position = glm::vec4(obj.transform.translation, 1.0f);
+    ubo.pointLights[lightIndex].color = glm::vec4(obj.color, obj.pointLight->lightIntensity);
+    lightIndex++;
+  }
+
+  ubo.numLights = lightIndex;
+}
+
+void PointLightSystem::render(FrameInfo& frameInfo) {
   // std::cout << "Entering PointLightSystem::render\n";
   lvePipeline->bind(frameInfo.commandBuffer);
 
@@ -53,10 +76,10 @@ void PointLightSystem::createPipelineLayout(VkDescriptorSetLayout globalSetLayou
   // This is us PREDEFINING our **push constant range**
   // stageFlags set to both shaders
   // size is set to a PREDEFINED struct of what we want our pushdata to contain
-  // VkPushConstantRange pushConstantRange{};
-  // pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-  // pushConstantRange.offset = 0;  // (offset only used if you separate vertex and frag data)
-  // pushConstantRange.size = sizeof(SimplePushConstantData);
+  VkPushConstantRange pushConstantRange{};
+  pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+  pushConstantRange.offset = 0;  // (offset only used if you separate vertex and frag data)
+  pushConstantRange.size = sizeof(PointLightPushConstant);
 
   std::vector<VkDescriptorSetLayout> descriptorSetLayouts{globalSetLayout};
 
@@ -69,8 +92,8 @@ void PointLightSystem::createPipelineLayout(VkDescriptorSetLayout globalSetLayou
   pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
 
   // Sends small data to shader programs
-  pipelineLayoutInfo.pushConstantRangeCount = 0;
-  pipelineLayoutInfo.pPushConstantRanges = nullptr;
+  pipelineLayoutInfo.pushConstantRangeCount = 1;
+  pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
   if (vkCreatePipelineLayout(lveDevice.device(), &pipelineLayoutInfo, nullptr, &pipelineLayout) !=
       VK_SUCCESS) {
     throw std::runtime_error("failed to create pipeline layout!");

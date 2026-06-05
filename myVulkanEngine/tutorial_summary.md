@@ -152,3 +152,7 @@ We can make a new shader for this that draws 2d images to the screen by using gl
 The point light system draws 6 vertice indexes
 It uses the point light shader which gets the ubo's lightPosition value and draws EACH VERTEX on an offset around the position
 To make it into a circle, we can use the point's distance to discard; any value that is > 1.0 (radius)
+
+25 - **Creating multiple lights as game objects** - We can make lights into gameObjects so its easier to render each one
+2 methods - put in an array and iterate through each one (within shader) with a single draw call
+or we can use push constant w position, color, & radius + multiple draw calls

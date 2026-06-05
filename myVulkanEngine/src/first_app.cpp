@@ -18,14 +18,6 @@
 
 namespace lve {
 
-  struct GlobalUbo {
-    glm::mat4 projection{1.f};
-    glm::mat4 view{1.f};
-    glm::vec4 ambientLightColor{1.f,1.f,1.f,0.02f};
-    glm::vec4 lightPosition{-1.f}; // ignore w - alignas for lightColor is other option or 4 byte padding
-    glm::vec4 lightColor{1.f,0.f,0.f,1.f};    // w is light intensity
-  };
-
 FirstApp::FirstApp() {
   // since the fns return a reference, we can chain initialization here
   globalPool = LveDescriptorPool::Builder(lveDevice)
