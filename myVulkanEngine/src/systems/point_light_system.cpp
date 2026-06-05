@@ -68,8 +68,33 @@ void PointLightSystem::render(FrameInfo& frameInfo) {
       0, // dynamic offsets
       nullptr);
 
-    // Just like drawing a triangle
-    vkCmdDraw(frameInfo.commandBuffer, 6, 1, 0, 0);
+    for (auto& kv : frameInfo.gameObjects)
+    {
+      auto& obj = kv.second;
+      // no point light component = not point light
+      if (obj.pointLight == nullptr) continue;
+
+      // inefficient method of looping through lights?
+      PointLightPushConstant push{};
+      push.position = glm::vec4(obj.transform.translation, 1.0f);
+      push.color = glm::vec4(obj.color, obj.pointLight->lightIntensity);
+      push.radius = obj.transform.scale.x;
+
+      // push the constants
+      vkCmdPushConstants(
+        frameInfo.commandBuffer,
+        pipelineLayout,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+        0,
+        sizeof(PointLightPushConstant),
+        &push
+      );
+
+      // Just like drawing a triangle, previously we used ubo info to draw it
+      // now we will use the push constant info to draw each light
+      vkCmdDraw(frameInfo.commandBuffer, 6, 1, 0, 0);
+    }
+
 }
 
 void PointLightSystem::createPipelineLayout(VkDescriptorSetLayout globalSetLayout) {

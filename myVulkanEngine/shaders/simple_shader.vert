@@ -11,12 +11,19 @@ layout(location = 1) out vec3 fragPosWorld;
 layout(location = 2) out vec3 fragNormalWorld;
 
 
-layout (set = 0, binding = 0) uniform GlobalUbo {
+struct PointLight {
+  vec4 position; // w is ignored
+  vec4 color;    // w is intensity
+};
+
+layout(set = 0, binding = 0) uniform GlobalUbo {
   mat4 projection;
   mat4 view;
-  vec4 ambientLightColor;
-  vec4 lightPosition;
-  vec4 lightColor;
+  vec4 ambientLightColor; // w is intensity
+
+  // Here we can use SPECIALIZATION CONSTANTS - pass defines into shader
+  PointLight pointLights[10];
+  int numLights;
 } ubo;
 
 layout(push_constant) uniform Push {
