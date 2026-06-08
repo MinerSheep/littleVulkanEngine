@@ -166,3 +166,13 @@ A simple way to calculate the intensity of the highlight is by using dot product
 
 Blinn Phong model is best because it uses vector between light ray & direction to viewer, dot that with the normal of the surface
 Mimics the same behavior as dot product between reflection & direction to viewer, the difference is it can handle angles > 90 degrees
+
+27 - **Alpha blending and transparency** - Color Blending (final graphics pipeline step) combines old and new color values
+We haven't had this enabled because there is one gotcha when working with transparency
+
+Color Buffer - what the color of fragment is,  Depth Buffer - how close fragment is, if another fragment in front, discard the back
+If a window is rendered first, in front of an object, it will discard the object's fragments
+
+Therefore we will avoid the case where 3 objects can overlap each other and instead just focus on blending
+
+We will partially solve this problem by rendering solid objects (high alpha) first

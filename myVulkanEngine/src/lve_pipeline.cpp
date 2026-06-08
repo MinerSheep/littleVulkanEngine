@@ -128,6 +128,26 @@ void LvePipeline::defaultPipelineConfigInfo(PipelineConfigInfo& configInfo) {
   configInfo.attributeDescriptions = LveModel::Vertex::getAttributeDescriptions();
 }
 
+void LvePipeline::enableAlphaBlending(PipelineConfigInfo& configInfo) {
+  // Color blending - mix frag shader and frame buffer values
+  configInfo.colorBlendAttachment.blendEnable = VK_TRUE;
+
+  configInfo.colorBlendAttachment.colorWriteMask =
+      VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+      VK_COLOR_COMPONENT_A_BIT;
+  // src is the outColor from fragment shader, dst is whatever color exists in fragment in our color attachment
+
+  // if we render solid objects first, and semi transparent objects from farthest to closest
+  // using these color blend attachments should work
+  configInfo.colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;            // src.a * src.rgb first
+  configInfo.colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;  // add  ((1-src.a) * dst.rgb)
+  configInfo.colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;                             // add these values together ^
+  
+  configInfo.colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;   // Optional
+  configInfo.colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;  // Optional
+  configInfo.colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;              // Optional
+}
+
 std::vector<char> LvePipeline::readFile(const std::string& filename) {
   // ate means ???, binary means that there wont be any file conversions
   // ate means when the file is opened, we seek to the end immediately - good for size

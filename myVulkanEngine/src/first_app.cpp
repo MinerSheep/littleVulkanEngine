@@ -120,6 +120,8 @@ void FirstApp::run() {
       // Being able to control when the render pass begins and ends is helpful for post processing
       // effects
       lveRenderer.beginSwapChainRenderPass(commandBuffer);
+
+      
       simpleRenderSystem.renderGameObjects(frameInfo);
       pointLightSystem.render(frameInfo);
 
