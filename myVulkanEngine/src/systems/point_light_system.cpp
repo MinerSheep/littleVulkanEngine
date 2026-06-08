@@ -11,6 +11,7 @@
 #include <cassert>
 #include <stdexcept>
 #include <iostream>
+#include <map>
 
 namespace lve {
   // we could render multiple lights through simple indexing with one draw call
@@ -61,6 +62,20 @@ void PointLightSystem::update(FrameInfo& frameInfo, GlobalUbo& ubo) {
 }
 
 void PointLightSystem::render(FrameInfo& frameInfo) {
+  // we need to sort lights by distance to camera
+  std::map<float, LveGameObject::id_t> sorted;
+  for (auto& kv : frameInfo.gameObjects)
+    {
+      auto& obj = kv.second;
+      // no point light component = not point light
+      if (obj.pointLight == nullptr) continue;
+
+      // calc distance w length squared
+      auto offset = frameInfo.camera.getPosition() - obj.transform.translation;
+      float disSquared = glm::dot(offset, offset);
+      sorted[disSquared] = obj.getId();
+    }
+
   // std::cout << "Entering PointLightSystem::render\n";
   lvePipeline->bind(frameInfo.commandBuffer);
 
@@ -76,33 +91,29 @@ void PointLightSystem::render(FrameInfo& frameInfo) {
       0, // dynamic offsets
       nullptr);
 
-    for (auto& kv : frameInfo.gameObjects)
-    {
-      auto& obj = kv.second;
-      // no point light component = not point light
-      if (obj.pointLight == nullptr) continue;
+  // iterate through map in reverse
+  for (auto it = sorted.rbegin(); it != sorted.rend(); it++) {
+    auto& obj = frameInfo.gameObjects.at(it->second);
 
-      // inefficient method of looping through lights?
-      PointLightPushConstant push{};
-      push.position = glm::vec4(obj.transform.translation, 1.0f);
-      push.color = glm::vec4(obj.color, obj.pointLight->lightIntensity);
-      push.radius = obj.transform.scale.x;
+    // inefficient method of looping through lights?
+    PointLightPushConstant push{};
+    push.position = glm::vec4(obj.transform.translation, 1.0f);
+    push.color = glm::vec4(obj.color, obj.pointLight->lightIntensity);
+    push.radius = obj.transform.scale.x;
 
-      // push the constants
-      vkCmdPushConstants(
+    // push the constants
+    vkCmdPushConstants(
         frameInfo.commandBuffer,
         pipelineLayout,
         VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
         0,
         sizeof(PointLightPushConstant),
-        &push
-      );
+        &push);
 
-      // Just like drawing a triangle, previously we used ubo info to draw it
-      // now we will use the push constant info to draw each light
-      vkCmdDraw(frameInfo.commandBuffer, 6, 1, 0, 0);
-    }
-
+    // Just like drawing a triangle, previously we used ubo info to draw it
+    // now we will use the push constant info to draw each light
+    vkCmdDraw(frameInfo.commandBuffer, 6, 1, 0, 0);
+  }
 }
 
 void PointLightSystem::createPipelineLayout(VkDescriptorSetLayout globalSetLayout) {
@@ -138,6 +149,8 @@ void PointLightSystem::createPipeline(VkRenderPass renderPass) {
 
   PipelineConfigInfo pipelineConfig{};
   LvePipeline::defaultPipelineConfigInfo(pipelineConfig);
+  LvePipeline::enableAlphaBlending(pipelineConfig);
+  
   pipelineConfig.attributeDescriptions.clear();
   pipelineConfig.bindingDescriptions.clear();
   pipelineConfig.renderPass = renderPass;  // render pass describes structure and

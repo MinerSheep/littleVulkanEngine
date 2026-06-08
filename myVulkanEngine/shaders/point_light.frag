@@ -25,10 +25,17 @@ layout(push_constant) uniform Push {
   float radius;
 } push;
 
+const float M_PI = 3.1415926;
+
 void main() {
   float dis = sqrt(dot(fragOffset, fragOffset));
   if (dis >= 1.0) {
     discard;
   }
-  outColor = vec4(push.color.xyz, 1.0);
+
+  // this creates a graph f(x) = 1/2 [cos(pi*x) + 1]
+
+  // we are adjusting so that we start from 1.0 and go 0.0 further out
+  float cosDis = 0.5 * (cos(dis * M_PI) + 1.0); // makes light white in center and fade out to color
+  outColor = vec4(push.color.xyz + 0.5 * cosDis, cosDis);
 }
