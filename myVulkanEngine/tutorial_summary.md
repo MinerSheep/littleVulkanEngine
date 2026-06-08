@@ -79,3 +79,100 @@ We can do this for now by making a camera controller and passing in dt during th
 dt can be obtained using std::chrono's high resolution clock
 
 **To see renditions of the engine from before here, open tutorial 2 folder in littleVulkanEngine**
+
+16 - **Index & Staging Buffers (maybe issue here)** - Rendered objects like Squares are made up of triangles and they share vertices to make those triangles
+6 faces splits into 12 triangles = 12 * 3 = 36 vertices, 30 of which being duplicates (causes memory abuse for more complex models)
+This is why we use an index buffer, to tell the GPU to render index {0,1,2} of vertices list {0,1,2,3,4,5}
+
+To make memory as fast as it can be, we need to set VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT which is not compatible with mutable buffer data
+Therefore, we will use a staging buffer, which is what our buffer is now, but we send to the buffer and then delete the stagingBuffer
+This works best with static models, dynamic models will negate any performance gain we get from this
+
+17 - **Adding libraries and loading 3d models** - Add libraries to the project using libs folder and -Ilibs in Makefile
+pass in a filepath to tinyobj::LoadObj, we can read the shape.mesh.indices for lines attributed to the vertex, texcoord, & normal
+
+However, we are not using Index Buffer during this to reduce model memory consumption, it's not as straightforward here
+Since Waveform objs, they use separate vertices for the position, normal, and texcoord.  We need all these vertices grouped together
+(I did this by keeping track of unique vertices in a map
+putting each element in indexbuffer 
+towards the unique vertice index)
+
+18 - **Adding lighting** - Lighting is a very complicated formula to calculate, but for diffuse lighting, it can be simplified
+Diffuse lighting is calculated using ||a||||b||cos 0 which, when both vectors are normalized, turns out to cos 0 (capped from 1 to 0)
+Therefore we can use this to calculate the light % are every point on the model in regards to a light source
+
+We will start by using a skylight which is only a direction, no position
+Also if we scale the obj unevenly, it can look wrong.  This can be fixed with forced uniform scaling, OR by passing in the normal matrix which we do here
+
+This tutorial also shows how to export from Blender in order to achieve smooth vs flat shading (different visual effect, smooth is cheaper)
+
+19 - **Uniform buffers** - Uniform buffers are used to replace push constants in shaders.  They work the same as Vertex buffers.
+Its important to note that 16 KB is how large you can go for mobile devices, must abide by the device's minOffsetAlignment.
+We also need to align by the device's nonCoherentAtomSize for incoherent buffers (where we have 2 buffers in one that are offsetted)
+This is because the host and device memory have a min size they can sync between
+I fixed this by taking the max value between minOffsetAlignment & nonCoherentAtomSize though it can also be solved with lcm or with separate uniform buffers.
+
+20 - **Descriptors** - Descriptors point to buffer data for the render pipeline to use.  They must be organized into SETS.
+At application start, we must define the Descriptor Set Layout.  When allocating the Set, we must allocate from a Descriptor Pool.
+
+We use a custom builder class that **returns a reference to itself so we can chain initialization**.
+When we write to each buffer/image, we can use the writer class.  Pass in the descriptorInfo() for each buffer.
+
+Descriptor Pools are given a fixed size and can only allocate so many descriptors of a given type.  For example, globalPool is given maxSets = MAX_FRAMES_IN_FLIGHT and poolSize = (VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
+
+This allows allocate 2 uniform buffer descriptors, but can't allocate 2 more uniform buffer descriptors unless it is specified during initialization (addPoolSize(TYPE_UNIFORM_BUFFER), 4);
+
+FINALLY, in our SimpleRenderSystem, before we do rendering for all gameObjects, call vkCmdBindDescriptorSets to bind descriptor set ONCE and then it is reused for all gameObjects that frame.
+
+Important to note that if a descriptorSet is overwritten, every descriptorSet that comes after also needs to be rewritten!
+
+There is A LOT going on in this one so definitely study later
+
+21 - **Point Lights** - point lighting hits vertices at different angles compared to a global skylights
+The intensity of the light is defined as intensity / dist^2
+You can make it more artistic by adding constant, linear, and quadratic scaling to the denominator
+
+Making point lights work with our object means we need worldPosition for the object which is the modelMatrix * position
+float attenuation = 1.0 / dot(directionToLight, directionToLight); // distance squared
+^ multiply this by colorLight.xyz * colorLight.w (its intensity)
+
+I ran into an issue where the window would not launch and it said WARN: COPY MODE on the window title
+The issue behind this had nothing to do with the code, but rather the wsl driver malfunctioning
+An easy fix was to do wsl --shutdown before rebooting wsl and the program
+
+22 - **Fragment Lighting** - currently the floor looks weird, and thats because it only has 4 vertices
+The color for the floor is interpolating between the color of the 4 vertices at each corner
+
+**A Vulkan Story** - If Vulkan rendering is taking a long time and you notice damage to the PCI (motherboard to gpu bus)
+Likely its because buffers are being stored and rendered through the cpu
+The biggest giveaway for this is to keep in mind that GPU excels at rendering a million objects. CPU doesnt
+
+24 - **Billboards** - A billboard is an object like in Baldis Basics, it always faces the camera and can be used for light objects
+We can make a new shader for this that draws 2d images to the screen by using gl_vertexIndex with an offset for each vertex
+The point light system draws 6 vertice indexes
+It uses the point light shader which gets the ubo's lightPosition value and draws EACH VERTEX on an offset around the position
+To make it into a circle, we can use the point's distance to discard; any value that is > 1.0 (radius)
+
+25 - **Creating multiple lights as game objects** - We can make lights into gameObjects so its easier to render each one
+2 methods - draw all point light vertices in a single draw call, use vertex index to determine light index in ubo(single draw call)
+or we can do multiple draw calls & use push constant w position, color, & radius to pass in data for each light (we use this)
+
+total light is calculated by ambient diffuse light + ∑diffuse light from light source
+
+26 - **Specular lighting** - Objects reflect light through highlights, this changes based on camera's position
+The highlight bounces off the object like a mirror reflecting opposite where the light ray came from
+A simple way to calculate the intensity of the highlight is by using dot product of the reflection to the viewer's eyes
+(Perpendicular = 0, no hightlight, parallel dead on = 1, strong highlight, negative highlights don't exist)
+
+Blinn Phong model is best because it uses vector between light ray & direction to viewer, dot that with the normal of the surface
+Mimics the same behavior as dot product between reflection & direction to viewer, the difference is it can handle angles > 90 degrees
+
+27 - **Alpha blending and transparency** - Color Blending (final graphics pipeline step) combines old and new color values
+We haven't had this enabled because there is one gotcha when working with transparency
+
+Color Buffer - what the color of fragment is,  Depth Buffer - how close fragment is, if another fragment in front, discard the back
+If a window is rendered first, in front of an object, it will discard the object's fragments
+
+Therefore we will avoid the case where 3 objects can overlap each other and instead just focus on blending
+
+We will partially solve this problem by rendering solid objects (high alpha) first

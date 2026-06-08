@@ -1,8 +1,12 @@
 include .env
 
 
-CFLAGS = -std=c++17 -I. -I$(VULKAN_SDK_PATH)/include
-LDFLAGS = -L$(VULKAN_SDK_PATH)/lib `pkg-config --static --libs glfw3` -lvulkan
+CFLAGS = -std=c++17 -I. -Ilibs -Isrc -I$(VULKAN_SDK_PATH)/include
+LDFLAGS = -L$(VULKAN_SDK_PATH)/lib `pkg-config --static --libs glfw3` -lvulkan -ltbb
+
+# Source files
+SOURCES = $(shell find src -type f -name "*.cpp")
+HEADERS = $(shell find src -type f -name "*.hpp")
 
 # create list of all spv files and set as dependency
 vertSources = $(shell find shaders -type f -name "*.vert")
@@ -11,9 +15,8 @@ fragSources = $(shell find shaders -type f -name "*.frag")
 fragObjFiles = $(patsubst %.frag, %.frag.spv, $(fragSources))
 
 TARGET = a.out
-$(TARGET): $(vertObjFiles) $(fragObjFiles)
-$(TARGET): *.cpp *.hpp
-	g++ $(CFLAGS) -o $(TARGET) *.cpp $(LDFLAGS)
+$(TARGET): $(SOURCES) $(HEADERS) $(vertObjFiles) $(fragObjFiles)
+	g++ $(CFLAGS) -o $(TARGET) $(SOURCES) $(LDFLAGS)
 
 # make shader targets
 %.spv: %

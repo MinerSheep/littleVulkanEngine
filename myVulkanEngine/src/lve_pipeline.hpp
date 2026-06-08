@@ -1,6 +1,6 @@
 #pragma once
 
-#include <lve_device.hpp>
+#include "lve_device.hpp"
 
 #include <string>
 #include <vector>
@@ -8,8 +8,13 @@
 namespace lve {
   // we want our app to be able to configure the pipeline and share the config info
   struct PipelineConfigInfo {
+    // without a default config info constructor, errors can occur on other compilers
+    PipelineConfigInfo() = default;
   PipelineConfigInfo(const PipelineConfigInfo&) = delete;
   PipelineConfigInfo& operator=(const PipelineConfigInfo&) = delete;
+
+  std::vector<VkVertexInputBindingDescription> bindingDescriptions{};
+  std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
 
   VkPipelineViewportStateCreateInfo viewportInfo;
   VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo; // <-
@@ -43,6 +48,7 @@ class LvePipeline {
   void bind(VkCommandBuffer commandBuffer);
 
   static void defaultPipelineConfigInfo(PipelineConfigInfo& configInfo);
+  static void enableAlphaBlending(PipelineConfigInfo& configInfo);
 
  private:
   static std::vector<char> readFile(const std::string& filename);
