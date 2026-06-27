@@ -1,7 +1,7 @@
 include .env
 
 
-CFLAGS = -std=c++17 -I. -Ilibs -Isrc -I$(VULKAN_SDK_PATH)/include
+CFLAGS = -std=c++17 -I. -Ilibs -Iinclude -I$(VULKAN_SDK_PATH)/include
 LDFLAGS = -L$(VULKAN_SDK_PATH)/lib `pkg-config --static --libs glfw3` -lvulkan
 
 # Source files

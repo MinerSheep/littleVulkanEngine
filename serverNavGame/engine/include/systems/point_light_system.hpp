@@ -1,7 +1,6 @@
 #pragma once
 
 #include "lve_device.hpp"
-#include "lve_game_object.hpp"
 #include "lve_pipeline.hpp"
 #include "lve_camera.hpp"
 #include "lve_frame_info.hpp"
@@ -11,15 +10,17 @@
 #include <vector>
 
 namespace lve {
-class SimpleRenderSystem {
+class PointLightSystem {
  public:
-  SimpleRenderSystem(LveDevice& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout);
-  ~SimpleRenderSystem();
+  PointLightSystem(LveDevice& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout);
+  ~PointLightSystem();
 
-  SimpleRenderSystem(const SimpleRenderSystem&) = delete;
-  SimpleRenderSystem& operator=(const SimpleRenderSystem&) = delete;
+  PointLightSystem(const PointLightSystem&) = delete;
+  PointLightSystem& operator=(const PointLightSystem&) = delete;
 
-  void renderGameObjects(FrameInfo& frameInfo);
+  void update(FrameInfo& frameInfo, GlobalUbo& ubo);
+
+  void render(FrameInfo& frameInfo);
 
  private:
   void createPipelineLayout(VkDescriptorSetLayout globalSetLayout);

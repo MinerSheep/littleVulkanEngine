@@ -102,10 +102,37 @@ void FirstApp::run() {
     // camera.setOrthographicProjection(-aspect, aspect, -1, 1, -1, 1);
     camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
 
+    // Set up render items before frameInfo
+    std::vector<RenderItem> renderItems;
+    for (auto& [id, obj] : gameObjects) {
+        if (!obj.model) continue;
+
+        renderItems.push_back({
+            obj.transform.mat4(),
+            obj.transform.normalMatrix(),
+            obj.model.get()
+        });
+    }
+    std::vector<LightRenderItem> lightItems;
+    for (auto& [id, obj] : gameObjects) {
+        if (!obj.pointLight) continue;
+
+        LightRenderItem item;
+        item.position = obj.transform.translation;
+        item.color = obj.color;
+        item.intensity = obj.pointLight->lightIntensity;
+        item.radius = obj.transform.scale.x;
+
+        auto offset = camera.getPosition() - item.position;
+        item.distanceToCamera = glm::dot(offset, offset);
+
+        lightItems.push_back(item);
+    }
+
     // Returns null if swap chain needs to be recreated!
     if (auto commandBuffer = lveRenderer.beginFrame()) {
       int frameIndex = lveRenderer.getFrameIndex();
-      FrameInfo frameInfo{frameIndex, dt, commandBuffer, camera, globalDescriptorSets[frameIndex], gameObjects};
+      FrameInfo frameInfo{frameIndex, dt, commandBuffer, camera, globalDescriptorSets[frameIndex], renderItems, lightItems};
 
       // update
       GlobalUbo ubo{};
@@ -122,7 +149,7 @@ void FirstApp::run() {
       lveRenderer.beginSwapChainRenderPass(commandBuffer);
 
       
-      simpleRenderSystem.renderGameObjects(frameInfo);
+      simpleRenderSystem.render(frameInfo);
       pointLightSystem.render(frameInfo);
 
       lveRenderer.endSwapChainRenderPass(commandBuffer);

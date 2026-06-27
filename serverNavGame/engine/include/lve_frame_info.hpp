@@ -1,7 +1,8 @@
 #pragma once
 
 #include "lve_camera.hpp"
-#include "lve_game_object.hpp"
+#include "lve_model.hpp"
+// #include "lve_game_object.hpp"
 
 // lib
 #include <vulkan/vulkan.h>
@@ -14,6 +15,19 @@ namespace lve {
   struct PointLight {
     glm::vec4 position{}; // ignore w
     glm::vec4 color{}; // w is intensity
+  };
+
+  struct LightRenderItem {
+    glm::vec3 position;
+    glm::vec3 color;
+    float intensity;
+    float radius;
+    float distanceToCamera;
+};
+  struct RenderItem {
+    glm::mat4 modelMatrix;
+    glm::mat4 normalMatrix;
+    LveModel* model;
   };
 
   struct GlobalUbo {
@@ -32,6 +46,7 @@ struct FrameInfo {
   LveCamera &camera;
   VkDescriptorSet globalDescriptorSet;
 
-  LveGameObject::Map &gameObjects;
+  std::vector<RenderItem> renderItems;
+  std::vector<LightRenderItem> lightItems;
 };
 }  // namespace lve

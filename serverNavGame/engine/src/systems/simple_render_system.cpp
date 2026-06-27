@@ -37,7 +37,7 @@ SimpleRenderSystem::~SimpleRenderSystem() {
   vkDestroyPipelineLayout(lveDevice.device(), pipelineLayout, nullptr);
 }
 
-void SimpleRenderSystem::renderGameObjects(
+void SimpleRenderSystem::render(
     FrameInfo& frameInfo) {
   lvePipeline->bind(frameInfo.commandBuffer);
 
@@ -53,16 +53,12 @@ void SimpleRenderSystem::renderGameObjects(
       0, // dynamic offsets
       nullptr);
 
-  for (auto& kv : frameInfo.gameObjects) {
-    auto& obj = kv.second;
-
-    if (obj.model == nullptr) continue;
-    
+  for (const auto& item : frameInfo.renderItems) {
     SimplePushConstantData push{};
 
     // We are now calculating on the GPU, not the CPU
-    push.modelMatrix = obj.transform.mat4();
-    push.normalMatrix = obj.transform.normalMatrix();
+    push.modelMatrix = item.modelMatrix;
+    push.normalMatrix = item.normalMatrix;
 
     // RECORD our push constant data
     vkCmdPushConstants(
@@ -72,8 +68,8 @@ void SimpleRenderSystem::renderGameObjects(
         0,
         sizeof(SimplePushConstantData),
         &push);
-    obj.model->bind(frameInfo.commandBuffer);
-    obj.model->draw(frameInfo.commandBuffer);
+    item.model->bind(frameInfo.commandBuffer);
+    item.model->draw(frameInfo.commandBuffer);
   }
 }
 
