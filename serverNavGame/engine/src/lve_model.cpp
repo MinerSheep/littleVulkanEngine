@@ -1,4 +1,5 @@
 #include "lve_model.hpp"
+#include "lve_engine.hpp"
 
 #include "lve_utils.hpp"
 
@@ -36,13 +37,13 @@ lve::LveModel::~LveModel() {
 }
 
 std::unique_ptr<lve::LveModel> lve::LveModel::createModelFromFile(
-    LveDevice& device, const std::string& filepath) {
+    const std::string& filepath) {
   Builder builder{};
   builder.loadModel(filepath);
 
   std::cout << "Vertex count: " << builder.vertices.size() << "\n";
 
-  return std::make_unique<LveModel>(device, builder);
+  return std::make_unique<LveModel>(LveEngine::instance->getDevice(), builder);
 }
 
 void lve::LveModel::bind(VkCommandBuffer commandBuffer) {

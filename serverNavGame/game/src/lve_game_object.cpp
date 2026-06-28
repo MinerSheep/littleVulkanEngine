@@ -1,7 +1,7 @@
 
 #include "lve_game_object.hpp"
 
-glm::mat4 lve::TransformComponent::mat4() {
+glm::mat4 TransformComponent::mat4() {
     const float c3 = glm::cos(rotation.z);
     const float s3 = glm::sin(rotation.z);
     const float c2 = glm::cos(rotation.x);
@@ -32,7 +32,7 @@ glm::mat4 lve::TransformComponent::mat4() {
 
   // 3x3, ignores translation component
   // this may not be worth it over computing the inverse transpose of the model matrix itself...
-  glm::mat3 lve::TransformComponent::normalMatrix() {
+  glm::mat3 TransformComponent::normalMatrix() {
     const float c3 = glm::cos(rotation.z);
     const float s3 = glm::sin(rotation.z);
     const float c2 = glm::cos(rotation.x);
@@ -60,8 +60,8 @@ glm::mat4 lve::TransformComponent::mat4() {
   };
 }
 
-lve::LveGameObject lve::LveGameObject::makePointLight(float intensity, float radius, glm::vec3 color) {
-    LveGameObject gameObj = LveGameObject::createGameObject();
+GameObject GameObject::makePointLight(float intensity, float radius, glm::vec3 color) {
+    GameObject gameObj = GameObject::createGameObject();
     gameObj.color = color;
     gameObj.transform.scale.x = radius;
     gameObj.pointLight = std::make_unique<PointLightComponent>();

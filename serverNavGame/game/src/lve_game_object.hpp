@@ -9,8 +9,6 @@
 #include <memory>
 #include <unordered_map>
 
-namespace lve {
-
 struct TransformComponent {
   glm::vec3 translation{};  // (position offset)
   glm::vec3 scale{1.f, 1.f, 1.f};
@@ -27,25 +25,25 @@ struct PointLightComponent
   float lightIntensity = 1.0f;
 };
 
-class LveGameObject {
+class GameObject {
  public:
   using id_t = unsigned int;
-  using Map = std::unordered_map<id_t, LveGameObject>;
+  using Map = std::unordered_map<id_t, GameObject>;
 
-  static LveGameObject createGameObject() {
+  static GameObject createGameObject() {
     static id_t currentId = 0;
-    return LveGameObject{currentId++};
+    return GameObject{currentId++};
   }
 
-  static LveGameObject makePointLight(float intensity = 1.0f, float radius = 0.1f, glm::vec3 color = glm::vec3(1.f));
+  static GameObject makePointLight(float intensity = 1.0f, float radius = 0.1f, glm::vec3 color = glm::vec3(1.f));
 
   // COPY - DELETE
-  LveGameObject(const LveGameObject&) = delete;
-  LveGameObject& operator=(const LveGameObject&) = delete;
+  GameObject(const GameObject&) = delete;
+  GameObject& operator=(const GameObject&) = delete;
 
   // MOVE
-  LveGameObject(LveGameObject&&) = default;
-  LveGameObject& operator=(LveGameObject&&) = default;
+  GameObject(GameObject&&) = default;
+  GameObject& operator=(GameObject&&) = default;
 
   id_t getId() { return id; }
 
@@ -53,12 +51,11 @@ class LveGameObject {
   TransformComponent transform{};
   
   // Optional: has a model shape,   color,   transform
-  std::shared_ptr<LveModel> model{};
+  std::shared_ptr<lve::LveModel> model{};
   std::unique_ptr<PointLightComponent> pointLight = nullptr;
 
  private:
-  LveGameObject(id_t objId) : id{objId} {}
+  GameObject(id_t objId) : id{objId} {}
 
   id_t id;
 };
-}  // namespace lve

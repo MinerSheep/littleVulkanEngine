@@ -3,10 +3,8 @@
 // std
 #include <limits>
 
-namespace lve {
-
 void KeyboardMovementController::moveInPlaneXZ(
-    GLFWwindow* window, float dt, LveGameObject& gameObject) {
+    GLFWwindow* window, float dt, GameObject& gameObject) {
   glm::vec3 rotate{0};
 
   // During the last Window Event Buffer, lookRight key was in a pressed state
@@ -45,4 +43,3 @@ void KeyboardMovementController::moveInPlaneXZ(
     gameObject.transform.translation += moveSpeed * dt * glm::normalize(moveDir);
   }
 }
-}  // namespace lve
