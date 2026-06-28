@@ -6,6 +6,8 @@
 #include "lve_camera.hpp"
 #include "lve_buffer.hpp"
 
+#include <iostream>
+
 #define MAX_FRAME_TIME 1.0f
 
 #define GLM_FORCE_RADIANS
