@@ -1,5 +1,24 @@
 
-#include "lve_game_object.hpp"
+#include "game_object.hpp"
+
+void GameObject::updateComponents(float dt) {
+  for (auto& c : components) {
+    c->update(dt, *this);
+  }
+}
+
+GameObject GameObject::makePointLight(float intensity, glm::vec3 translation, float radius, glm::vec3 color) {
+  GameObject gameObj = GameObject::createGameObject();
+  gameObj.color = color;
+
+  TransformComponent* transform = gameObj.addComponent<TransformComponent>();
+  transform->translation = translation;
+  transform->scale.x = radius;
+  PointLightComponent* pointLight = gameObj.addComponent<PointLightComponent>();
+  pointLight->lightIntensity = intensity;
+
+  return gameObj;
+}
 
 glm::mat4 TransformComponent::mat4() {
     const float c3 = glm::cos(rotation.z);
@@ -58,13 +77,4 @@ glm::mat4 TransformComponent::mat4() {
             invScale.z * (c1 * c2),
         }
   };
-}
-
-GameObject GameObject::makePointLight(float intensity, float radius, glm::vec3 color) {
-    GameObject gameObj = GameObject::createGameObject();
-    gameObj.color = color;
-    gameObj.transform.scale.x = radius;
-    gameObj.pointLight = std::make_unique<PointLightComponent>();
-    gameObj.pointLight->lightIntensity = intensity;
-    return gameObj;
 }

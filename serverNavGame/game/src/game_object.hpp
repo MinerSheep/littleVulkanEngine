@@ -9,10 +9,15 @@
 #include <memory>
 #include <unordered_map>
 
-struct TransformComponent {
+struct Component {
+    virtual ~Component() = default;
+    virtual void update(float dt, class GameObject& obj) {}
+};
+
+struct TransformComponent : public Component {
   glm::vec3 translation{};  // (position offset)
   glm::vec3 scale{1.f, 1.f, 1.f};
-  glm::vec3 rotation;
+  glm::vec3 rotation{};
 
   // This returns rotation & scale data formatted into a matrix
   glm::mat4 mat4();
@@ -20,7 +25,7 @@ struct TransformComponent {
 };
 
 // pairs with transform component for location
-struct PointLightComponent
+struct PointLightComponent : public Component
 {
   float lightIntensity = 1.0f;
 };
@@ -35,7 +40,7 @@ class GameObject {
     return GameObject{currentId++};
   }
 
-  static GameObject makePointLight(float intensity = 1.0f, float radius = 0.1f, glm::vec3 color = glm::vec3(1.f));
+  static GameObject makePointLight(float intensity = 1.0f, glm::vec3 translation = {}, float radius = 0.1f, glm::vec3 color = glm::vec3(1.f));
 
   // COPY - DELETE
   GameObject(const GameObject&) = delete;
@@ -48,14 +53,34 @@ class GameObject {
   id_t getId() { return id; }
 
   glm::vec3 color{};
-  TransformComponent transform{};
   
   // Optional: has a model shape,   color,   transform
   std::shared_ptr<lve::LveModel> model{};
-  std::unique_ptr<PointLightComponent> pointLight = nullptr;
+
+  std::vector<std::unique_ptr<Component>> components;
+  template <typename T, typename... Args>
+  T* addComponent(Args&&... args) {
+    auto comp = std::make_unique<T>(std::forward<Args>(args)...);
+    T* ptr = comp.get();
+    components.push_back(std::move(comp));
+    return ptr;
+  }
+  template <typename T>
+  T* getComponent() {
+    for (auto& c : components) {
+      if (auto ptr = dynamic_cast<T*>(c.get())) {
+        return ptr;
+      }
+    }
+    return nullptr;
+  }
+  void updateComponents(float dt);
 
  private:
-  GameObject(id_t objId) : id{objId} {}
+  GameObject(id_t objId) : id{objId} 
+  {
+    addComponent<TransformComponent>();
+  }
 
   id_t id;
 };

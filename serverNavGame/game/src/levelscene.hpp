@@ -5,6 +5,8 @@
 #include "lve_camera.hpp"
 #include "keyboard_movement_controller.hpp"
 
+#include "game_object.hpp"
+
 class LevelScene : public lve::LveScene
 {
 public: 
@@ -16,8 +18,8 @@ public:
     void setupLights() override;
 
 private:
+    GameObject::id_t camId;
     lve::LveCamera camera{};
-    GameObject viewerObject = GameObject::createGameObject();
     KeyboardMovementController cameraController{};
 
     GameObject::Map gameObjects;
