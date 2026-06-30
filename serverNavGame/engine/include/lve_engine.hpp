@@ -18,13 +18,15 @@
 
 namespace lve
 {
-    
     class LveEngine {
         static constexpr int WIDTH = 800;
         static constexpr int HEIGHT = 600;
 
     public:
-        static LveEngine* instance;
+        static LveEngine& instance() {
+            static LveEngine inst;
+            return inst;
+        }
 
         LveEngine();
         ~LveEngine();
@@ -33,6 +35,7 @@ namespace lve
         void init();
         void update();
         void render(LveScene& scene);
+        void cleanup();
         float getAspectRatio() const;
         VkRenderPass getRenderPass() const;
 
@@ -45,19 +48,21 @@ namespace lve
         LveRenderer& getRenderer() { return lveRenderer; }
     
     private:
-        const int globalUniformBufferSize = LveSwapChain::MAX_FRAMES_IN_FLIGHT;
-        std::vector<VkDescriptorSet> globalDescriptorSets;
-        
-        LveBuffer* globalUboBuffer = nullptr;
-        SimpleRenderSystem* simpleRenderSystem = nullptr;
-        PointLightSystem* pointLightSystem = nullptr;
+        bool running = true;
 
+        const uint32_t globalUniformBufferSize = LveSwapChain::MAX_FRAMES_IN_FLIGHT;
+        
         // ORDER MATTERS!
         // Initialize from top to bottom, DESTROY from bottom to top
         LveWindow lveWindow{WIDTH, HEIGHT, "Hello Vulkan!"};
         LveDevice lveDevice{lveWindow};
         LveRenderer lveRenderer{lveWindow, lveDevice};
-
+        
         std::unique_ptr<LveDescriptorPool> globalPool{};
+        std::vector<VkDescriptorSet> globalDescriptorSets;
+
+        std::unique_ptr<LveBuffer> globalUboBuffer {};
+        std::unique_ptr<SimpleRenderSystem> simpleRenderSystem {};
+        std::unique_ptr<PointLightSystem> pointLightSystem {};
     };
 } // namespace lve

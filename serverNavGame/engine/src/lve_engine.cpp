@@ -2,8 +2,6 @@
 
 namespace lve {
 LveEngine::LveEngine() {
-  instance = this;
-
   // since the fns return a reference, we can chain initialization here
   globalPool =
       LveDescriptorPool::Builder(lveDevice)
@@ -14,30 +12,19 @@ LveEngine::LveEngine() {
           .build();
 
   // this should create 2 instances, so for each frame, we can use the one thats not being rendered
-  globalUboBuffer = new LveBuffer{
+  globalUboBuffer = std::make_unique<LveBuffer>(
       lveDevice,
       sizeof(GlobalUbo),
       globalUniformBufferSize,  // 2 - how many frames can be submit for rendering simultaneously
       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,  // host coherent is disabled for SELECTIVE FLUSHING
-      lveDevice.properties.limits.minUniformBufferOffsetAlignment};
+      lveDevice.properties.limits.minUniformBufferOffsetAlignment);
 
   globalUboBuffer->map();
 }
 
 LveEngine::~LveEngine() {
-  if (globalUboBuffer != nullptr) {
-    delete globalUboBuffer;
-    globalUboBuffer = nullptr;
-  }
-  if (simpleRenderSystem != nullptr) {
-    delete simpleRenderSystem;
-    simpleRenderSystem = nullptr;
-  }
-  if (pointLightSystem != nullptr) {
-    delete pointLightSystem;
-    pointLightSystem = nullptr;
-  }
+  cleanup();
 }
 
 void LveEngine::init() {
@@ -58,18 +45,20 @@ void LveEngine::init() {
         .build(globalDescriptorSets[i]);
   }
 
-  simpleRenderSystem = new SimpleRenderSystem{
+  simpleRenderSystem = std::make_unique<SimpleRenderSystem>(
       lveDevice,
       lveRenderer.getSwapChainRenderPass(),
-      globalSetLayout->getDescriptorSetLayout()};
-  pointLightSystem = new PointLightSystem{
+      globalSetLayout->getDescriptorSetLayout());
+
+  pointLightSystem = std::make_unique<PointLightSystem>(
       lveDevice,
       lveRenderer.getSwapChainRenderPass(),
-      globalSetLayout->getDescriptorSetLayout()};
+      globalSetLayout->getDescriptorSetLayout());
 }
 
 void LveEngine::render(LveScene& scene) {
   // Returns null if swap chain needs to be recreated!
+  if (!running) return;
   if (auto commandBuffer = lveRenderer.beginFrame()) {
     int frameIndex = lveRenderer.getFrameIndex();
     FrameInfo frameInfo{
@@ -97,6 +86,39 @@ void LveEngine::render(LveScene& scene) {
   }
 }
 
+void LveEngine::cleanup() 
+{
+  /*
+  Destroy pipelines
+  Destroy descriptor sets/pools
+  Destroy framebuffers
+  Destroy render passes
+  Destroy images + image views
+  Destroy buffers + memory
+  Destroy command buffers
+  Destroy command pools
+  Destroy swapchain
+  Destroy semaphores + fences
+  Destroy device
+  Destroy instance
+  */
+  vkDeviceWaitIdle(lveDevice.device());
+  
+  // if (simpleRenderSystem != nullptr) {
+  //   delete simpleRenderSystem;
+  //   simpleRenderSystem = nullptr;
+  // }
+  // if (pointLightSystem != nullptr) {
+  //   delete pointLightSystem;
+  //   pointLightSystem = nullptr;
+  // }
+  
+  // if (globalUboBuffer != nullptr) {
+  //   delete globalUboBuffer;
+  //   globalUboBuffer = nullptr;
+  // }
+}
+
 float LveEngine::getAspectRatio() const { return 0.0f; }
 
 VkRenderPass LveEngine::getRenderPass() const { return VkRenderPass(); }
@@ -105,5 +127,14 @@ GLFWwindow* LveEngine::getGLFWWindow() { return lveWindow.getGLFWWindow(); }
 
 float LveEngine::getAspectRatio() { return lveRenderer.getAspectRatio(); }
 
-bool LveEngine::shouldClose() { return lveWindow.shouldClose(); }
+bool LveEngine::shouldClose() 
+{
+  if (lveWindow.shouldClose())
+  {
+    running = false; // tells engine to finish GPU work
+    // calls vkDeviceWaitIdle()
+    cleanup();       // destroys Vulkan objects
+  } 
+  return lveWindow.shouldClose();
+}
 }  // namespace lve

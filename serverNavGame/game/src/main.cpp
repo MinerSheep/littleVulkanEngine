@@ -13,11 +13,11 @@
 
 
 int main() {
-    lve::LveEngine engine;
+    lve::LveEngine& engine = lve::LveEngine::instance();
     // lve::FirstApp app;
 
+    engine.init();
     try {
-        engine.init();
     
         LevelScene scene;
         scene.loadModels();
@@ -38,8 +38,11 @@ int main() {
             scene.update(dt);
             engine.render(scene);
         }
+
+        scene.cleanup();
         // app.run();
     } catch (const std::exception &e) {
+        engine.cleanup();
         std::cerr << e.what() << '\n';
         return EXIT_FAILURE;
     }

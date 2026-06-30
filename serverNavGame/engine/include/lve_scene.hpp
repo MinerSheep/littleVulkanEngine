@@ -10,6 +10,7 @@ namespace lve
         LveScene() = default;
         virtual ~LveScene() = default;
         virtual void update(float dt) {}
+        virtual void cleanup() {}
 
         virtual void loadModels() {}
         virtual void setupLights() {}

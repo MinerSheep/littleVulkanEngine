@@ -8,13 +8,13 @@
 void LevelScene::update(float dt) 
 {
     // Camera logic
-    cameraController.moveInPlaneXZ(lve::LveEngine::instance->getGLFWWindow(), dt, viewerObject);
-    // lve::LveEngine::instance->setCamera(lve::LveEngine::Camera{ translation = viewerObject.transform.translation, rotation = viewerObject.transform.rotation});
+    cameraController.moveInPlaneXZ(lve::LveEngine::instance().getGLFWWindow(), dt, viewerObject);
+    // lve::LveEngine::instance().setCamera(lve::LveEngine::Camera{ translation = viewerObject.transform.translation, rotation = viewerObject.transform.rotation});
     camera.setViewYXZ(viewerObject.transform.translation, viewerObject.transform.rotation);
 
     // This is responsible for maintaining object projection size
     // across different window aspect ratios
-    float aspect = lve::LveEngine::instance->getAspectRatio();
+    float aspect = lve::LveEngine::instance().getAspectRatio();
     // camera.setOrthographicProjection(-aspect, aspect, -1, 1, -1, 1);
     camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
 
@@ -90,4 +90,9 @@ void LevelScene::setupLights()
     pointLight.transform.translation = glm::vec3(rotateLight * glm::vec4(-1.f, -1.f, -1.f, 1.f));
     gameObjects.emplace(pointLight.getId(), std::move(pointLight));
   }
+}
+
+void LevelScene::cleanup() 
+{
+  
 }

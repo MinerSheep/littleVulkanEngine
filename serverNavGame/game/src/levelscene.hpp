@@ -10,6 +10,7 @@ class LevelScene : public lve::LveScene
 public: 
     LevelScene() {}
     void update(float dt) override;
+    void cleanup() override;
 
     void loadModels() override;
     void setupLights() override;

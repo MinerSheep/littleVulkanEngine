@@ -43,7 +43,7 @@ std::unique_ptr<lve::LveModel> lve::LveModel::createModelFromFile(
 
   std::cout << "Vertex count: " << builder.vertices.size() << "\n";
 
-  return std::make_unique<LveModel>(LveEngine::instance->getDevice(), builder);
+  return std::make_unique<LveModel>(LveEngine::instance().getDevice(), builder);
 }
 
 void lve::LveModel::bind(VkCommandBuffer commandBuffer) {
