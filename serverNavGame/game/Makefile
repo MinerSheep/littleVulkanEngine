@@ -3,7 +3,7 @@
 include ../engine/.env
 
 CXX = g++
-CXXFLAGS = -std=c++17 -Isrc -I../engine/include -I$(VULKAN_SDK_PATH)/include
+CXXFLAGS = -std=c++17 -Isrc -I../engine/include -I$(VULKAN_SDK_PATH)/include -g -O0
 LDFLAGS = -L../engine -lvulkan_engine \
           -L$(VULKAN_SDK_PATH)/lib `pkg-config --static --libs glfw3` -lvulkan
 
