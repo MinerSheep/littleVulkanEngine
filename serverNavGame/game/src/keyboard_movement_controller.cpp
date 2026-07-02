@@ -1,7 +1,5 @@
 #include "keyboard_movement_controller.hpp"
 
-#include "game_object.hpp"
-
 // std
 #include <limits>
 
@@ -15,21 +13,19 @@ void KeyboardMovementController::moveInPlaneXZ(
   if (glfwGetKey(window, keys.lookUp) == GLFW_PRESS) rotate.x += 1.f;
   if (glfwGetKey(window, keys.lookDown) == GLFW_PRESS) rotate.x -= 1.f;
 
-  TransformComponent* transform = gameObject.getComponent<TransformComponent>();
-
   // Can't normalize a zero vector, this equation checks if rotate has non zero
   // Compare with epsilon to avoid floating point errors
   if (glm::dot(rotate, rotate) > std::numeric_limits<float>::epsilon()) {
     // uses frame rate scaled with lookSpeed to move
-    transform->rotation += lookSpeed * dt * glm::normalize(rotate);
+    gameObject.transform.rotation += lookSpeed * dt * glm::normalize(rotate);
   }
 
   // limit pitch values between about +/- 85ish degrees
-  transform->rotation.x = glm::clamp(transform->rotation.x, -1.5f, 1.5f);
+  gameObject.transform.rotation.x = glm::clamp(gameObject.transform.rotation.x, -1.5f, 1.5f);
   // mod 2pi prevents rotation overflow
-  transform->rotation.y = glm::mod(transform->rotation.y, glm::two_pi<float>());
+  gameObject.transform.rotation.y = glm::mod(gameObject.transform.rotation.y, glm::two_pi<float>());
 
-  float yaw = transform->rotation.y;
+  float yaw = gameObject.transform.rotation.y;
   const glm::vec3 forwardDir{sin(yaw), 0.f, cos(yaw)};
   // this is taking the normal vector on x z plane
   const glm::vec3 rightDir{forwardDir.z, 0.f, -forwardDir.x};
@@ -44,6 +40,6 @@ void KeyboardMovementController::moveInPlaneXZ(
   if (glfwGetKey(window, keys.moveDown) == GLFW_PRESS) moveDir -= upDir;
 
   if (glm::dot(moveDir, moveDir) > std::numeric_limits<float>::epsilon()) {
-    transform->translation += moveSpeed * dt * glm::normalize(moveDir);
+    gameObject.transform.translation += moveSpeed * dt * glm::normalize(moveDir);
   }
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game_object.hpp"
+#include "lve_game_object.hpp"
 #include "lve_window.hpp"
 
 class KeyboardMovementController {
