@@ -51,7 +51,7 @@ void LveEngine::init() {
   // this is currently taking 2 uniform buffers, I only have one...
   globalDescriptorSets.reserve(globalUniformBufferSize);
   for (int i = 0; i < globalUniformBufferSize; i++) {
-    auto bufferInfo = uboBuffers[i]->descriptorInfoForIndex(i);
+    auto bufferInfo = uboBuffers[i]->descriptorInfo();
 
     // descriptor writer class handles moving uniform buffer info INTO the descriptor set
     LveDescriptorWriter(*globalSetLayout, *globalPool)

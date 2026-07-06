@@ -10,6 +10,7 @@
 // std
 #include <cassert>
 #include <cstring>
+#include <iostream>
  
 namespace lve {
  
@@ -95,7 +96,6 @@ void LveBuffer::writeToBuffer(void *data, VkDeviceSize size, VkDeviceSize offset
   assert(mapped && "Cannot copy to unmapped buffer");
   
   if (size == VK_WHOLE_SIZE) {
-    assert(offset + size <= bufferSize && "");
     memcpy(mapped, data, bufferSize);
   } else {
     char *memOffset = (char *)mapped;
