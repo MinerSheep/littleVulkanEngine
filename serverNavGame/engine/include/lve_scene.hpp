@@ -17,6 +17,7 @@ namespace lve
 
         GlobalUbo ubo{};
         std::vector<RenderItem> renderItems;
+        std::vector<UIRenderItem> UIrenderItems;
         std::vector<LightRenderItem> lightItems;
     };
 } // namespace lve

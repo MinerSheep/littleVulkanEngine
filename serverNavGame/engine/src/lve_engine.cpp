@@ -66,6 +66,7 @@ void LveEngine::render(LveScene& scene) {
         commandBuffer,
         globalDescriptorSets[frameIndex],
         scene.renderItems,
+        scene.UIrenderItems,
         scene.lightItems};
 
     // update
@@ -80,6 +81,7 @@ void LveEngine::render(LveScene& scene) {
 
     simpleRenderSystem->render(frameInfo);
     pointLightSystem->render(frameInfo);
+    // simpleRenderSystem->renderUI(frameInfo);
 
     lveRenderer.endSwapChainRenderPass(commandBuffer);
     lveRenderer.endFrame();

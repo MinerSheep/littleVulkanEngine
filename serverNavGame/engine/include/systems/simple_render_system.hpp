@@ -20,6 +20,7 @@ class SimpleRenderSystem {
   SimpleRenderSystem& operator=(const SimpleRenderSystem&) = delete;
 
   void render(FrameInfo& frameInfo);
+  void renderUI(FrameInfo& frameInfo);
 
  private:
   void createPipelineLayout(VkDescriptorSetLayout globalSetLayout);
@@ -29,6 +30,10 @@ class SimpleRenderSystem {
 
   std::unique_ptr<LvePipeline>
       lvePipeline;  // {lveDevice, "shaders/simple_shader.vert.spv",
+                    // "shaders/simple_shader.frag.spv",
+                    // LvePipeline::defaultPipelineConfigInfo(WIDTH, HEIGHT)};
+  std::unique_ptr<LvePipeline>
+      UIPipeline;  // {lveDevice, "shaders/simple_shader.vert.spv",
                     // "shaders/simple_shader.frag.spv",
                     // LvePipeline::defaultPipelineConfigInfo(WIDTH, HEIGHT)};
   VkPipelineLayout pipelineLayout;

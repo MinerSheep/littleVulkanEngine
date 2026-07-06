@@ -29,6 +29,10 @@ namespace lve {
     glm::mat4 normalMatrix;
     LveModel* model;
   };
+  struct UIRenderItem {
+    glm::vec2 offset;
+    glm::vec3 color;
+  };
 
   struct GlobalUbo {
     glm::mat4 projection{1.f};
@@ -45,6 +49,7 @@ struct FrameInfo {
   VkDescriptorSet globalDescriptorSet;
 
   std::vector<RenderItem> renderItems;
+  std::vector<UIRenderItem> UIrenderItems;
   std::vector<LightRenderItem> lightItems;
 };
 }  // namespace lve

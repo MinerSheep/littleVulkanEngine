@@ -20,6 +20,7 @@ In FirstApp, we create PIPELINE LAYOUT & RENDER PASS, along with changing pipeli
 We create a commandBuffer pool, similar to a ThreadPool so that we can reuse allocated data
 Each commandBuffer is recorded and attributed to a frameBuffer so there's no resource confusion, it has 2 clear values for color and depth
 We bind these commandBuffers to the graphicsPipeline, and each drawFrame, request the commandBuffer w the next frameBuffer
+Draws a triangle
 
 6 - **Create vertex buffer**, we use a model that takes Vertex structs as vertices to create its vertexBuffer and memory
 We map the vertexBuffer to its memory and then memcpy it into a data ptr for us to use

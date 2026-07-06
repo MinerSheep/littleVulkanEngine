@@ -23,6 +23,11 @@ struct SimplePushConstantData {
   glm::mat4 normalMatrix{1.f};
 };
 
+struct UIPushConstantData {
+  glm::vec2 offset;
+  alignas(16) glm::vec3 color;  // bad because 12 bytes upscales to 16 bytes
+};
+
 SimpleRenderSystem::SimpleRenderSystem(LveDevice& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout)
     : lveDevice{device} {
   createPipelineLayout(globalSetLayout);
@@ -73,6 +78,43 @@ void SimpleRenderSystem::render(
   }
 }
 
+void SimpleRenderSystem::renderUI(
+    FrameInfo& frameInfo)
+{
+  UIPipeline->bind(frameInfo.commandBuffer);
+
+  // Every set overwritten must overwrite every set that comes after it
+  // Bind it once, now ALL gameobjects can use it without need for rebinding
+  vkCmdBindDescriptorSets(
+      frameInfo.commandBuffer,
+      VK_PIPELINE_BIND_POINT_GRAPHICS,
+      pipelineLayout,
+      0,
+      1,
+      &frameInfo.globalDescriptorSet,
+      0, // dynamic offsets
+      nullptr);
+
+  for (const auto& item : frameInfo.UIrenderItems) {
+      UIPushConstantData push{};
+
+      // We are now calculating on the GPU, not the CPU
+      push.offset = item.offset;
+      push.color = item.color;
+
+      // RECORD our push constant data
+      vkCmdPushConstants(
+          frameInfo.commandBuffer,
+          pipelineLayout,
+          VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+          0,
+          sizeof(UIPushConstantData),
+          &push);
+
+      vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
+  }
+} 
+
 void SimpleRenderSystem::createPipelineLayout(VkDescriptorSetLayout globalSetLayout) {
   // This is us PREDEFINING our **push constant range**
   // stageFlags set to both shaders
@@ -113,6 +155,12 @@ void SimpleRenderSystem::createPipeline(VkRenderPass renderPass) {
       lveDevice,
       "shaders/simple_shader.vert.spv",
       "shaders/simple_shader.frag.spv",
+      pipelineConfig);
+
+  UIPipeline = std::make_unique<LvePipeline>(
+      lveDevice,
+      "shaders/ui_shader.vert.spv",
+      "shaders/ui_shader.frag.spv",
       pipelineConfig);
 }
 
