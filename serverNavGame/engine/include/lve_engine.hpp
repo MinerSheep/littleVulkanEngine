@@ -61,7 +61,8 @@ namespace lve
         std::unique_ptr<LveDescriptorPool> globalPool{};
         std::vector<VkDescriptorSet> globalDescriptorSets;
 
-        std::unique_ptr<LveBuffer> globalUboBuffer {};
+        // std::unique_ptr<LveBuffer> globalUboBuffer {};
+        std::vector<std::unique_ptr<LveBuffer>> uboBuffers;
         std::unique_ptr<SimpleRenderSystem> simpleRenderSystem {};
         std::unique_ptr<PointLightSystem> pointLightSystem {};
     };

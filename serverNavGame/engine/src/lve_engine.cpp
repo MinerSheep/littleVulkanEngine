@@ -11,16 +11,30 @@ LveEngine::LveEngine() {
           .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
           .build();
 
-  // this should create 2 instances, so for each frame, we can use the one thats not being rendered
-  globalUboBuffer = std::make_unique<LveBuffer>(
+  // std::vector<std::unique_ptr<LveBuffer>> uboBuffers(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
+  uboBuffers.reserve(globalUniformBufferSize);
+  for (int i = 0; i < globalUniformBufferSize; i++)
+  {
+    uboBuffers.push_back(std::make_unique<LveBuffer>(
       lveDevice,
       sizeof(GlobalUbo),
-      globalUniformBufferSize,  // 2 - how many frames can be submit for rendering simultaneously
+      1,  // 1 - how many frames can be submit for rendering simultaneously
       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,  // host coherent is disabled for SELECTIVE FLUSHING
-      lveDevice.properties.limits.minUniformBufferOffsetAlignment);
+      lveDevice.properties.limits.minUniformBufferOffsetAlignment));
+    uboBuffers[i]->map();
+  }
 
-  globalUboBuffer->map();
+  // this should create 2 instances, so for each frame, we can use the one thats not being rendered
+  // globalUboBuffer = std::make_unique<LveBuffer>(
+  //     lveDevice,
+  //     sizeof(GlobalUbo),
+  //     globalUniformBufferSize,  // 2 - how many frames can be submit for rendering simultaneously
+  //     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+  //     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,  // host coherent is disabled for SELECTIVE FLUSHING
+  //     lveDevice.properties.limits.minUniformBufferOffsetAlignment);
+
+  // globalUboBuffer->map();
 }
 
 LveEngine::~LveEngine() {
@@ -37,7 +51,7 @@ void LveEngine::init() {
   // this is currently taking 2 uniform buffers, I only have one...
   globalDescriptorSets.reserve(globalUniformBufferSize);
   for (int i = 0; i < globalUniformBufferSize; i++) {
-    auto bufferInfo = globalUboBuffer->descriptorInfoForIndex(i);
+    auto bufferInfo = uboBuffers[i]->descriptorInfoForIndex(i);
 
     // descriptor writer class handles moving uniform buffer info INTO the descriptor set
     LveDescriptorWriter(*globalSetLayout, *globalPool)
@@ -71,8 +85,8 @@ void LveEngine::render(LveScene& scene) {
 
     // update
     pointLightSystem->update(frameInfo, scene.ubo);
-    globalUboBuffer->writeToIndex(&scene.ubo, frameIndex);
-    globalUboBuffer->flushIndex(frameIndex);
+    uboBuffers[frameIndex]->writeToBuffer(&scene.ubo);
+    uboBuffers[frameIndex]->flush();
 
     // render
     // Being able to control when the render pass begins and ends is helpful for post processing
@@ -81,7 +95,7 @@ void LveEngine::render(LveScene& scene) {
 
     simpleRenderSystem->render(frameInfo);
     pointLightSystem->render(frameInfo);
-    // simpleRenderSystem->renderUI(frameInfo);
+    simpleRenderSystem->renderUI(frameInfo);
 
     lveRenderer.endSwapChainRenderPass(commandBuffer);
     lveRenderer.endFrame();
