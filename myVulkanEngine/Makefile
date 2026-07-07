@@ -1,8 +1,8 @@
 include .env
 
 
-CFLAGS = -std=c++17 -I. -Ilibs -Isrc -I$(VULKAN_SDK_PATH)/include
-LDFLAGS = -L$(VULKAN_SDK_PATH)/lib `pkg-config --static --libs glfw3` -lvulkan -ltbb
+CFLAGS = -std=c++17 -I. -Ilibs -Isrc -I$(VULKAN_SDK_PATH)/include -g3 -O0 -fno-omit-frame-pointer -fsanitize=address
+LDFLAGS = -L$(VULKAN_SDK_PATH)/lib `pkg-config --static --libs glfw3` -lvulkan
 
 # Source files
 SOURCES = $(shell find src -type f -name "*.cpp")

@@ -41,9 +41,6 @@ LveBuffer::LveBuffer(
       instanceCount{instanceCount},
       usageFlags{usageFlags},
       memoryPropertyFlags{memoryPropertyFlags} {
-    // if we are doing non coherent allocation, we need to follow non coherent atom size
-  if (memoryPropertyFlags | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT == 0)
-    minOffsetAlignment = std::max(minOffsetAlignment, device.properties.limits.nonCoherentAtomSize);
 
   alignmentSize = getAlignment(instanceSize, minOffsetAlignment);
   bufferSize = alignmentSize * instanceCount;

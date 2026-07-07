@@ -7,6 +7,7 @@
 #include <glm/gtc/constants.hpp>
 
 // std
+#include <iostream>
 #include <array>
 #include <cassert>
 #include <stdexcept>
@@ -24,6 +25,7 @@ struct SimplePushConstantData {
 };
 
 struct UIPushConstantData {
+  glm::mat2 transform{1.f};
   glm::vec2 offset;
   alignas(16) glm::vec3 color;  // bad because 12 bytes upscales to 16 bytes
 };
@@ -99,6 +101,7 @@ void SimpleRenderSystem::renderUI(
       UIPushConstantData push{};
 
       // We are now calculating on the GPU, not the CPU
+      push.transform = item.transform;
       push.offset = item.offset;
       push.color = item.color;
 
@@ -111,7 +114,16 @@ void SimpleRenderSystem::renderUI(
           sizeof(UIPushConstantData),
           &push);
 
-      vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
+      if (item.model)
+      {
+        item.model->bind(frameInfo.commandBuffer);
+        item.model->draw(frameInfo.commandBuffer);
+      }
+      else
+      {
+        std::cout << "no model";
+        vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
+      }
   }
 } 
 

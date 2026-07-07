@@ -12,11 +12,20 @@
 struct TransformComponent {
   glm::vec3 translation{};  // (position offset)
   glm::vec3 scale{1.f, 1.f, 1.f};
-  glm::vec3 rotation;
+  glm::vec3 rotation{};
 
   // This returns rotation & scale data formatted into a matrix
   glm::mat4 mat4();
   glm::mat3 normalMatrix();
+
+  // glm::mat2 mat2() {
+  //   float s = glm::sin(rotation.x);
+  //   float c = glm::cos(rotation.x);
+  //   glm::mat2 rotMatrix{{c, s}, {-s, c}};
+
+  //   glm::mat2 scaleMat{{scale.x, .0f}, {.0f, scale.y}};
+  //   return rotMatrix * scaleMat;
+  // }
 };
 
 // pairs with transform component for location
@@ -51,6 +60,7 @@ class GameObject {
   TransformComponent transform{};
   
   // Optional: has a model shape,   color,   transform
+  // bool UI = false;
   std::shared_ptr<lve::LveModel> model{};
   std::unique_ptr<PointLightComponent> pointLight = nullptr;
 

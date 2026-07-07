@@ -39,7 +39,7 @@ glm::mat4 TransformComponent::mat4() {
     const float s2 = glm::sin(rotation.x);
     const float c1 = glm::cos(rotation.y);
     const float s1 = glm::sin(rotation.y);
-    const glm::vec3 invScale = 1.0f / scale;
+    const glm::vec3 invScale = (scale.x && scale.y && scale.z) ? 1.0f / scale : glm::vec3(0.0f);
 
     return glm::mat3{
         {

@@ -30,6 +30,8 @@ void LveCamera::setPerspectiveProjection(float fovy, float aspect, float near, f
 }
 
 void LveCamera::setViewDirection(glm::vec3 position, glm::vec3 direction, glm::vec3 up) {
+  if (!direction.length() || !up.length())
+    return;
   // Ortho normal basis u v w
   const glm::vec3 w{glm::normalize(direction)};
   const glm::vec3 u{glm::normalize(glm::cross(w, up))};

@@ -30,8 +30,10 @@ namespace lve {
     LveModel* model;
   };
   struct UIRenderItem {
+    glm::mat2 transform;
     glm::vec2 offset;
     glm::vec3 color;
+    LveModel* model;
   };
 
   struct GlobalUbo {

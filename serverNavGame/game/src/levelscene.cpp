@@ -4,12 +4,15 @@
 #include <lve_frame_info.hpp>
 
 #include <lve_model.hpp>
+#include <iostream>
+
+
 
 void LevelScene::update(float dt) 
 {
     // Camera logic
     cameraController.moveInPlaneXZ(lve::LveEngine::instance().getGLFWWindow(), dt, viewerObject);
-    // lve::LveEngine::instance().setCamera(lve::LveEngine::Camera{ translation = viewerObject.transform.translation, rotation = viewerObject.transform.rotation});
+    // lve::LveEngine::instance().setCamera(lve::LveEngine::Camera{ translation = viewerObject.transform.translation, rotation = viewerObject->transform.rotation});
     camera.setViewYXZ(viewerObject.transform.translation, viewerObject.transform.rotation);
 
     // This is responsible for maintaining object projection size
@@ -21,9 +24,13 @@ void LevelScene::update(float dt)
     // Set up render items before frameInfo
     renderItems.clear();
     for (auto& [id, obj] : gameObjects) {
-      if (!obj.model) continue;
+      if (!obj.model)
+        continue;
 
-      renderItems.push_back({obj.transform.mat4(), obj.transform.normalMatrix(), obj.model.get()});
+      // if (obj.UI)
+      //   UIrenderItems.push_back({obj.transform.mat2(), obj.transform.translation, obj.color, obj.model.get()});
+      // else
+        renderItems.push_back({obj.transform.mat4(), obj.transform.normalMatrix(), obj.model.get()});
     }
     lightItems.clear();
     for (auto& [id, obj] : gameObjects) {
@@ -49,7 +56,11 @@ void LevelScene::update(float dt)
 
 void LevelScene::loadModels() 
 {
+    std::cout << gameObjects.bucket_count() << "\n";
+
     // used to store the camera's state
+    // static GameObject cameraObject = GameObject::createGameObject();
+    // viewerObject = &cameraObject;
     viewerObject.transform.translation.z = -2.5f;
 
     std::shared_ptr<lve::LveModel> lveModel = lve::LveModel::createModelFromFile("models/flat_vase.obj");
@@ -66,6 +77,19 @@ void LevelScene::loadModels()
     floor.transform.translation = {.0f, .5f, 0.f};
     floor.transform.scale = glm::vec3{3.f,1.f,3.f};
     gameObjects.emplace(floor.getId(), std::move(floor));
+
+    // auto ui = GameObject::createGameObject();
+    // std::vector<lve::LveModel::Vertex> vertices{
+    //   {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+    //   {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+    //   {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
+
+    // ui.model = std::make_unique<lve::LveModel>(lve::LveEngine::instance().getDevice(), lve::LveModel::Builder{vertices, {0,1,2}});
+    // ui.transform.translation = {.2f, 0.f, 0.f};
+    // ui.transform.scale = glm::vec3(3.f);
+    // ui.transform.rotation.x = .25f * glm::two_pi<float>();
+    // ui.UI = true;
+    // gameObjects.emplace(ui.getId(), std::move(ui));
 }
 
 void LevelScene::setupLights() 

@@ -16,9 +16,9 @@ public:
     void setupLights() override;
 
 private:
-    lve::LveCamera camera{};
-    GameObject viewerObject = GameObject::createGameObject();
-    KeyboardMovementController cameraController{};
+ lve::LveCamera camera{};
+ GameObject viewerObject;
+ KeyboardMovementController cameraController{};
 
-    GameObject::Map gameObjects;
+ GameObject::Map gameObjects;
 };

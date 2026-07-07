@@ -36,17 +36,31 @@ void FirstApp::run() {
 
   const int globalUniformBufferSize = LveSwapChain::MAX_FRAMES_IN_FLIGHT;
 
+  std::vector<std::unique_ptr<LveBuffer>> uboBuffers(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
+  uboBuffers.reserve(globalUniformBufferSize);
+  for (int i = 0; i < globalUniformBufferSize; i++)
+  {
+    uboBuffers[i] = std::make_unique<LveBuffer>(
+      lveDevice,
+      sizeof(GlobalUbo),
+      1,  // 1 - how many frames can be submit for rendering simultaneously
+      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,  // host coherent is disabled for SELECTIVE FLUSHING
+      lveDevice.properties.limits.minUniformBufferOffsetAlignment);
+    uboBuffers[i]->map();
+  }
+  
   // this should create 2 instances, so for each frame, we can use the one thats not being rendered
-  LveBuffer globalUboBuffer {
-    lveDevice,
-    sizeof(GlobalUbo),
-    globalUniformBufferSize,  // 2 - how many frames can be submit for rendering simultaneously
-    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, // host coherent is disabled for SELECTIVE FLUSHING
-    lveDevice.properties.limits.minUniformBufferOffsetAlignment
-  };
+  // LveBuffer globalUboBuffer {
+  //   lveDevice,
+  //   sizeof(GlobalUbo),
+  //   globalUniformBufferSize,  // 2 - how many frames can be submit for rendering simultaneously
+  //   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+  //   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, // host coherent is disabled for SELECTIVE FLUSHING
+  //   lveDevice.properties.limits.minUniformBufferOffsetAlignment
+  // };
 
-  globalUboBuffer.map();
+  // globalUboBuffer.map();
 
   auto globalSetLayout = LveDescriptorSetLayout::Builder(lveDevice)
     .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
@@ -59,7 +73,7 @@ void FirstApp::run() {
   // this is currently taking 2 uniform buffers, I only have one...
   for (int i = 0; i < globalUniformBufferSize; i++)
   {
-    auto bufferInfo = globalUboBuffer.descriptorInfoForIndex(i);
+    auto bufferInfo = uboBuffers[i]->descriptorInfo();
 
     // descriptor writer class handles moving uniform buffer info INTO the descriptor set
     LveDescriptorWriter(*globalSetLayout, *globalPool)
@@ -113,8 +127,8 @@ void FirstApp::run() {
       ubo.view = camera.getView();
       ubo.inverseView = camera.getInverseView();
       pointLightSystem.update(frameInfo, ubo);
-      globalUboBuffer.writeToIndex(&ubo, frameIndex);
-      globalUboBuffer.flushIndex(frameIndex);
+      uboBuffers[frameIndex]->writeToBuffer(&ubo);
+      uboBuffers[frameIndex]->flush();
 
       // render
       // Being able to control when the render pass begins and ends is helpful for post processing
