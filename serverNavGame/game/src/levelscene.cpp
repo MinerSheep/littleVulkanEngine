@@ -13,7 +13,7 @@ void LevelScene::update(float dt)
     // Camera logic
     cameraController.moveInPlaneXZ(lve::LveEngine::instance().getGLFWWindow(), dt, *viewerObject);
     // lve::LveEngine::instance().setCamera(lve::LveEngine::Camera{ translation = viewerObject.transform.translation, rotation = viewerObject->transform.rotation});
-    camera.setViewYXZ(viewerObject->transform.translation, viewerObject->transform.rotation);
+    camera.setViewYXZ(viewerObject->getComponent<TransformComponent>()->translation, viewerObject->getComponent<TransformComponent>()->rotation);
 
     // This is responsible for maintaining object projection size
     // across different window aspect ratios
@@ -27,20 +27,25 @@ void LevelScene::update(float dt)
       if (!obj.model)
         continue;
 
+      TransformComponent* transform = obj.getComponent<TransformComponent>();
+
       // if (obj.UI)
       //   UIrenderItems.push_back({obj.transform.mat2(), obj.transform.translation, obj.color, obj.model.get()});
       // else
-        renderItems.push_back({obj.transform.mat4(), obj.transform.normalMatrix(), obj.model.get()});
+        renderItems.push_back({transform->mat4(), transform->normalMatrix(), obj.model.get()});
     }
     lightItems.clear();
     for (auto& [id, obj] : gameObjects) {
-      if (!obj.pointLight) continue;
+      if (!obj.getComponent<PointLightComponent>()) continue;
+
+      TransformComponent* transform = obj.getComponent<TransformComponent>();
+      PointLightComponent* pointLight = obj.getComponent<PointLightComponent>();
 
       lve::LightRenderItem item;
-      item.position = obj.transform.translation;
+      item.position = transform->translation;
       item.color = obj.color;
-      item.intensity = obj.pointLight->lightIntensity;
-      item.radius = obj.transform.scale.x;
+      item.intensity = pointLight->lightIntensity;
+      item.radius = transform->scale.x;
 
       auto offset = camera.getPosition() - item.position;
       item.distanceToCamera = glm::dot(offset, offset);
@@ -61,22 +66,28 @@ void LevelScene::loadModels()
     // used to store the camera's state
     static GameObject cameraObject = GameObject::createGameObject();
     viewerObject = &cameraObject;
-    viewerObject->transform.translation.z = -2.5f;
+    viewerObject->addComponent<TransformComponent>()->translation.z = -2.5f;
 
     std::shared_ptr<lve::LveModel> lveModel = lve::LveModel::createModelFromFile("models/flat_vase.obj");
 
-    auto gameObj = GameObject::createGameObject();
-    gameObj.model = lveModel;
-    gameObj.transform.translation = {-.5f, .5f, 0.f};
-    gameObj.transform.scale = glm::vec3(3.f);
-    gameObjects.emplace(gameObj.getId(), std::move(gameObj));
+    {
+      auto gameObj = GameObject::createGameObject();
+      gameObj.model = lveModel;
+      TransformComponent* transform = gameObj.addComponent<TransformComponent>();
+      transform->translation = {-.5f, .5f, 0.f};
+      transform->scale = glm::vec3(3.f);
+      gameObjects.emplace(gameObj.getId(), std::move(gameObj));
+    }
 
-    lveModel = lve::LveModel::createModelFromFile("models/quad.obj");
-    auto floor = GameObject::createGameObject();
-    floor.model = lveModel;
-    floor.transform.translation = {.0f, .5f, 0.f};
-    floor.transform.scale = glm::vec3{3.f,1.f,3.f};
-    gameObjects.emplace(floor.getId(), std::move(floor));
+    {
+      lveModel = lve::LveModel::createModelFromFile("models/quad.obj");
+      auto floor = GameObject::createGameObject();
+      floor.model = lveModel;
+      TransformComponent* transform = floor.addComponent<TransformComponent>();
+      transform->translation = {.0f, .5f, 0.f};
+      transform->scale = glm::vec3{3.f,1.f,3.f};
+      gameObjects.emplace(floor.getId(), std::move(floor));
+    }
 
     // auto ui = GameObject::createGameObject();
     // std::vector<lve::LveModel::Vertex> vertices{
@@ -111,7 +122,7 @@ void LevelScene::setupLights()
         glm::mat4(1.f),
         (i * glm::two_pi<float>()) / lightColors.size(),  // 360 degrees divided by 6
         {0.f, -1.f, 0.f});
-    pointLight.transform.translation = glm::vec3(rotateLight * glm::vec4(-1.f, -1.f, -1.f, 1.f));
+    pointLight.getComponent<TransformComponent>()->translation = glm::vec3(rotateLight * glm::vec4(-1.f, -1.f, -1.f, 1.f));
     gameObjects.emplace(pointLight.getId(), std::move(pointLight));
   }
 }

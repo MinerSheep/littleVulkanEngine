@@ -9,7 +9,12 @@
 #include <memory>
 #include <unordered_map>
 
-struct TransformComponent {
+struct Component {
+    virtual ~Component() = default;
+    virtual void update(float dt, class GameObject& obj) {}
+};
+
+struct TransformComponent : public Component {
   glm::vec3 translation{};  // (position offset)
   glm::vec3 scale{1.f, 1.f, 1.f};
   glm::vec3 rotation{};
@@ -29,10 +34,12 @@ struct TransformComponent {
 };
 
 // pairs with transform component for location
-struct PointLightComponent
+struct PointLightComponent : public Component
 {
   float lightIntensity = 1.0f;
 };
+
+
 
 class GameObject {
  public:
@@ -57,15 +64,45 @@ class GameObject {
   id_t getId() { return id; }
 
   glm::vec3 color{};
-  TransformComponent transform{};
   
   // Optional: has a model shape,   color,   transform
   // bool UI = false;
   std::shared_ptr<lve::LveModel> model{};
-  std::unique_ptr<PointLightComponent> pointLight = nullptr;
+
+  template <typename T, typename... Args>
+  T* addComponent(Args&&... args) {
+      // static_assert(std::is_base_of_v<Component, T>::value,
+      //               "T must inherit from Component");
+
+      auto comp = std::make_unique<T>(std::forward<Args>(args)...);
+      T* ptr = comp.get();
+      components.emplace_back(std::move(comp));
+      return ptr;
+  }
+
+  template <typename T>
+  T* getComponent() {
+      // static_assert(std::is_base_of_v<Component, T>::value,
+      //               "T must inherit from Component");
+
+      for (auto& c : components) {
+          if (auto ptr = dynamic_cast<T*>(c.get())) {
+              return ptr;
+          }
+      }
+      return nullptr;
+  }
+
+
+  void updateComponents(float dt) {
+    for (auto& c : components) {
+        c->update(dt, *this);
+    }
+}
 
  private:
   GameObject(id_t objId) : id{objId} {}
 
   id_t id;
+  std::vector<std::unique_ptr<Component>> components;
 };

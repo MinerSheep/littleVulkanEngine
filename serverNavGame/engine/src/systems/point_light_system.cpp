@@ -136,10 +136,12 @@ void PointLightSystem::createPipeline(VkRenderPass renderPass) {
   pipelineConfig.renderPass = renderPass;  // render pass describes structure and
                                            // format of our frame buffer objects
   pipelineConfig.pipelineLayout = pipelineLayout;
+
+  std::string exeDir = getExecutableDir();
   lvePipeline = std::make_unique<LvePipeline>(
       lveDevice,
-      "shaders/point_light.vert.spv",
-      "shaders/point_light.frag.spv",
+      exeDir + "/../shaders/point_light.vert.spv",
+      exeDir + "/../shaders/point_light.frag.spv",
       pipelineConfig);
 }
 

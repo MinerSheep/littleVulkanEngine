@@ -24,3 +24,12 @@ It throws a wrench in rendering.  I'm revamping it now so that the render system
 
     // update light position per frame!
     obj.transform.translation = glm::vec3(rotateLight * glm::vec4(obj.transform.translation, 1.f));
+
+July 8th
+
+The issue I've been running into for so long is that the game file was recompiling without the engine recompiling.  It led to a size mismatch between the base class LveScene and the derived class LevelScene - data corruption.  Now I'm working on actually setting up the sim and also cleaning out the asan errors thanks to Claude Code's help.
+
+Audit Command to enable within game folder
+ASAN_OPTIONS=fast_unwind_on_malloc=0 \
+LSAN_OPTIONS="suppressions=$PWD/lsan.supp:print_suppressions=1" \
+./game

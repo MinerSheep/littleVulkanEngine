@@ -12,6 +12,13 @@
 
 #define MAX_FRAME_TIME 1.0f
 
+extern "C" const char *__lsan_default_suppressions() {
+  return
+    "leak:libvulkan\n"    "leak:libvulkan_lvp\n" "leak:swrast\n"
+    "leak:libgallium\n"   "leak:libLLVM\n"       "leak:libdrm\n"
+    "leak:libglapi\n"     "leak:libxcb\n"        "leak:libX11\n"
+    "leak:libglfw\n"      "leak:libasan\n";
+}
 
 int main() {
     lve::LveEngine& engine = lve::LveEngine::instance();

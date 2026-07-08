@@ -7,6 +7,10 @@
 // lib
 #include <vulkan/vulkan.h>
 
+#include <string>
+
+std::string getExecutableDir();   // declaration only
+
 namespace lve {
 
   #define MAX_LIGHTS 10

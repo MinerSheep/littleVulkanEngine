@@ -163,16 +163,18 @@ void SimpleRenderSystem::createPipeline(VkRenderPass renderPass) {
   pipelineConfig.renderPass = renderPass;  // render pass describes structure and
                                            // format of our frame buffer objects
   pipelineConfig.pipelineLayout = pipelineLayout;
+
+  std::string exeDir = getExecutableDir();
   lvePipeline = std::make_unique<LvePipeline>(
       lveDevice,
-      "shaders/simple_shader.vert.spv",
-      "shaders/simple_shader.frag.spv",
+      exeDir + "/../shaders/simple_shader.vert.spv",
+      exeDir + "/../shaders/simple_shader.frag.spv",
       pipelineConfig);
 
   UIPipeline = std::make_unique<LvePipeline>(
       lveDevice,
-      "shaders/ui_shader.vert.spv",
-      "shaders/ui_shader.frag.spv",
+      exeDir + "/../shaders/ui_shader.vert.spv",
+      exeDir + "/../shaders/ui_shader.frag.spv",
       pipelineConfig);
 }
 
