@@ -22,14 +22,34 @@ struct TransformComponent : public Component {
   // This returns rotation & scale data formatted into a matrix
   glm::mat4 mat4();
   glm::mat3 normalMatrix();
+};
+
+struct RectTransformComponent : public Component {
+  enum class UIAnchor { Center, TopLeft, Top, TopRight, Left, Right, BottomLeft, Bottom, BottomRight };
+
+  UIAnchor anchor = UIAnchor::Center;
+  glm::vec2 translation{};  // (position offset)
+  glm::vec2 scale{1.f, 1.f};
+  float rotation;
 
   glm::mat2 mat2() {
-    float s = glm::sin(rotation.x);
-    float c = glm::cos(rotation.x);
+    float s = glm::sin(rotation);
+    float c = glm::cos(rotation);
     glm::mat2 rotMatrix{{c, s}, {-s, c}};
 
     glm::mat2 scaleMat{{scale.x, .0f}, {.0f, scale.y}};
     return rotMatrix * scaleMat;
+  }
+
+  inline glm::vec2 anchorNdc(UIAnchor a) {
+    switch (a) {
+      case UIAnchor::TopLeft:     return {-1,-1}; case UIAnchor::Top:    return { 0,-1};
+      case UIAnchor::TopRight:    return { 1,-1}; case UIAnchor::Left:   return {-1, 0};
+      case UIAnchor::Center:      return { 0, 0}; case UIAnchor::Right:  return { 1, 0};
+      case UIAnchor::BottomLeft:  return {-1, 1}; case UIAnchor::Bottom: return { 0, 1};
+      case UIAnchor::BottomRight: return { 1, 1};
+    }
+    return {0,0};
   }
 };
 

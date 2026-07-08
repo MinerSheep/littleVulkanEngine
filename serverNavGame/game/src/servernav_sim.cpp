@@ -149,7 +149,7 @@ ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, uint32_
 {
     ServerNav sim;
 
-    std::mt19937                          rng(seed);
+    std::mt19937                          rng(seed == 0 ? static_cast<unsigned>(time(nullptr)) : seed);
     std::uniform_real_distribution<float> posDist(0.f, static_cast<float>(kGridSize - 1));
     std::uniform_real_distribution<float> weatherDist(0.f, 2.f);
     std::uniform_real_distribution<float> fuelDist(0.2f, 1.0f);

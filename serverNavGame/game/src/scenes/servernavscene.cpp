@@ -20,16 +20,21 @@ void ServerNavScene::update(float dt)
 
     // Set up render items before frameInfo
     renderItems.clear();
+    UIrenderItems.clear();
     for (auto& [id, obj] : gameObjects) {
       if (!obj.model)
         continue;
 
-      TransformComponent* transform = obj.getComponent<TransformComponent>();
-
       if (obj.UI)
-        UIrenderItems.push_back({transform->mat2(), transform->translation, obj.color, obj.model.get()});
+      {
+        RectTransformComponent* transform = obj.getComponent<RectTransformComponent>();
+        UIrenderItems.push_back({transform->mat2(), transform->anchorNdc(transform->anchor) + transform->translation, obj.color, obj.model.get()});
+      }
       else
+      {
+        TransformComponent* transform = obj.getComponent<TransformComponent>();
         renderItems.push_back({transform->mat4(), transform->normalMatrix(), obj.model.get()});
+      }
     }
     
     lightItems.clear();
@@ -77,17 +82,22 @@ void ServerNavScene::loadModels()
       {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
       {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
       {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
-
+    std::shared_ptr<lve::LveModel> lveModel = std::make_shared<lve::LveModel>(lve::LveEngine::instance().getDevice(), lve::LveModel::Builder{vertices, {0,1,2}});
+      
     for (auto& station : nav.stations)
     {
       auto ui = GameObject::createGameObject();
+      ui.model = lveModel;
       ui.color = {1.0f, 0.0f, 0.0f};
-      ui.model = std::make_unique<lve::LveModel>(lve::LveEngine::instance().getDevice(), lve::LveModel::Builder{vertices, {0,1,2}});
-      
-      TransformComponent* transform = ui.addComponent<TransformComponent>();
-      transform->translation = {station.pos.x, station.pos.y, 0.0f};
-      transform->scale = glm::vec3(1.f);
       ui.UI = true;
+      
+      // scaled from 0 to kGridSize which is 49.f
+      glm::vec2 position = station.pos / static_cast<float>(kGridSize - 1);
+
+      RectTransformComponent* transform = ui.addComponent<RectTransformComponent>();
+      transform->anchor = RectTransformComponent::UIAnchor::TopLeft;
+      transform->translation = {position.x * 2.0f, position.y * 2.0f};
+      transform->scale = glm::vec3(.1f);
       gameObjects.emplace(ui.getId(), std::move(ui));
 
     }

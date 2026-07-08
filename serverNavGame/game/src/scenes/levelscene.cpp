@@ -23,17 +23,25 @@ void LevelScene::update(float dt)
 
     // Set up render items before frameInfo
     renderItems.clear();
+    UIrenderItems.clear();
     for (auto& [id, obj] : gameObjects) {
       if (!obj.model)
         continue;
 
-      TransformComponent* transform = obj.getComponent<TransformComponent>();
-
       if (obj.UI)
+      {
+        RectTransformComponent* transform = obj.getComponent<RectTransformComponent>();
+        assert(transform);
         UIrenderItems.push_back({transform->mat2(), transform->translation, obj.color, obj.model.get()});
+      }
       else
+      {
+        TransformComponent* transform = obj.getComponent<TransformComponent>();
+        assert(transform);
         renderItems.push_back({transform->mat4(), transform->normalMatrix(), obj.model.get()});
+      }
     }
+    
     lightItems.clear();
     for (auto& [id, obj] : gameObjects) {
       if (!obj.getComponent<PointLightComponent>()) continue;
@@ -87,25 +95,6 @@ void LevelScene::loadModels()
       transform->translation = {.0f, .5f, 0.f};
       transform->scale = glm::vec3{3.f,1.f,3.f};
       gameObjects.emplace(floor.getId(), std::move(floor));
-    }
-
-    {
-      auto ui = GameObject::createGameObject();
-      std::vector<lve::LveModel::Vertex> vertices{
-        {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-        {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
-
-      std::cout << ui.color.r << ui.color.g << ui.color.b << "\n";
-  
-      ui.model = std::make_unique<lve::LveModel>(lve::LveEngine::instance().getDevice(), lve::LveModel::Builder{vertices, {0,1,2}});
-      TransformComponent* transform = ui.addComponent<TransformComponent>();
-      transform->translation = {.2f, 0.f, 0.f};
-      transform->scale = glm::vec3(1.f);
-      transform->rotation.x = .25f * glm::two_pi<float>();
-      ui.UI = true;
-      gameObjects.emplace(ui.getId(), std::move(ui));
-
     }
 }
 

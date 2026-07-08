@@ -53,6 +53,7 @@ struct FrameInfo {
   int frameIndex;
   VkCommandBuffer commandBuffer;
   VkDescriptorSet globalDescriptorSet;
+  VkExtent2D windowExtent;
 
   std::vector<RenderItem> renderItems;
   std::vector<UIRenderItem> UIrenderItems;

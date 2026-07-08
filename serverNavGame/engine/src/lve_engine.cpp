@@ -79,6 +79,7 @@ void LveEngine::render(LveScene& scene) {
         frameIndex,
         commandBuffer,
         globalDescriptorSets[frameIndex],
+        lveWindow.getExtent(),
         scene.renderItems,
         scene.UIrenderItems,
         scene.lightItems};
@@ -134,8 +135,6 @@ void LveEngine::cleanup()
   //   globalUboBuffer = nullptr;
   // }
 }
-
-float LveEngine::getAspectRatio() const { return 0.0f; }
 
 VkRenderPass LveEngine::getRenderPass() const { return VkRenderPass(); }
 

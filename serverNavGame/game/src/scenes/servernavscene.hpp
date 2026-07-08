@@ -24,5 +24,5 @@ private:
 
  std::unordered_map<id_t, GameObject> gameObjects;
 
- ServerNav nav = ServerNav::makeRandomScenario(2, 1, 0);
+ ServerNav nav = ServerNav::makeRandomScenario(2, 1);
 };

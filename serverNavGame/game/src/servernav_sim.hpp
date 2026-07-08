@@ -94,7 +94,7 @@ public:
     // Build a randomized (but seeded / reproducible) scenario for testing and
     // benchmarking. Vessels are given enough range not to strand under the
     // default parameters.
-    static ServerNav makeRandomScenario(int numStations, int numVessels, uint32_t seed);
+    static ServerNav makeRandomScenario(int numStations, int numVessels, uint32_t seed = 0);
 
 private:
     // Weather at a position, clamped to the grid so out-of-bounds is impossible.

@@ -36,7 +36,6 @@ namespace lve
         void update();
         void render(LveScene& scene);
         void cleanup();
-        float getAspectRatio() const;
         VkRenderPass getRenderPass() const;
 
         GLFWwindow* getGLFWWindow();
