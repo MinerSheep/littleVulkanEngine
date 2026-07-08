@@ -29,9 +29,9 @@ void LevelScene::update(float dt)
 
       TransformComponent* transform = obj.getComponent<TransformComponent>();
 
-      // if (obj.UI)
-      //   UIrenderItems.push_back({obj.transform.mat2(), obj.transform.translation, obj.color, obj.model.get()});
-      // else
+      if (obj.UI)
+        UIrenderItems.push_back({transform->mat2(), transform->translation, obj.color, obj.model.get()});
+      else
         renderItems.push_back({transform->mat4(), transform->normalMatrix(), obj.model.get()});
     }
     lightItems.clear();
@@ -90,18 +90,21 @@ void LevelScene::loadModels()
     }
 
     {
-      // auto ui = GameObject::createGameObject();
-      // std::vector<lve::LveModel::Vertex> vertices{
-      //   {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-      //   {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-      //   {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
+      auto ui = GameObject::createGameObject();
+      std::vector<lve::LveModel::Vertex> vertices{
+        {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
+
+      std::cout << ui.color.r << ui.color.g << ui.color.b << "\n";
   
-      // ui.model = std::make_unique<lve::LveModel>(lve::LveEngine::instance().getDevice(), lve::LveModel::Builder{vertices, {0,1,2}});
-      // ui.transform.translation = {.2f, 0.f, 0.f};
-      // ui.transform.scale = glm::vec3(3.f);
-      // ui.transform.rotation.x = .25f * glm::two_pi<float>();
-      // ui.UI = true;
-      // gameObjects.emplace(ui.getId(), std::move(ui));
+      ui.model = std::make_unique<lve::LveModel>(lve::LveEngine::instance().getDevice(), lve::LveModel::Builder{vertices, {0,1,2}});
+      TransformComponent* transform = ui.addComponent<TransformComponent>();
+      transform->translation = {.2f, 0.f, 0.f};
+      transform->scale = glm::vec3(3.f);
+      transform->rotation.x = .25f * glm::two_pi<float>();
+      ui.UI = true;
+      gameObjects.emplace(ui.getId(), std::move(ui));
 
     }
 }

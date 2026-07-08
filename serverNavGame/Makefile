@@ -5,6 +5,12 @@
 # Default target: build everything
 all: engine game
 
+# ----- SHADERS (NEW) -----
+shaders:
+	@echo "Compiling shaders..."
+	@find shaders -type f -name "*.vert" -exec glslangValidator -V {} -o {}.spv \;
+	@find shaders -type f -name "*.frag" -exec glslangValidator -V {} -o {}.spv \;
+
 # ----- ENGINE BUILD -----
 engine:
 	@echo "Cleaning engine build..."

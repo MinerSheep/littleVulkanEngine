@@ -23,14 +23,14 @@ struct TransformComponent : public Component {
   glm::mat4 mat4();
   glm::mat3 normalMatrix();
 
-  // glm::mat2 mat2() {
-  //   float s = glm::sin(rotation.x);
-  //   float c = glm::cos(rotation.x);
-  //   glm::mat2 rotMatrix{{c, s}, {-s, c}};
+  glm::mat2 mat2() {
+    float s = glm::sin(rotation.x);
+    float c = glm::cos(rotation.x);
+    glm::mat2 rotMatrix{{c, s}, {-s, c}};
 
-  //   glm::mat2 scaleMat{{scale.x, .0f}, {.0f, scale.y}};
-  //   return rotMatrix * scaleMat;
-  // }
+    glm::mat2 scaleMat{{scale.x, .0f}, {.0f, scale.y}};
+    return rotMatrix * scaleMat;
+  }
 };
 
 // pairs with transform component for location
@@ -66,7 +66,7 @@ class GameObject {
   glm::vec3 color{};
   
   // Optional: has a model shape,   color,   transform
-  // bool UI = false;
+  bool UI = false;
   std::shared_ptr<lve::LveModel> model{};
 
   template <typename T, typename... Args>
