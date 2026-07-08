@@ -181,6 +181,7 @@ ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, uint32_
     for (int i = 0; i < numVessels; ++i)
     {
         Vessel v;
+        v.id       = i;
         v.pos      = glm::vec2(posDist(rng), posDist(rng));
         v.speed    = speedDist(rng);
         v.maxFuel  = 1.f;

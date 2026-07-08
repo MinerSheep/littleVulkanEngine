@@ -46,20 +46,22 @@ struct WeatherCell
 
 struct Vessel
 {
-    glm::vec2 pos{0.f};
+  using id_t = unsigned int;
 
-    float speed    = 5.f; // world units / second in clear weather
-    float fuel     = 1.f; // current fuel
-    float maxFuel  = 1.f; // full tank
-    float burnRate = 0.f; // fuel consumed per world unit travelled (0 = free)
+  id_t id;
+  glm::vec2 pos{0.f};
 
-    // Index into ServerNav::stations of the current destination, or -1.
-    int targetIndex = -1;
+  float speed = 5.f;     // world units / second in clear weather
+  float fuel = 1.f;      // current fuel
+  float maxFuel = 1.f;   // full tank
+  float burnRate = 0.f;  // fuel consumed per world unit travelled (0 = free)
 
-    float getSpeedModifier(const WeatherCell& w) const
-    {
-        return 1.0f / (1.0f + w.weight); // heavier weather = slower
-    }
+  // Index into ServerNav::stations of the current destination, or -1.
+  int targetIndex = -1;
+
+  float getSpeedModifier(const WeatherCell& w) const {
+    return 1.0f / (1.0f + w.weight);  // heavier weather = slower
+  }
 };
 
 // Rolling statistics, accumulated across update() calls. Cheap to copy.

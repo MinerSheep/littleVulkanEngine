@@ -23,6 +23,7 @@ private:
  KeyboardMovementController cameraController{};
 
  std::unordered_map<id_t, GameObject> gameObjects;
+ std::unordered_map<Vessel::id_t, GameObject::id_t> vesselMap;
 
- ServerNav nav = ServerNav::makeRandomScenario(2, 1);
+ ServerNav nav = ServerNav::makeRandomScenario(8, 1);
 };

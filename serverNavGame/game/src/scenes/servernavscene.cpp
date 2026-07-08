@@ -18,6 +18,21 @@ void ServerNavScene::update(float dt)
     // camera.setOrthographicProjection(-aspect, aspect, -1, 1, -1, 1);
     camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
 
+    // Update logic
+    nav.update(dt);
+    for (auto& vessel : nav.vessels)
+    {
+      GameObject::id_t id = vesselMap[vessel.id];
+
+      auto it = gameObjects.find(id);
+      if (it != gameObjects.end()) {
+          GameObject& obj = it->second;
+
+          glm::vec2 position = vessel.pos / static_cast<float>(kGridSize - 1);
+          obj.getComponent<RectTransformComponent>()->translation = position * 2.0f; 
+      }
+    }
+    
     // Set up render items before frameInfo
     renderItems.clear();
     UIrenderItems.clear();
@@ -84,6 +99,26 @@ void ServerNavScene::loadModels()
       {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
     std::shared_ptr<lve::LveModel> lveModel = std::make_shared<lve::LveModel>(lve::LveEngine::instance().getDevice(), lve::LveModel::Builder{vertices, {0,1,2}});
       
+    for (auto& vessel : nav.vessels)
+    {
+      auto ui = GameObject::createGameObject();
+      ui.model = lveModel;
+      ui.color = {0.0f, 1.0f, 0.0f};
+      ui.UI = true;
+      
+      // scaled from 0 to kGridSize which is 49.f
+      glm::vec2 position = vessel.pos / static_cast<float>(kGridSize - 1);
+
+      RectTransformComponent* transform = ui.addComponent<RectTransformComponent>();
+      transform->anchor = RectTransformComponent::UIAnchor::TopLeft;
+      transform->translation = {position.x * 2.0f, position.y * 2.0f};
+      transform->scale = glm::vec3(.1f);
+
+      GameObject::id_t id = ui.getId();
+      gameObjects.emplace(id, std::move(ui));
+      vesselMap[vessel.id] = id;
+    }
+
     for (auto& station : nav.stations)
     {
       auto ui = GameObject::createGameObject();
