@@ -1,6 +1,6 @@
 
 #include <lve_engine.hpp>
-#include <levelscene.hpp>
+#include <scenes/levelscene.hpp>
 #include <lve_frame_info.hpp>
 
 #include <lve_model.hpp>
@@ -89,18 +89,21 @@ void LevelScene::loadModels()
       gameObjects.emplace(floor.getId(), std::move(floor));
     }
 
-    // auto ui = GameObject::createGameObject();
-    // std::vector<lve::LveModel::Vertex> vertices{
-    //   {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-    //   {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-    //   {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
+    {
+      // auto ui = GameObject::createGameObject();
+      // std::vector<lve::LveModel::Vertex> vertices{
+      //   {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+      //   {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+      //   {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
+  
+      // ui.model = std::make_unique<lve::LveModel>(lve::LveEngine::instance().getDevice(), lve::LveModel::Builder{vertices, {0,1,2}});
+      // ui.transform.translation = {.2f, 0.f, 0.f};
+      // ui.transform.scale = glm::vec3(3.f);
+      // ui.transform.rotation.x = .25f * glm::two_pi<float>();
+      // ui.UI = true;
+      // gameObjects.emplace(ui.getId(), std::move(ui));
 
-    // ui.model = std::make_unique<lve::LveModel>(lve::LveEngine::instance().getDevice(), lve::LveModel::Builder{vertices, {0,1,2}});
-    // ui.transform.translation = {.2f, 0.f, 0.f};
-    // ui.transform.scale = glm::vec3(3.f);
-    // ui.transform.rotation.x = .25f * glm::two_pi<float>();
-    // ui.UI = true;
-    // gameObjects.emplace(ui.getId(), std::move(ui));
+    }
 }
 
 void LevelScene::setupLights() 

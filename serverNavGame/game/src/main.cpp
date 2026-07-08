@@ -1,5 +1,5 @@
 #include <lve_engine.hpp>
-#include "levelscene.hpp"
+#include "scenes/levelscene.hpp"
 // #include <first_app.hpp>
 #include "servernav_sim.hpp"
 
@@ -12,6 +12,7 @@
 
 #define MAX_FRAME_TIME 1.0f
 
+// these are used to avoid external memory leak warnings (out of control)
 extern "C" const char *__lsan_default_suppressions() {
   return
     "leak:libvulkan\n"    "leak:libvulkan_lvp\n" "leak:swrast\n"
