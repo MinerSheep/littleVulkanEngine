@@ -109,6 +109,7 @@ void ServerNav::update(float dt)
 
         // Move toward the target, slowed by local weather.
         glm::vec2 dir    = delta / dist; // safe: dist > kArrivalRadius > 0
+        v.dir            = dir;          // remember heading for the wind calc
         float     mod    = v.getSpeedModifier(weatherAt(v.pos));
         float     travel = v.speed * mod * dt;
 

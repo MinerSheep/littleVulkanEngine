@@ -12,10 +12,7 @@
 // the accompanying benchmark without pulling in the rest of the engine.
 
 #define USING_RTS 1
-#if USING_RTS
 #include "fetch_weather.hpp"
-#endif
-
 
 #include <cstdint>
 #include <string>
@@ -25,7 +22,7 @@
 
 // World is a fixed kGridSize x kGridSize field of weather cells. Positions are
 // expressed in the same units, i.e. in the range [0, kGridSize).
-constexpr int   kGridSize      = 50;
+constexpr int   kGridSize      = 10;
 constexpr float kArrivalRadius = 0.5f; // distance at which a vessel "docks"
 
 struct Station
@@ -58,6 +55,7 @@ struct Vessel
 
   id_t id;
   glm::vec2 pos{0.f};
+  glm::vec2 dir{0.f};    // current heading, a unit vector; refreshed while travelling
 
   float speed = 5.f;     // world units / second in clear weather
   float fuel = 1.f;      // current fuel
@@ -70,7 +68,22 @@ struct Vessel
   float getSpeedModifier(const WeatherCell& w) const {
     if (USING_RTS)
     {
+        // Wind effect on travel speed. windDir is degrees in [0,360):
+        // 0 = wind blowing due South, 90 = wind blowing due West. World/screen
+        // axes match the map render: +x = East (right), +y = South (down), so
+        // the unit wind vector for angle t is (-sin t, cos t).
+        const float     t       = glm::radians(w.data.windDir);
+        const glm::vec2 windVec = {-glm::sin(t), glm::cos(t)};
 
+        // dir is the vessel's heading. Sailing with the wind (dot > 0) is a
+        // tailwind and speeds it up; heading into it (dot < 0) is a headwind.
+        const float alignment = glm::dot(dir, windVec);
+
+        // windSpeed is km/h (open-meteo); scale it into a modest multiplier and
+        // clamp so even a strong headwind can't stall or reverse the vessel.
+        constexpr float kWindInfluence = 0.02f;
+        const float     mod = 1.0f + kWindInfluence * w.data.windSpeed * alignment;
+        return mod < 0.1f ? 0.1f : mod;
     }
     else return 1.0f / (1.0f + w.weight);  // heavier weather = slower
   }

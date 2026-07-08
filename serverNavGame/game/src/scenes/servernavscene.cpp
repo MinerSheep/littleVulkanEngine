@@ -111,6 +111,8 @@ void ServerNavScene::loadModels()
         {{0.0f, -0.3f, 0.0f}, {0.0f, 0.0f, 1.0f}},
       };
       std::shared_ptr<lve::LveModel> lveModel = std::make_shared<lve::LveModel>(lve::LveEngine::instance().getDevice(), lve::LveModel::Builder{vertices, {0,1,2}});
+      float windBaseline = USING_RTS ? nav.map[kGridSize/2][kGridSize/2].weight * 2.0f : nav.map[kGridSize/2][kGridSize/2].data.windSpeed * 2.0f;
+      assert (windBaseline != 0 && "wind baseline is 0");
       for (int i = 0; i < kGridSize; i++)
       {
         for (int j = 0; j < kGridSize; j++)
@@ -118,7 +120,8 @@ void ServerNavScene::loadModels()
           WeatherCell cell = nav.map[i][j];
           auto ui = GameObject::createGameObject();
           ui.model = lveModel;
-          float strength = cell.weight / 2.0f;
+          float strength = USING_RTS ? cell.data.windSpeed : cell.weight;
+          strength /= windBaseline;
           ui.color = {glm::mix(0.0f, 1.0f, strength), 0.0f, glm::mix(1.0f, 0.0f, strength)};
           ui.UI = true;
           
@@ -129,6 +132,7 @@ void ServerNavScene::loadModels()
           transform->anchor = RectTransformComponent::UIAnchor::TopLeft;
           transform->translation = {position.x * 2.0f, position.y * 2.0f};
           transform->scale = glm::vec3(.05f);
+          transform->rotation = cell.data.windDir;
           gameObjects.emplace(ui.getId(), std::move(ui));
         }
       }
