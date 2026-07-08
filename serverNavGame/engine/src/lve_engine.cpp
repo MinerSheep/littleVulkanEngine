@@ -79,7 +79,6 @@ void LveEngine::render(LveScene& scene) {
         frameIndex,
         commandBuffer,
         globalDescriptorSets[frameIndex],
-        lveWindow.getExtent(),
         scene.renderItems,
         scene.UIrenderItems,
         scene.lightItems};

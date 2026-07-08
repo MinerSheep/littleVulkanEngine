@@ -30,7 +30,7 @@ struct RectTransformComponent : public Component {
   UIAnchor anchor = UIAnchor::Center;
   glm::vec2 translation{};  // (position offset)
   glm::vec2 scale{1.f, 1.f};
-  float rotation;
+  float rotation{};
 
   glm::mat2 mat2() {
     float s = glm::sin(rotation);
@@ -84,6 +84,7 @@ class GameObject {
   id_t getId() { return id; }
 
   glm::vec3 color{};
+  float uiAlpha = 1.0f;
   
   // Optional: has a model shape,   color,   transform
   bool UI = false;

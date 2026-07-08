@@ -32,7 +32,7 @@ void LevelScene::update(float dt)
       {
         RectTransformComponent* transform = obj.getComponent<RectTransformComponent>();
         assert(transform);
-        UIrenderItems.push_back({transform->mat2(), transform->translation, obj.color, obj.model.get()});
+        UIrenderItems.push_back({transform->mat2(), transform->translation, obj.color, obj.uiAlpha, obj.model.get()});
       }
       else
       {

@@ -37,6 +37,7 @@ namespace lve {
     glm::mat2 transform;
     glm::vec2 offset;
     glm::vec3 color;
+    float alpha;
     LveModel* model;
   };
 
@@ -53,7 +54,6 @@ struct FrameInfo {
   int frameIndex;
   VkCommandBuffer commandBuffer;
   VkDescriptorSet globalDescriptorSet;
-  VkExtent2D windowExtent;
 
   std::vector<RenderItem> renderItems;
   std::vector<UIRenderItem> UIrenderItems;

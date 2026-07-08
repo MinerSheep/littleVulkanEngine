@@ -28,6 +28,7 @@ struct UIPushConstantData {
   glm::mat2 transform{1.f};
   glm::vec2 offset;
   alignas(16) glm::vec3 color;  // bad because 12 bytes upscales to 16 bytes
+  float alpha;
 };
 
 SimpleRenderSystem::SimpleRenderSystem(LveDevice& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout)
@@ -104,6 +105,7 @@ void SimpleRenderSystem::renderUI(
       push.transform = item.transform;
       push.offset = item.offset;
       push.color = item.color;
+      push.alpha = item.alpha;
 
       // RECORD our push constant data
       vkCmdPushConstants(
