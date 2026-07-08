@@ -7,6 +7,9 @@ CXXFLAGS = -std=c++17 -Isrc -I../engine/include -I$(VULKAN_SDK_PATH)/include -g3
 LDFLAGS = -L../engine -lvulkan_engine \
           -L$(VULKAN_SDK_PATH)/lib `pkg-config --static --libs glfw3` -lvulkan
 
+CFLAGS += `pkg-config --cflags libcurl`
+LDFLAGS += `pkg-config --libs libcurl`
+
 SRC_DIR = src
 OBJ_DIR = obj
 

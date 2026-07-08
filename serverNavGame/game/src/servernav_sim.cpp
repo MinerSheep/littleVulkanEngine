@@ -156,10 +156,33 @@ ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, uint32_
     std::uniform_real_distribution<float> depleteDist(0.01f, 0.08f);
     std::uniform_real_distribution<float> speedDist(3.f, 8.f);
 
+    float latitudeRange = 2.0f, longitudeRange = 1.0f;
+    std::uniform_real_distribution<float> latitudeDist(-90.0f + latitudeRange, 90.f - latitudeRange);
+    std::uniform_real_distribution<float> longitudeDist(-180.f + longitudeRange, 180.f - longitudeRange);
+
+
     // Weather field.
-    for (int x = 0; x < kGridSize; ++x)
-        for (int y = 0; y < kGridSize; ++y)
-            sim.map[x][y].weight = weatherDist(rng);
+    if (USING_RTS)
+    {
+        float latitudeC = latitudeDist(rng);
+        float longitudeC = longitudeDist(rng);
+
+        for (int x = 0; x < kGridSize; ++x)
+        {
+            float longitude = longitudeC - longitudeRange + (x / float(kGridSize - 1)) * longitudeRange * 2.0f;
+            for (int y = 0; y < kGridSize; ++y)
+            {
+                float latitude = latitudeC - 2 + (x / float(kGridSize - 1)) * latitudeRange * 2.0f;
+                sim.map[x][y].data = fetchWeather(latitude, longitude);
+            }
+        }
+    }
+    else
+    {
+        for (int x = 0; x < kGridSize; ++x)
+            for (int y = 0; y < kGridSize; ++y)
+                sim.map[x][y].weight = weatherDist(rng);
+    }
 
     // Stations.
     sim.stations.reserve(numStations);

@@ -11,6 +11,12 @@
 // vec2) and the standard library, so it can be driven by a tiny main() or by
 // the accompanying benchmark without pulling in the rest of the engine.
 
+#define USING_RTS 1
+#if USING_RTS
+#include "fetch_weather.hpp"
+#endif
+
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -42,6 +48,8 @@ struct Station
 struct WeatherCell
 {
     float weight = 0.f; // 0 = clear; larger = heavier weather = slower travel
+
+    WeatherData data;
 };
 
 struct Vessel
@@ -60,7 +68,11 @@ struct Vessel
   int targetIndex = -1;
 
   float getSpeedModifier(const WeatherCell& w) const {
-    return 1.0f / (1.0f + w.weight);  // heavier weather = slower
+    if (USING_RTS)
+    {
+
+    }
+    else return 1.0f / (1.0f + w.weight);  // heavier weather = slower
   }
 };
 
