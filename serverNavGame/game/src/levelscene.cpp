@@ -11,9 +11,9 @@
 void LevelScene::update(float dt) 
 {
     // Camera logic
-    cameraController.moveInPlaneXZ(lve::LveEngine::instance().getGLFWWindow(), dt, viewerObject);
+    cameraController.moveInPlaneXZ(lve::LveEngine::instance().getGLFWWindow(), dt, *viewerObject);
     // lve::LveEngine::instance().setCamera(lve::LveEngine::Camera{ translation = viewerObject.transform.translation, rotation = viewerObject->transform.rotation});
-    camera.setViewYXZ(viewerObject.transform.translation, viewerObject.transform.rotation);
+    camera.setViewYXZ(viewerObject->transform.translation, viewerObject->transform.rotation);
 
     // This is responsible for maintaining object projection size
     // across different window aspect ratios
@@ -59,9 +59,9 @@ void LevelScene::loadModels()
     std::cout << gameObjects.bucket_count() << "\n";
 
     // used to store the camera's state
-    // static GameObject cameraObject = GameObject::createGameObject();
-    // viewerObject = &cameraObject;
-    viewerObject.transform.translation.z = -2.5f;
+    static GameObject cameraObject = GameObject::createGameObject();
+    viewerObject = &cameraObject;
+    viewerObject->transform.translation.z = -2.5f;
 
     std::shared_ptr<lve::LveModel> lveModel = lve::LveModel::createModelFromFile("models/flat_vase.obj");
 

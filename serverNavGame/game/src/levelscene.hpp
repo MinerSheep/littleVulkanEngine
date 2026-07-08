@@ -17,8 +17,8 @@ public:
 
 private:
  lve::LveCamera camera{};
- GameObject viewerObject;
+ GameObject* viewerObject = nullptr;
  KeyboardMovementController cameraController{};
 
- GameObject::Map gameObjects;
+ std::unordered_map<id_t, GameObject> gameObjects;
 };

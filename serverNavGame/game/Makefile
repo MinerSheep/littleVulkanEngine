@@ -3,7 +3,7 @@
 include ../engine/.env
 
 CXX = g++
-CXXFLAGS = -std=c++17 -Isrc -I../engine/include -I$(VULKAN_SDK_PATH)/include -g -O0
+CXXFLAGS = -std=c++17 -Isrc -I../engine/include -I$(VULKAN_SDK_PATH)/include -g3 -O0 -fno-omit-frame-pointer -fsanitize=address -MMD -MP
 LDFLAGS = -L../engine -lvulkan_engine \
           -L$(VULKAN_SDK_PATH)/lib `pkg-config --static --libs glfw3` -lvulkan
 
@@ -12,13 +12,18 @@ OBJ_DIR = obj
 
 SOURCES = $(shell find $(SRC_DIR) -type f -name "*.cpp")
 OBJECTS = $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SOURCES))
+DEPS    = $(OBJECTS:.o=.d)
 
 TARGET = game
 
 all: $(TARGET)
 
-$(TARGET): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+# 🔥 NEW: Tell Make how to rebuild the engine
+../engine/libvulkan_engine.a:
+	$(MAKE) -C ../engine
+
+$(TARGET): $(OBJECTS) ../engine/libvulkan_engine.a
+	$(CXX) $(CXXFLAGS) -o $@ $(OBJECTS) $(LDFLAGS)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@mkdir -p $(dir $@)
