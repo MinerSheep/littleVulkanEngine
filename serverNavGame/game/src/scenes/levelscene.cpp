@@ -101,7 +101,7 @@ void LevelScene::loadModels()
       ui.model = std::make_unique<lve::LveModel>(lve::LveEngine::instance().getDevice(), lve::LveModel::Builder{vertices, {0,1,2}});
       TransformComponent* transform = ui.addComponent<TransformComponent>();
       transform->translation = {.2f, 0.f, 0.f};
-      transform->scale = glm::vec3(3.f);
+      transform->scale = glm::vec3(1.f);
       transform->rotation.x = .25f * glm::two_pi<float>();
       ui.UI = true;
       gameObjects.emplace(ui.getId(), std::move(ui));

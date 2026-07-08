@@ -1,9 +1,9 @@
 # ===== ROOT MAKEFILE =====
 
-.PHONY: all engine game clean
+.PHONY: all engine game shaders clean
 
 # Default target: build everything
-all: engine game
+all: shaders engine game
 
 # ----- SHADERS (NEW) -----
 shaders:
