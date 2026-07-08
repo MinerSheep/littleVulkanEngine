@@ -1,6 +1,6 @@
 #include <lve_engine.hpp>
 #include "scenes/levelscene.hpp"
-// #include <first_app.hpp>
+#include "scenes/servernavscene.hpp"
 #include "servernav_sim.hpp"
 
 // std
@@ -29,7 +29,7 @@ int main() {
     engine.init();
     try {
     
-        LevelScene scene;
+        ServerNavScene scene;
         scene.loadModels();
         scene.setupLights();
 
