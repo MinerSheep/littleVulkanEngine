@@ -50,6 +50,10 @@ int ServerNav::pickTarget(int vesselIndex) const
 
 void ServerNav::update(float dt)
 {
+    // The sim runs on its own clock: simTimeStep scales real frame seconds
+    // into sim seconds (1.0 = real time, larger = fast-forward). Everything
+    // downstream — the clock, station drain, travel, burn — uses this.
+    dt *= simTimeStep;
     if (dt <= 0.f)
         return;
 
@@ -135,6 +139,43 @@ void ServerNav::update(float dt)
     }
 
     stats.strandedVessels = stranded;
+}
+
+float ServerNav::effectiveSpeedCells(const Vessel& v) const
+{
+    // A vessel that has burnt its last drop of fuel makes no way.
+    if (v.burnRate > 0.f && v.fuel <= 0.f)
+        return 0.f;
+    return v.speed * v.getSpeedModifier(weatherAt(v.pos));
+}
+
+float ServerNav::vesselSpeedKnots(const Vessel& v) const
+{
+    // Idle vessels (no target) aren't underway, so speed over ground is 0.
+    if (v.targetIndex < 0 || v.targetIndex >= static_cast<int>(stations.size()))
+        return 0.f;
+    // cells/simsec -> nm/simsec (*kCellDistance) -> nm/hour (*3600) = knots.
+    return effectiveSpeedCells(v) * kCellDistance * 3600.f;
+}
+
+float ServerNav::vesselDistanceNm(const Vessel& v) const
+{
+    if (v.targetIndex < 0 || v.targetIndex >= static_cast<int>(stations.size()))
+        return 0.f;
+    const Station& tgt = stations[v.targetIndex];
+    return glm::length(tgt.pos - v.pos) * kCellDistance;
+}
+
+double ServerNav::vesselEtaSimTime(const Vessel& v) const
+{
+    if (v.targetIndex < 0 || v.targetIndex >= static_cast<int>(stations.size()))
+        return -1.0; // no target: nowhere to arrive
+    const float speedCells = effectiveSpeedCells(v);
+    if (speedCells <= 0.f)
+        return -1.0; // stranded / stalled: arrival time unknown
+    const Station& tgt       = stations[v.targetIndex];
+    const float    distCells = glm::length(tgt.pos - v.pos);
+    return stats.simTime + distCells / speedCells; // absolute sim-clock seconds
 }
 
 void ServerNav::reset()

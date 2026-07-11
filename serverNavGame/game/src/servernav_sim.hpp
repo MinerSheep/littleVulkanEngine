@@ -23,7 +23,7 @@
 // World is a fixed kGridSize x kGridSize field of weather cells. Positions are
 // expressed in the same units, i.e. in the range [0, kGridSize).
 constexpr int   kGridSize      = 10;
-constexpr float kCellDistance  = 1;   // distance a singular cell measures in miles
+constexpr float kCellDistance  = 1;   // distance a singular cell measures in nautical miles
 constexpr float kArrivalRadius = 0.5f; // distance at which a vessel "docks"
 
 struct Station
@@ -119,16 +119,38 @@ public:
     // Clear accumulated stats and release all in-flight targets/claims.
     void reset();
 
+    // --- Navigation readouts (for the on-screen HUD) --------------------
+    // Computed on demand from the current state; none of these mutate the
+    // sim. They assume kCellDistance nautical miles per world cell and a
+    // 3600 sim-second == 1 hour clock (so stats.simTime is in sim seconds).
+
+    // Speed over ground in knots (nm/hour), after local weather. 0 when the
+    // vessel is idle (no target) or stranded (out of fuel).
+    float vesselSpeedKnots(const Vessel& v) const;
+
+    // Straight-line distance from the vessel to its target station, in
+    // nautical miles. 0 when the vessel has no target.
+    float vesselDistanceNm(const Vessel& v) const;
+
+    // Absolute sim-clock time (in sim seconds) at which the vessel is expected
+    // to dock: simTime + remaining travel time. Negative when there is no
+    // target or the vessel can't make way (ETA unknown).
+    double vesselEtaSimTime(const Vessel& v) const;
+
     // Build a randomized (but seeded / reproducible) scenario for testing and
     // benchmarking. Vessels are given enough range not to strand under the
     // default parameters.
     static ServerNav makeRandomScenario(int numStations, int numVessels, float timeStep = 1.0f, uint32_t seed = 0);
 
-private:
     float simTimeStep = 1.0f;  // timestep is a modifer on the dt
+private:
     // Weather at a position, clamped to the grid so out-of-bounds is impossible.
     const WeatherCell& weatherAt(const glm::vec2& p) const;
 
     // Index of the neediest unclaimed station below refuelThreshold, or -1.
     int pickTarget(int vesselIndex) const;
+
+    // Speed over ground in world cells per sim-second, after weather; 0 when
+    // the vessel is stranded. Shared by the knots / ETA readouts.
+    float effectiveSpeedCells(const Vessel& v) const;
 };
