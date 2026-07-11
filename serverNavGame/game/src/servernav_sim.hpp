@@ -11,7 +11,7 @@
 // vec2) and the standard library, so it can be driven by a tiny main() or by
 // the accompanying benchmark without pulling in the rest of the engine.
 
-#define USING_RTS 0
+#define USING_RTS 1
 #include "fetch_weather.hpp"
 
 #include <cstdint>
@@ -38,10 +38,19 @@ constexpr float kReferenceWeightLbs   = 10000.f; // barge vessel w hull weight 1
 
 constexpr float kReferenceThrust      = 5.0f;    // engine power that yields the above
 constexpr float kMaxWindBonusKnots    = 2.0f;    // 7->9 kn tailwind, 7->5 kn headwind
-constexpr float kReferenceWindKmh     = 40.f;    // wind speed giving the full bonus
+constexpr float kReferenceWindKmh     = 40.f;    // wind speed that gives the full bonus
 constexpr float kMinKnots             = 0.5f;    // floor so a headwind can't stall a vessel
 
 constexpr float kSecondsPerHour       = 3600.f;  // sim-seconds per sim-hour (knots <-> cells)
+
+// --- Storm damage model ---------------------------------------------------
+// Wind at or above kStormWindKmh (km/h, ~23 kn) is "stormy" and batters a
+// hull. A vessel pressing on through it loses health in proportion to how far
+// the wind exceeds the threshold; when health hits zero the vessel is dead in
+// the water and stops moving. windSpeed comes from real weather, so this only
+// bites in USING_RTS mode (non-RTS maps carry no wind speed).
+constexpr float kStormWindKmh      = 30.f;   // stormy-level wind speed
+constexpr float kStormDamagePerKmh = 0.01f;  // health/sim-sec lost per km/h over the threshold
 
 struct Station
 {
@@ -80,6 +89,8 @@ struct Vessel
   float fuel = 1.f;      // current fuel
   float maxFuel = 1.f;   // full tank
   float burnRate = 0.f;  // fuel consumed per world unit travelled (0 = free)
+  float health = 100.f;    // structural integrity; storms chip it away
+  float maxHealth = 100.f; // full hull
 
   // Index into ServerNav::stations of the current destination, or -1.
   int targetIndex = -1;
@@ -124,6 +135,14 @@ struct Vessel
         knots *= 1.0f / (1.0f + w.weight); // heavier weather = slower
     }
     return knots < kMinKnots ? kMinKnots : knots;
+  }
+
+  // Health lost per sim-second in the given weather. Only stormy wind
+  // (windSpeed above kStormWindKmh) does damage, scaled by how far over the
+  // threshold it blows; calmer weather does none.
+  float stormDamagePerSec(const WeatherCell& w) const {
+    const float over = w.data.windSpeed - kStormWindKmh;
+    return over > 0.f ? over * kStormDamagePerKmh : 0.f;
   }
 };
 

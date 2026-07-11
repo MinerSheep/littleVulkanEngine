@@ -27,9 +27,6 @@ int main() {
     // lve::FirstApp app;
     // ServerNav navGame;
 
-    // WeatherData data = fetchWeather(45,45);
-    // std::cout << data.temperature << " " << data.windDir << " " << data.windSpeed << "\n";
-
     engine.init();
     try {
     

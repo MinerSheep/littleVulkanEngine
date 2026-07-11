@@ -111,12 +111,27 @@ void ServerNav::update(float dt)
             continue;
         }
 
+        // Storm-wrecked: a hull with no health left is dead in the water.
+        if (v.health <= 0.f)
+        {
+            v.health = 0.f;
+            ++stranded;
+            continue;
+        }
+
         // Move toward the target, slowed by local weather.
-        glm::vec2 dir    = delta / dist; // safe: dist > kArrivalRadius > 0
-        v.dir            = dir;          // remember heading for the wind calc
+        glm::vec2          dir = delta / dist; // safe: dist > kArrivalRadius > 0
+        v.dir                  = dir;          // remember heading for the wind calc
+        const WeatherCell& w   = weatherAt(v.pos);
+
+        // A stormy wind batters the hull as the vessel presses on through it.
+        v.health -= v.stormDamagePerSec(w) * dt;
+        if (v.health < 0.f)
+            v.health = 0.f;
+
         // Speed over ground in knots -> world cells covered this sim-step.
-        float     knots  = v.speedKnots(weatherAt(v.pos));
-        float     travel = (knots / (kCellDistanceNm * kSecondsPerHour)) * dt;
+        float knots  = v.speedKnots(w);
+        float travel = (knots / (kCellDistanceNm * kSecondsPerHour)) * dt;
 
         if (travel > dist)
             travel = dist; // don't overshoot the station
@@ -144,8 +159,8 @@ void ServerNav::update(float dt)
 
 float ServerNav::effectiveSpeedCells(const Vessel& v) const
 {
-    // A vessel that has burnt its last drop of fuel makes no way.
-    if (v.burnRate > 0.f && v.fuel <= 0.f)
+    // No way when out of fuel or wrecked by a storm.
+    if ((v.burnRate > 0.f && v.fuel <= 0.f) || v.health <= 0.f)
         return 0.f;
     return v.speedKnots(weatherAt(v.pos)) / (kCellDistanceNm * kSecondsPerHour);
 }
