@@ -5,8 +5,30 @@
 
 #include <lve_model.hpp>
 #include <iostream>
+#include <iomanip>
+#include <cstdio>
+#include <string>
 
+namespace
+{
+// Format an absolute sim time (in sim seconds) as a HH:MM:SS wall clock,
+// wrapping at 24h. A negative time means "unknown" (idle / stranded vessel).
+std::string formatSimClock(double simSeconds)
+{
+    if (simSeconds < 0.0)
+        return "--:--:--";
+    long total = static_cast<long>(simSeconds);
+    long h = (total / 3600) % 24;
+    long m = (total / 60) % 60;
+    long s = total % 60;
+    char buf[16];
+    std::snprintf(buf, sizeof(buf), "%02ld:%02ld:%02ld", h, m, s);
+    return std::string(buf);
+}
+} // namespace
 
+// How often (in real seconds) to print the navigation readout.
+static constexpr float kHudInterval = 0.5f;
 
 void ServerNavScene::update(float dt) 
 {
@@ -20,6 +42,25 @@ void ServerNavScene::update(float dt)
 
     // Update logic
     nav.update(dt);
+
+    // Console HUD: per-vessel speed / distance / ETA, throttled to wall clock
+    // so the terminal stays readable regardless of frame rate or simTimeStep.
+    hudTimer += dt;
+    if (hudTimer >= kHudInterval)
+    {
+        hudTimer = 0.f;
+        for (const auto& vessel : nav.vessels)
+        {
+            std::cout << "V" << vessel.id
+                      << std::fixed << std::setprecision(1)
+                      << " | speed " << nav.vesselSpeedKnots(vessel) << " kn"
+                      << " | dist " << nav.vesselDistanceNm(vessel) << " nm"
+                      << " | ETA " << formatSimClock(nav.vesselEtaSimTime(vessel))
+                      << " | timestep " << nav.simTimeStep
+                      << '\n';
+        }
+    }
+
     for (auto& vessel : nav.vessels)
     {
       GameObject::id_t id = vesselMap[vessel.id];
@@ -51,7 +92,46 @@ void ServerNavScene::update(float dt)
         renderItems.push_back({transform->mat4(), transform->normalMatrix(), obj.model.get()});
       }
     }
-    
+
+    // On-screen HUD text. The text renderer just appends solid dot-quads to
+    // UIrenderItems, so it must go AFTER the markers above to paint on top of them.
+    if (textRenderer)
+    {
+      std::string hud = "SERVER NAV\n";
+      hud += "VESSELS " + std::to_string(nav.vessels.size()) +
+             "  STATIONS " + std::to_string(nav.stations.size());
+      if (!nav.vessels.empty())
+      {
+        const auto& v = nav.vessels.front();
+        char line[64];
+        std::snprintf(line, sizeof(line), "\nV%d SPD %.1fKN ETA %s",
+                      static_cast<int>(v.id),
+                      nav.vesselSpeedKnots(v),
+                      formatSimClock(nav.vesselEtaSimTime(v)).c_str());
+        hud += line;
+      }
+
+      const glm::vec2 origin{-0.97f, -0.95f};  // top-left in NDC (y is down)
+      const float dotHeight = 0.012f;
+
+      float aspect = lve::LveEngine::instance().getAspectRatio();
+      if (aspect <= 0.f) aspect = 1.f;
+      const float dotW = dotHeight / aspect;
+
+      // Dark background panel so the text stays readable over the arrow field.
+      lve::UIRenderItem panel{};
+      panel.transform = glm::mat2(
+          textRenderer->measureWidth(hud, dotHeight) + 2.f * dotW, 0.f,
+          0.f, (lve::LveTextRenderer::lineCount(hud) * 8 - 1) * dotHeight + 2.f * dotHeight);
+      panel.offset = {origin.x - dotW, origin.y - dotHeight};
+      panel.color = {0.03f, 0.03f, 0.06f};
+      panel.alpha = 1.f;
+      panel.model = textRenderer->quad();
+      UIrenderItems.push_back(panel);
+
+      textRenderer->emit(UIrenderItems, hud, origin, dotHeight, {1.f, 1.f, 1.f});
+    }
+
     lightItems.clear();
     for (auto& [id, obj] : gameObjects) {
       if (!obj.getComponent<PointLightComponent>()) continue;
@@ -95,21 +175,11 @@ void ServerNavScene::loadModels()
     // }
     
     // Weather arrows
+    std::vector<lve::LveModel::Vertex> vertices{
+      {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+      {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+      {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
     {
-      std::vector<lve::LveModel::Vertex> vertices{
-        // Arrow head (tip)
-        {{0.0f,  0.3f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-        // Left base of head
-        {{-0.15f, 0.1f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-        // Right base of head
-        {{0.15f,  0.1f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-        // Tail left
-        {{-0.075f, 0.1f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-        // Tail right
-        {{0.075f, 0.1f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-        // Tail bottom
-        {{0.0f, -0.3f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-      };
       std::shared_ptr<lve::LveModel> lveModel = std::make_shared<lve::LveModel>(lve::LveEngine::instance().getDevice(), lve::LveModel::Builder{vertices, {0,1,2}});
       float windBaseline = USING_RTS ? nav.map[kGridSize/2][kGridSize/2].data.windSpeed * 2.0f : nav.map[kGridSize/2][kGridSize/2].weight * 2.0f;
       assert (windBaseline != 0 && "wind baseline is 0");
@@ -131,17 +201,13 @@ void ServerNavScene::loadModels()
           RectTransformComponent* transform = ui.addComponent<RectTransformComponent>();
           transform->anchor = RectTransformComponent::UIAnchor::TopLeft;
           transform->translation = {position.x * 2.0f, position.y * 2.0f};
-          transform->scale = glm::vec3(.05f);
+          transform->scale = glm::vec3(.025f);
           transform->rotation = cell.data.windDir;
           gameObjects.emplace(ui.getId(), std::move(ui));
         }
       }
     }
 
-    std::vector<lve::LveModel::Vertex> vertices{
-      {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-      {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-      {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
     std::shared_ptr<lve::LveModel> lveModel = std::make_shared<lve::LveModel>(lve::LveEngine::instance().getDevice(), lve::LveModel::Builder{vertices, {0,1,2}});
     
     for (auto& station : nav.stations)
@@ -181,6 +247,10 @@ void ServerNavScene::loadModels()
       gameObjects.emplace(id, std::move(ui));
       vesselMap[vessel.id] = id;
     }
+
+    // The Vulkan device now exists, so we can build the text renderer's quad model
+    // BUILD TEXT RENDERER
+    textRenderer = std::make_unique<lve::LveTextRenderer>(lve::LveEngine::instance().getDevice());
 }
 
 void ServerNavScene::setupLights() 

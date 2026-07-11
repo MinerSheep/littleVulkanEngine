@@ -173,11 +173,23 @@ void SimpleRenderSystem::createPipeline(VkRenderPass renderPass) {
       exeDir + "/../shaders/simple_shader.frag.spv",
       pipelineConfig);
 
+  // UI is a 2D overlay drawn after the 3D pass. Draw it in submission order
+  // (painter's algorithm) rather than depth-testing: every UI quad sits at z=0, so
+  // with depth-test LESS two overlapping UI quads reject each other and the later one
+  // vanishes (e.g. text drawn over the weather arrows would be partially eaten).
+  // Disabling depth test/write lets later UI items paint cleanly on top.
+  PipelineConfigInfo uiConfig{};
+  LvePipeline::defaultPipelineConfigInfo(uiConfig);
+  uiConfig.renderPass = renderPass;
+  uiConfig.pipelineLayout = pipelineLayout;
+  uiConfig.depthStencilInfo.depthTestEnable = VK_FALSE;
+  uiConfig.depthStencilInfo.depthWriteEnable = VK_FALSE;
+
   UIPipeline = std::make_unique<LvePipeline>(
       lveDevice,
       exeDir + "/../shaders/ui_shader.vert.spv",
       exeDir + "/../shaders/ui_shader.frag.spv",
-      pipelineConfig);
+      uiConfig);
 }
 
 }  // namespace lve
