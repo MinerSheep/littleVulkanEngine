@@ -1,0 +1,14 @@
+=== ServerNav simulation benchmark ===
+
+functional tests
+  all functional tests passed
+
+throughput benchmark (dt = 1/60 s)
+  stations  vessels  steps   time(ms)    steps/s       ns/entity/step refuels
+  16        2        5000    0.29        17316677      3.2            61
+  64        8        5000    1.44        3476752       4.0            1293
+  256       32       5000    5.91        846729        4.1            1091
+  1024      128      5000    28.14       177653        4.9            5099
+  4096      512      5000    131.03      38161         5.7            8857
+
+RESULT: OK

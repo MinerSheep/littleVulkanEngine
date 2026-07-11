@@ -116,7 +116,7 @@ void ServerNav::update(float dt)
         v.dir            = dir;          // remember heading for the wind calc
         // Speed over ground in knots -> world cells covered this sim-step.
         float     knots  = v.speedKnots(weatherAt(v.pos));
-        float     travel = (knots / (kCellDistance * kSecondsPerHour)) * dt;
+        float     travel = (knots / (kCellDistanceNm * kSecondsPerHour)) * dt;
 
         if (travel > dist)
             travel = dist; // don't overshoot the station
@@ -147,7 +147,7 @@ float ServerNav::effectiveSpeedCells(const Vessel& v) const
     // A vessel that has burnt its last drop of fuel makes no way.
     if (v.burnRate > 0.f && v.fuel <= 0.f)
         return 0.f;
-    return v.speedKnots(weatherAt(v.pos)) / (kCellDistance * kSecondsPerHour);
+    return v.speedKnots(weatherAt(v.pos)) / (kCellDistanceNm * kSecondsPerHour);
 }
 
 float ServerNav::vesselSpeedKnots(const Vessel& v) const
@@ -156,7 +156,7 @@ float ServerNav::vesselSpeedKnots(const Vessel& v) const
     if (v.targetIndex < 0 || v.targetIndex >= static_cast<int>(stations.size()))
         return 0.f;
     // cells/simsec -> nm/simsec (*kCellDistance) -> nm/hour (*3600) = knots.
-    return effectiveSpeedCells(v) * kCellDistance * kSecondsPerHour;
+    return effectiveSpeedCells(v) * kCellDistanceNm * kSecondsPerHour;
 }
 
 float ServerNav::vesselDistanceNm(const Vessel& v) const
@@ -164,7 +164,7 @@ float ServerNav::vesselDistanceNm(const Vessel& v) const
     if (v.targetIndex < 0 || v.targetIndex >= static_cast<int>(stations.size()))
         return 0.f;
     const Station& tgt = stations[v.targetIndex];
-    return glm::length(tgt.pos - v.pos) * kCellDistance;
+    return glm::length(tgt.pos - v.pos) * kCellDistanceNm;
 }
 
 double ServerNav::vesselEtaSimTime(const Vessel& v) const

@@ -11,7 +11,7 @@
 // vec2) and the standard library, so it can be driven by a tiny main() or by
 // the accompanying benchmark without pulling in the rest of the engine.
 
-#define USING_RTS 1
+#define USING_RTS 0
 #include "fetch_weather.hpp"
 
 #include <cstdint>
@@ -23,22 +23,24 @@
 // World is a fixed kGridSize x kGridSize field of weather cells. Positions are
 // expressed in the same units, i.e. in the range [0, kGridSize).
 constexpr int   kGridSize      = 30;
-constexpr float kCellDistance  = 1;   // distance a singular cell measures in nautical miles
+constexpr float kCellDistanceNm  = 1;   // distance a singular cell measures in nautical miles
 constexpr float kArrivalRadius = 0.5f; // distance at which a vessel "docks"
 
 // --- Vessel speed model ---------------------------------------------------
 // A reference vessel (kReferenceThrust engine power, kReferenceWeightLbs hull
 // weight) cruises at kReferenceCruiseKnots in clear water. Speed scales up
-// with thrust and down with weight, both linear about the reference vessel,
-// so a heavier hull is proportionally slower. Wind then adds/removes up to
+// with thrust and down with weight, both linear from the reference vessel,
+// so a heavier hull is slower. Wind then adds/removes up to
 // kMaxWindBonusKnots on top. These numbers are tuned so the default 10,000 lb
 // barge makes ~7 kn in calm air and ~9 kn with a strong tailwind.
-constexpr float kReferenceCruiseKnots = 7.0f;    // clear-water cruise, reference vessel
+constexpr float kReferenceCruiseKnots = 7.0f;    // clear-water cruise, reference barge vessel
+constexpr float kReferenceWeightLbs   = 10000.f; // barge vessel w hull weight 10000 lbs
+
 constexpr float kReferenceThrust      = 5.0f;    // engine power that yields the above
-constexpr float kReferenceWeightLbs   = 10000.f; // hull weight that yields the above
 constexpr float kMaxWindBonusKnots    = 2.0f;    // 7->9 kn tailwind, 7->5 kn headwind
 constexpr float kReferenceWindKmh     = 40.f;    // wind speed giving the full bonus
 constexpr float kMinKnots             = 0.5f;    // floor so a headwind can't stall a vessel
+
 constexpr float kSecondsPerHour       = 3600.f;  // sim-seconds per sim-hour (knots <-> cells)
 
 struct Station
