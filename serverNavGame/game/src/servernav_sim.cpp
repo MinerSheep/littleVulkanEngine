@@ -214,18 +214,25 @@ ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, float t
     std::uniform_real_distribution<float> fuelDist(0.2f, 1.0f);
     std::uniform_real_distribution<float> depleteDist(0.01f, 0.08f);
 
-    float latitudeRange = 2.0f, longitudeRange = 1.0f;
+    // Range should be divided by 2.0f, but for the sake of extra buffer room, we won't do that
+    float latitudeRange = static_cast<float>(kGridSize) / 60.0f, longitudeRange = static_cast<float>(kGridSize) / 60.0f;
     std::uniform_real_distribution<float> latitudeDist(-90.0f + latitudeRange, 90.f - latitudeRange);
     std::uniform_real_distribution<float> longitudeDist(-180.f + longitudeRange, 180.f - longitudeRange);
 
-
-    // Weather field.
+    /*
+    1 Degree of Latitude: Always equals 60 nautical miles.
+    1 Degree of Longitude: Equals 60 nautical miles ONLY at the Equator.  Otherwise calculated as 60 × cos(latitude).
+    */
+    // Weather field
     if (USING_RTS)
     {
         float latitudeC = latitudeDist(rng);
         float longitudeC = longitudeDist(rng);
 
-        WeatherData data = fetchWeather(latitudeC, longitudeC);
+        latitudeRange = static_cast<float>(kGridSize) / 60.0f;
+        longitudeRange = static_cast<float>(kGridSize) / (60.0f * std::cos(glm::radians(latitudeC)));
+
+        latitudeRange /= 2.0f; longitudeRange /= 2.0f;
 
         for (int x = 0; x < kGridSize; ++x)
         {
@@ -233,7 +240,7 @@ ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, float t
             for (int y = 0; y < kGridSize; ++y)
             {
                 float latitude = latitudeC - 2 + (x / float(kGridSize - 1)) * latitudeRange * 2.0f;
-                sim.map[x][y].data = data;
+                sim.map[x][y].data = fetchWeather(latitude, longitude);
             }
         }
     }
