@@ -114,8 +114,9 @@ void ServerNav::update(float dt)
         // Move toward the target, slowed by local weather.
         glm::vec2 dir    = delta / dist; // safe: dist > kArrivalRadius > 0
         v.dir            = dir;          // remember heading for the wind calc
-        float     mod    = v.getSpeedModifier(weatherAt(v.pos));
-        float     travel = v.speed * mod * dt;
+        // Speed over ground in knots -> world cells covered this sim-step.
+        float     knots  = v.speedKnots(weatherAt(v.pos));
+        float     travel = (knots / (kCellDistance * kSecondsPerHour)) * dt;
 
         if (travel > dist)
             travel = dist; // don't overshoot the station
@@ -146,7 +147,7 @@ float ServerNav::effectiveSpeedCells(const Vessel& v) const
     // A vessel that has burnt its last drop of fuel makes no way.
     if (v.burnRate > 0.f && v.fuel <= 0.f)
         return 0.f;
-    return v.speed * v.getSpeedModifier(weatherAt(v.pos));
+    return v.speedKnots(weatherAt(v.pos)) / (kCellDistance * kSecondsPerHour);
 }
 
 float ServerNav::vesselSpeedKnots(const Vessel& v) const
@@ -155,7 +156,7 @@ float ServerNav::vesselSpeedKnots(const Vessel& v) const
     if (v.targetIndex < 0 || v.targetIndex >= static_cast<int>(stations.size()))
         return 0.f;
     // cells/simsec -> nm/simsec (*kCellDistance) -> nm/hour (*3600) = knots.
-    return effectiveSpeedCells(v) * kCellDistance * 3600.f;
+    return effectiveSpeedCells(v) * kCellDistance * kSecondsPerHour;
 }
 
 float ServerNav::vesselDistanceNm(const Vessel& v) const
@@ -197,7 +198,6 @@ ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, float t
     std::uniform_real_distribution<float> weatherDist(0.f, 2.f);
     std::uniform_real_distribution<float> fuelDist(0.2f, 1.0f);
     std::uniform_real_distribution<float> depleteDist(0.01f, 0.08f);
-    std::uniform_real_distribution<float> speedDist(3.f, 8.f);
 
     float latitudeRange = 2.0f, longitudeRange = 1.0f;
     std::uniform_real_distribution<float> latitudeDist(-90.0f + latitudeRange, 90.f - latitudeRange);
@@ -251,7 +251,11 @@ ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, float t
         Vessel v;
         v.id       = i;
         v.pos      = glm::vec2(posDist(rng), posDist(rng));
-        v.speed    = speedDist(rng);
+        // Reference barge: kReferenceThrust engine + kReferenceWeightLbs hull
+        // => ~7 kn cruise (up to ~9 kn with a strong tailwind). Weight will
+        // vary per vessel later; for now every vessel is the reference boat.
+        v.speed    = kReferenceThrust;
+        v.weight   = kReferenceWeightLbs;
         v.maxFuel  = 1.f;
         v.fuel     = v.maxFuel;
         v.burnRate = 0.0025f;

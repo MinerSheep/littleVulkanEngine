@@ -29,7 +29,7 @@ private:
  std::unordered_map<Vessel::id_t, GameObject::id_t> vesselMap;
 
  // dt is 2 mins a sec
- ServerNav nav = ServerNav::makeRandomScenario(8, 1, 1.0f);
+ ServerNav nav = ServerNav::makeRandomScenario(8, 1, 120.0f);
 
  // Draws on-screen HUD text by appending solid dot-quads to UIrenderItems.
  // Created in loadModels() (after the device exists).

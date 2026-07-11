@@ -62,6 +62,8 @@ static void functionalTests()
     // docks and refuelEvents stays 0.
     {
         ServerNav sim;
+        sim.simTimeStep = 3600.f; // 1 sim-hour per step-second so the realistic
+                                  // ~7 kn vessel still crosses the map in-test
 
         Station s;
         s.name        = "depot";
@@ -110,6 +112,8 @@ static void functionalTests()
     // rather than teleport, cheat, or crash.
     {
         ServerNav sim;
+        sim.simTimeStep = 3600.f; // fast-forward so a realistic-speed vessel
+                                  // exhausts its short range within the loop
         Station   s;
         s.pos         = glm::vec2(40.f, 40.f);
         s.fuel        = 0.f;

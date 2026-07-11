@@ -105,9 +105,10 @@ void ServerNavScene::update(float dt)
       {
         const auto& v = nav.vessels.front();
         char line[64];
-        std::snprintf(line, sizeof(line), "\nV%d SPD %.1fKN ETA %s",
+        std::snprintf(line, sizeof(line), "\nV%d SPD %.1fKN DIST %.1fNM ETA %s",
                       static_cast<int>(v.id),
                       nav.vesselSpeedKnots(v),
+                      nav.vesselDistanceNm(v),
                       formatSimClock(nav.vesselEtaSimTime(v)).c_str());
         hud += line;
       }

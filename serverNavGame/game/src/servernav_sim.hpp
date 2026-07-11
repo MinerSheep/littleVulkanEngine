@@ -26,6 +26,21 @@ constexpr int   kGridSize      = 30;
 constexpr float kCellDistance  = 1;   // distance a singular cell measures in nautical miles
 constexpr float kArrivalRadius = 0.5f; // distance at which a vessel "docks"
 
+// --- Vessel speed model ---------------------------------------------------
+// A reference vessel (kReferenceThrust engine power, kReferenceWeightLbs hull
+// weight) cruises at kReferenceCruiseKnots in clear water. Speed scales up
+// with thrust and down with weight, both linear about the reference vessel,
+// so a heavier hull is proportionally slower. Wind then adds/removes up to
+// kMaxWindBonusKnots on top. These numbers are tuned so the default 10,000 lb
+// barge makes ~7 kn in calm air and ~9 kn with a strong tailwind.
+constexpr float kReferenceCruiseKnots = 7.0f;    // clear-water cruise, reference vessel
+constexpr float kReferenceThrust      = 5.0f;    // engine power that yields the above
+constexpr float kReferenceWeightLbs   = 10000.f; // hull weight that yields the above
+constexpr float kMaxWindBonusKnots    = 2.0f;    // 7->9 kn tailwind, 7->5 kn headwind
+constexpr float kReferenceWindKmh     = 40.f;    // wind speed giving the full bonus
+constexpr float kMinKnots             = 0.5f;    // floor so a headwind can't stall a vessel
+constexpr float kSecondsPerHour       = 3600.f;  // sim-seconds per sim-hour (knots <-> cells)
+
 struct Station
 {
     std::string name;
@@ -58,7 +73,8 @@ struct Vessel
   glm::vec2 pos{0.f};
   glm::vec2 dir{0.f};    // current heading, a unit vector; refreshed while travelling
 
-  float speed = 5.f;     // world units / second in clear weather
+  float speed = kReferenceThrust; // engine power/thrust; with weight sets cruise
+  float weight = kReferenceWeightLbs; // hull weight in lbs; heavier = slower
   float fuel = 1.f;      // current fuel
   float maxFuel = 1.f;   // full tank
   float burnRate = 0.f;  // fuel consumed per world unit travelled (0 = free)
@@ -66,27 +82,46 @@ struct Vessel
   // Index into ServerNav::stations of the current destination, or -1.
   int targetIndex = -1;
 
-  float getSpeedModifier(const WeatherCell& w) const {
+  // Clear-water cruise speed in knots. More thrust speeds the vessel up; more
+  // hull weight slows it down (both linear about the reference vessel). Weight
+  // is constant for now but is meant to vary per vessel later.
+  float cruiseKnots() const {
+    return kReferenceCruiseKnots
+           * (speed / kReferenceThrust)
+           * (kReferenceWeightLbs / weight);
+  }
+
+  // Speed over ground in knots given the local weather. A tailwind adds up to
+  // kMaxWindBonusKnots (scaled by how strong it is), a headwind subtracts as
+  // much; the result is floored at kMinKnots so weather can slow but never
+  // stall or reverse the vessel.
+  float speedKnots(const WeatherCell& w) const {
+    float knots = cruiseKnots();
     if (USING_RTS)
     {
-        // Wind effect on travel speed. windDir is degrees in [0,360):
-        // 0 = wind blowing due South, 90 = wind blowing due West. World/screen
-        // axes match the map render: +x = East (right), +y = South (down), so
-        // the unit wind vector for angle t is (-sin t, cos t).
+        // windDir is degrees in [0,360): 0 = wind blowing due South,
+        // 90 = wind blowing due West. World/screen axes match the map render:
+        // +x = East (right), +y = South (down), so the unit wind vector for
+        // angle t is (-sin t, cos t).
         const float     t       = glm::radians(w.data.windDir);
         const glm::vec2 windVec = {-glm::sin(t), glm::cos(t)};
 
         // dir is the vessel's heading. Sailing with the wind (dot > 0) is a
         // tailwind and speeds it up; heading into it (dot < 0) is a headwind.
-        const float alignment = glm::dot(dir, windVec);
+        const float alignment = glm::dot(dir, windVec); // [-1, 1]
 
-        // windSpeed is km/h (open-meteo); scale it into a modest multiplier and
-        // clamp so even a strong headwind can't stall or reverse the vessel.
-        constexpr float kWindInfluence = 0.02f;
-        const float     mod = 1.0f + kWindInfluence * w.data.windSpeed * alignment;
-        return mod < 0.1f ? 0.1f : mod;
+        // windSpeed is km/h (open-meteo). Scale into a knot bonus and clamp so
+        // even a gale only nudges the vessel by +/- kMaxWindBonusKnots.
+        float bonus = kMaxWindBonusKnots * alignment * (w.data.windSpeed / kReferenceWindKmh);
+        if (bonus >  kMaxWindBonusKnots) bonus =  kMaxWindBonusKnots;
+        if (bonus < -kMaxWindBonusKnots) bonus = -kMaxWindBonusKnots;
+        knots += bonus;
     }
-    else return 1.0f / (1.0f + w.weight);  // heavier weather = slower
+    else
+    {
+        knots *= 1.0f / (1.0f + w.weight); // heavier weather = slower
+    }
+    return knots < kMinKnots ? kMinKnots : knots;
   }
 };
 
