@@ -97,7 +97,8 @@ void ServerNavScene::update(float dt)
     // UIrenderItems, so it must go AFTER the markers above to paint on top of them.
     if (textRenderer)
     {
-      std::string hud = "SERVER NAV\n";
+      std::string hud = "SERVER NAV - " + formatSimClock(nav.stats.simTime) + 
+      " - timestep " + std::to_string(nav.simTimeStep) + "\n";
       hud += "VESSELS " + std::to_string(nav.vessels.size()) +
              "  STATIONS " + std::to_string(nav.stations.size());
       if (!nav.vessels.empty())

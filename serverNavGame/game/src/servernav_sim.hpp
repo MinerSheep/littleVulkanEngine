@@ -22,7 +22,7 @@
 
 // World is a fixed kGridSize x kGridSize field of weather cells. Positions are
 // expressed in the same units, i.e. in the range [0, kGridSize).
-constexpr int   kGridSize      = 10;
+constexpr int   kGridSize      = 30;
 constexpr float kCellDistance  = 1;   // distance a singular cell measures in nautical miles
 constexpr float kArrivalRadius = 0.5f; // distance at which a vessel "docks"
 
