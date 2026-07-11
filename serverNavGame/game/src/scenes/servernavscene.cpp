@@ -117,7 +117,7 @@ void ServerNavScene::update(float dt)
       }
 
       const glm::vec2 origin{-0.97f, -0.95f};  // top-left in NDC (y is down)
-      const float dotHeight = 0.012f;
+      const float dotHeight = 0.008f;
 
       float aspect = lve::LveEngine::instance().getAspectRatio();
       if (aspect <= 0.f) aspect = 1.f;
@@ -206,7 +206,7 @@ void ServerNavScene::loadModels()
           RectTransformComponent* transform = ui.addComponent<RectTransformComponent>();
           transform->anchor = RectTransformComponent::UIAnchor::TopLeft;
           transform->translation = {position.x * 2.0f, position.y * 2.0f};
-          transform->scale = glm::vec3{.025f, .01f, .025f};
+          transform->scale = glm::vec3{.025f, .1f, .025f};
           transform->rotation = cell.data.windDir;
           gameObjects.emplace(ui.getId(), std::move(ui));
         }
