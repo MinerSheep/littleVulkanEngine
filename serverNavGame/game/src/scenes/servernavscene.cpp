@@ -111,7 +111,7 @@ void ServerNavScene::loadModels()
         {{0.0f, -0.3f, 0.0f}, {0.0f, 0.0f, 1.0f}},
       };
       std::shared_ptr<lve::LveModel> lveModel = std::make_shared<lve::LveModel>(lve::LveEngine::instance().getDevice(), lve::LveModel::Builder{vertices, {0,1,2}});
-      float windBaseline = USING_RTS ? nav.map[kGridSize/2][kGridSize/2].weight * 2.0f : nav.map[kGridSize/2][kGridSize/2].data.windSpeed * 2.0f;
+      float windBaseline = USING_RTS ? nav.map[kGridSize/2][kGridSize/2].data.windSpeed * 2.0f : nav.map[kGridSize/2][kGridSize/2].weight * 2.0f;
       assert (windBaseline != 0 && "wind baseline is 0");
       for (int i = 0; i < kGridSize; i++)
       {

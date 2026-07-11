@@ -23,6 +23,7 @@
 // World is a fixed kGridSize x kGridSize field of weather cells. Positions are
 // expressed in the same units, i.e. in the range [0, kGridSize).
 constexpr int   kGridSize      = 10;
+constexpr float kCellDistance  = 1;   // distance a singular cell measures in miles
 constexpr float kArrivalRadius = 0.5f; // distance at which a vessel "docks"
 
 struct Station
@@ -121,9 +122,10 @@ public:
     // Build a randomized (but seeded / reproducible) scenario for testing and
     // benchmarking. Vessels are given enough range not to strand under the
     // default parameters.
-    static ServerNav makeRandomScenario(int numStations, int numVessels, uint32_t seed = 0);
+    static ServerNav makeRandomScenario(int numStations, int numVessels, float timeStep = 1.0f, uint32_t seed = 0);
 
 private:
+    float simTimeStep = 1.0f;  // timestep is a modifer on the dt
     // Weather at a position, clamped to the grid so out-of-bounds is impossible.
     const WeatherCell& weatherAt(const glm::vec2& p) const;
 

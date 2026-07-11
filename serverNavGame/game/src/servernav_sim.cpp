@@ -146,9 +146,10 @@ void ServerNav::reset()
         v.targetIndex = -1;
 }
 
-ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, uint32_t seed)
+ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, float timeStep, uint32_t seed)
 {
     ServerNav sim;
+    sim.simTimeStep = timeStep;
 
     std::mt19937                          rng(seed == 0 ? static_cast<unsigned>(time(nullptr)) : seed);
     std::uniform_real_distribution<float> posDist(0.f, static_cast<float>(kGridSize - 1));
@@ -168,13 +169,15 @@ ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, uint32_
         float latitudeC = latitudeDist(rng);
         float longitudeC = longitudeDist(rng);
 
+        WeatherData data = fetchWeather(latitudeC, longitudeC);
+
         for (int x = 0; x < kGridSize; ++x)
         {
             float longitude = longitudeC - longitudeRange + (x / float(kGridSize - 1)) * longitudeRange * 2.0f;
             for (int y = 0; y < kGridSize; ++y)
             {
                 float latitude = latitudeC - 2 + (x / float(kGridSize - 1)) * latitudeRange * 2.0f;
-                sim.map[x][y].data = fetchWeather(latitude, longitude);
+                sim.map[x][y].data = data;
             }
         }
     }

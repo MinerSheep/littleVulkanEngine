@@ -2,6 +2,7 @@
 #include "scenes/levelscene.hpp"
 #include "scenes/servernavscene.hpp"
 #include "servernav_sim.hpp"
+#include "fetch_weather.hpp"
 
 // std
 #include <cstdlib>
@@ -25,6 +26,9 @@ int main() {
     lve::LveEngine& engine = lve::LveEngine::instance();
     // lve::FirstApp app;
     // ServerNav navGame;
+
+    // WeatherData data = fetchWeather(45,45);
+    // std::cout << data.temperature << " " << data.windDir << " " << data.windSpeed << "\n";
 
     engine.init();
     try {
