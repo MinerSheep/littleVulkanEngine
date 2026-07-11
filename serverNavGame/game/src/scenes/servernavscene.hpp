@@ -17,6 +17,7 @@ public:
     void update(float dt) override;
     void cleanup() override;
 
+    void loadWeather();
     void loadModels() override;
     void setupLights() override;
 

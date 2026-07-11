@@ -69,8 +69,7 @@ void ServerNavScene::update(float dt)
       if (it != gameObjects.end()) {
           GameObject& obj = it->second;
 
-          if (vessel.health <= 0)
-            obj.color = {1.0f, 1.0f, 0.0f};
+          obj.color = {glm::mix(1.0f, 0.0f, vessel.health / vessel.maxHealth), 1.0f, 0.0f};
 
           glm::vec2 position = vessel.pos / static_cast<float>(kGridSize - 1);
           obj.getComponent<RectTransformComponent>()->translation = position * 2.0f; 
@@ -104,9 +103,8 @@ void ServerNavScene::update(float dt)
       " - timestep " + std::to_string(nav.simTimeStep) + "\n";
       hud += "VESSELS " + std::to_string(nav.vessels.size()) +
              "  STATIONS " + std::to_string(nav.stations.size());
-      if (!nav.vessels.empty())
+      for (auto& v : nav.vessels)
       {
-        const auto& v = nav.vessels.front();
         char line[64];
         std::snprintf(line, sizeof(line), "\nV%d SPD %.1fKN DIST %.1fNM ETA %s",
                       static_cast<int>(v.id),
@@ -162,12 +160,51 @@ void ServerNavScene::update(float dt)
     ubo.inverseView = camera.getInverseView();
 }
 
+void ServerNavScene::loadWeather() {
+  std::vector<lve::LveModel::Vertex> vertices{
+      {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+      {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+      {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
+
+  std::shared_ptr<lve::LveModel> lveModel = std::make_shared<lve::LveModel>(
+      lve::LveEngine::instance().getDevice(),
+      lve::LveModel::Builder{vertices, {0, 1, 2}});
+
+  // Weather arrows
+  float windBaseline =
+      USING_RTS ? kStormWindKmh : nav.map[kGridSize / 2][kGridSize / 2].weight * 2.0f;
+  assert(windBaseline != 0 && "wind baseline is 0");
+  for (int i = 0; i < kGridSize; i++) {
+    for (int j = 0; j < kGridSize; j++) {
+      WeatherCell cell = nav.map[i][j];
+      auto ui = GameObject::createGameObject();
+      ui.model = lveModel;
+      float strength = USING_RTS ? cell.data.windSpeed : cell.weight;
+      strength /= windBaseline;
+      ui.color = {1.0f, glm::mix(1.0f, 0.0f, strength), glm::mix(1.0f, 0.0f, strength)};
+      ui.UI = true;
+
+      // scaled from 0 to kGridSize which is 49.f
+      glm::vec2 position = glm::vec2{i, j} / static_cast<float>(kGridSize - 1);
+
+      RectTransformComponent* transform = ui.addComponent<RectTransformComponent>();
+      transform->anchor = RectTransformComponent::UIAnchor::TopLeft;
+      transform->translation = {position.x * 2.0f, position.y * 2.0f};
+      transform->scale = glm::vec3{.025f, .04f, .025f};
+      transform->rotation = cell.data.windDir;
+      gameObjects.emplace(ui.getId(), std::move(ui));
+    }
+  }
+}
+
 void ServerNavScene::loadModels() 
 {
     // used to store the camera's state
     static GameObject cameraObject = GameObject::createGameObject();
     viewerObject = &cameraObject;
     viewerObject->addComponent<TransformComponent>()->translation.z = -2.5f;
+
+    loadWeather();
 
     // std::shared_ptr<lve::LveModel> lveModel = lve::LveModel::createModelFromFile("models/flat_vase.obj");
     // {
@@ -178,48 +215,21 @@ void ServerNavScene::loadModels()
     //   transform->scale = glm::vec3(3.f);
     //   gameObjects.emplace(gameObj.getId(), std::move(gameObj));
     // }
-    
-    // Weather arrows
-    std::vector<lve::LveModel::Vertex> vertices{
-      {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-      {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-      {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
-    {
-      std::shared_ptr<lve::LveModel> lveModel = std::make_shared<lve::LveModel>(lve::LveEngine::instance().getDevice(), lve::LveModel::Builder{vertices, {0,1,2}});
-      float windBaseline = USING_RTS ? kStormWindKmh : nav.map[kGridSize/2][kGridSize/2].weight * 2.0f;
-      assert (windBaseline != 0 && "wind baseline is 0");
-      for (int i = 0; i < kGridSize; i++)
-      {
-        for (int j = 0; j < kGridSize; j++)
-        {
-          WeatherCell cell = nav.map[i][j];
-          auto ui = GameObject::createGameObject();
-          ui.model = lveModel;
-          float strength = USING_RTS ? cell.data.windSpeed : cell.weight;
-          strength /= windBaseline;
-          ui.color = {1.0f, glm::mix(1.0f, 0.0f, strength), glm::mix(1.0f, 0.0f, strength)};
-          ui.UI = true;
-          
-          // scaled from 0 to kGridSize which is 49.f
-          glm::vec2 position = glm::vec2{i,j} / static_cast<float>(kGridSize - 1);
-  
-          RectTransformComponent* transform = ui.addComponent<RectTransformComponent>();
-          transform->anchor = RectTransformComponent::UIAnchor::TopLeft;
-          transform->translation = {position.x * 2.0f, position.y * 2.0f};
-          transform->scale = glm::vec3{.025f, .1f, .025f};
-          transform->rotation = cell.data.windDir;
-          gameObjects.emplace(ui.getId(), std::move(ui));
-        }
-      }
-    }
 
-    std::shared_ptr<lve::LveModel> lveModel = std::make_shared<lve::LveModel>(lve::LveEngine::instance().getDevice(), lve::LveModel::Builder{vertices, {0,1,2}});
-    
+    std::vector<lve::LveModel::Vertex> vertices{
+        {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
+
+    std::shared_ptr<lve::LveModel> lveModel = std::make_shared<lve::LveModel>(
+        lve::LveEngine::instance().getDevice(),
+        lve::LveModel::Builder{vertices, {0, 1, 2}});
+
     for (auto& station : nav.stations)
     {
       auto ui = GameObject::createGameObject();
       ui.model = lveModel;
-      ui.color = {1.0f, 0.0f, 0.0f};
+      ui.color = {0.0f, 0.0f, 1.0f};
       ui.UI = true;
       
       // scaled from 0 to kGridSize which is 49.f
@@ -247,7 +257,7 @@ void ServerNavScene::loadModels()
       transform->anchor = RectTransformComponent::UIAnchor::TopLeft;
       transform->translation = {position.x * 2.0f, position.y * 2.0f};
       transform->scale = glm::vec3(.1f);
-
+      
       GameObject::id_t id = ui.getId();
       gameObjects.emplace(id, std::move(ui));
       vesselMap[vessel.id] = id;
