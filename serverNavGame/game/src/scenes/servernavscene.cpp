@@ -77,6 +77,8 @@ void ServerNavScene::update(float dt)
     }
     
     // Set up render items before frameInfo
+    std::vector<lve::UIRenderItem> saveForLast;
+
     renderItems.clear();
     UIrenderItems.clear();
     for (auto& [id, obj] : gameObjects) {
@@ -86,6 +88,11 @@ void ServerNavScene::update(float dt)
       if (obj.UI)
       {
         RectTransformComponent* transform = obj.getComponent<RectTransformComponent>();
+        if (top.find(obj.getId()) != top.end())
+        {
+          saveForLast.push_back({transform->mat2(), transform->anchorNdc(transform->anchor) + transform->translation, obj.color, 0.5f, obj.model.get()});
+          continue;
+        }
         UIrenderItems.push_back({transform->mat2(), transform->anchorNdc(transform->anchor) + transform->translation, obj.color, 0.5f, obj.model.get()});
       }
       else
@@ -94,6 +101,9 @@ void ServerNavScene::update(float dt)
         renderItems.push_back({transform->mat4(), transform->normalMatrix(), obj.model.get()});
       }
     }
+
+    for (auto& uiri : saveForLast)
+      UIrenderItems.push_back(uiri);
 
     // On-screen HUD text. The text renderer just appends solid dot-quads to
     // UIrenderItems, so it must go AFTER the markers above to paint on top of them.
@@ -171,9 +181,9 @@ void ServerNavScene::loadWeather() {
       lve::LveModel::Builder{vertices, {0, 1, 2}});
 
   // Weather arrows
-  float windBaseline =
-      USING_RTS ? kStormWindKmh : nav.map[kGridSize / 2][kGridSize / 2].weight * 2.0f;
+  float windBaseline = USING_RTS ? kStormWindKmh : nav.map[kGridSize / 2][kGridSize / 2].weight * 2.0f;
   assert(windBaseline != 0 && "wind baseline is 0");
+
   for (int i = 0; i < kGridSize; i++) {
     for (int j = 0; j < kGridSize; j++) {
       WeatherCell cell = nav.map[i][j];
@@ -190,7 +200,7 @@ void ServerNavScene::loadWeather() {
       RectTransformComponent* transform = ui.addComponent<RectTransformComponent>();
       transform->anchor = RectTransformComponent::UIAnchor::TopLeft;
       transform->translation = {position.x * 2.0f, position.y * 2.0f};
-      transform->scale = glm::vec3{.025f, .04f, .025f};
+      transform->scale = glm::vec3{.025f, .025f + .015f * glm::mix(0.0f, 1.0f, strength), .025f};
       transform->rotation = cell.data.windDir;
       gameObjects.emplace(ui.getId(), std::move(ui));
     }
@@ -239,8 +249,9 @@ void ServerNavScene::loadModels()
       transform->anchor = RectTransformComponent::UIAnchor::TopLeft;
       transform->translation = {position.x * 2.0f, position.y * 2.0f};
       transform->scale = glm::vec3(.1f);
-      gameObjects.emplace(ui.getId(), std::move(ui));
-      
+      GameObject::id_t id = ui.getId();
+      gameObjects.emplace(id, std::move(ui));
+      top.insert(id);
     }
 
     for (auto& vessel : nav.vessels)
@@ -261,6 +272,7 @@ void ServerNavScene::loadModels()
       GameObject::id_t id = ui.getId();
       gameObjects.emplace(id, std::move(ui));
       vesselMap[vessel.id] = id;
+      top.insert(id);
     }
 
     // The Vulkan device now exists, so we can build the text renderer's quad model

@@ -9,6 +9,7 @@
 #include "servernav_sim.hpp"
 
 #include <memory>
+#include <set>
 
 class ServerNavScene : public lve::LveScene
 {
@@ -28,6 +29,8 @@ private:
 
  std::unordered_map<id_t, GameObject> gameObjects;
  std::unordered_map<Vessel::id_t, GameObject::id_t> vesselMap;
+
+ std::set<GameObject::id_t> top;
 
  // dt is 2 mins a sec
  ServerNav nav = ServerNav::makeRandomScenario(8, 2, 120.0f);
