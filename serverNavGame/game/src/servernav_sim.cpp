@@ -5,6 +5,9 @@
 #include <utility> // std::move
 #include <vector>
 
+#include <iostream>
+#include <chrono> // clock
+
 // Local clamp helpers. Deliberately hand-rolled rather than std::clamp: it
 // keeps this TU from depending on <algorithm> and avoids ADL ambiguity with
 // glm::clamp (glm.hpp is always in scope here).
@@ -258,6 +261,9 @@ ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, float t
     std::uniform_real_distribution<float> latitudeDist(-90.0f + latitudeRange, 90.f - latitudeRange);
     std::uniform_real_distribution<float> longitudeDist(-180.f + longitudeRange, 180.f - longitudeRange);
 
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    double timeElapsed = 0;
+
     /*
     1 Degree of Latitude: Always equals 60 nautical miles.
     1 Degree of Longitude: Equals 60 nautical miles ONLY at the Equator. Otherwise 60 * cos(latitude).
@@ -309,7 +315,13 @@ ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, float t
         // Fetch the real data only on the sample lattice.
         for (int sx : sampleIdx)
             for (int sy : sampleIdx)
+            {
+                auto newTime = std::chrono::high_resolution_clock::now();
+                float dt = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
+                currentTime = newTime;
+                std::cout << "Processing weather data - " << (timeElapsed += dt) << " s elapsed\n";
                 sim.map[sx][sy].data = fetchWeather(cellLat(sy), cellLon(sx));
+            }
 
         // Bracket an index between the two sample lines around it, and give the
         // blend fraction. sampleIdx is sorted ascending.
@@ -386,3 +398,148 @@ ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, float t
 
     return sim; // NRVO
 }
+
+// ServerNav ServerNav::makeStructuredScenario(WorldCoords start, WorldCoords dest, float timeStep) {
+//     ServerNav sim;
+//     sim.simTimeStep = timeStep;
+
+//     // Buffer (in degrees) kept between the grid centre and the lat/long limits
+//     // We deliberately don't halve this, to leave a little extra slack on the limit
+//     float latitudeRange  = static_cast<float>(kGridSize) / 60.0f;
+//     float longitudeRange = static_cast<float>(kGridSize) / 60.0f;
+//     std::uniform_real_distribution<float> latitudeDist(-90.0f + latitudeRange, 90.f - latitudeRange);
+//     std::uniform_real_distribution<float> longitudeDist(-180.f + longitudeRange, 180.f - longitudeRange);
+
+//     auto currentTime = std::chrono::high_resolution_clock::now();
+//     double timeElapsed = 0;
+
+//     /*
+//     1 Degree of Latitude: Always equals 60 nautical miles.
+//     1 Degree of Longitude: Equals 60 nautical miles ONLY at the Equator. Otherwise 60 * cos(latitude).
+//     */
+//     // Weather field
+//     if (USING_RTS)
+//     {
+//         const float latitudeC  = latitudeDist(rng);
+//         const float longitudeC = longitudeDist(rng);
+
+//         // Half-span of the grid in degrees, about the centre. The grid is
+//         // kGridSize nm across; 1 deg latitude == 60 nm and 1 deg longitude ==
+//         // 60*cos(lat) nm, so the FULL spans are kGridSize/60 and
+//         // kGridSize/(60 cos lat) degrees -- halve them to reach +/- the centre.
+//         // (At kGridSize == 60 that's +/-0.5 deg latitude: a 1 deg total span.)
+//         const float latHalfDeg = (static_cast<float>(kGridSize) / 60.0f) * 0.5f;
+//         const float lonHalfDeg = (static_cast<float>(kGridSize) /
+//                                   (60.0f * std::cos(glm::radians(latitudeC)))) * 0.5f;
+
+//         // Grid cell -> geographic coordinate. Column x runs West->East
+//         // (longitude); row y runs North->South (latitude), matching the map
+//         // render (+x East, +y South). Clamp/wrap to valid ranges so an edge
+//         // cell near a pole can't hand fetchWeather an out-of-range request.
+//         auto cellLat = [&](int y) {
+//             float lat = latitudeC + latHalfDeg - (y / float(kGridSize - 1)) * (2.f * latHalfDeg);
+//             return clampF(lat, -90.f, 90.f);
+//         };
+//         auto cellLon = [&](int x) {
+//             float lon = longitudeC - lonHalfDeg + (x / float(kGridSize - 1)) * (2.f * lonHalfDeg);
+//             while (lon < -180.f) lon += 360.f;
+//             while (lon >= 180.f) lon -= 360.f;
+//             return lon;
+//         };
+
+//         // --- Coarse sampling + bilinear interpolation --------------------
+//         // Fetching real weather for every cell is kGridSize*kGridSize blocking
+//         // HTTP calls (~3600 at 60x60): slow, and open-meteo rate-limits the
+//         // burst into empty responses that crash the JSON parse. Instead fetch
+//         // only a coarse lattice (every kWeatherSampleStride cells, plus the far
+//         // edge) and bilinearly interpolate the gaps -- 49 calls at stride 10.
+//         constexpr int kWeatherSampleStride = 10;
+
+//         std::vector<int> sampleIdx;
+//         for (int i = 0; i < kGridSize; i += kWeatherSampleStride)
+//             sampleIdx.push_back(i);
+//         if (sampleIdx.back() != kGridSize - 1)
+//             sampleIdx.push_back(kGridSize - 1); // anchor the far edge
+
+//         // Fetch the real data only on the sample lattice.
+//         for (int sx : sampleIdx)
+//             for (int sy : sampleIdx)
+//             {
+//                 auto newTime = std::chrono::high_resolution_clock::now();
+//                 float dt = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
+//                 currentTime = newTime;
+//                 std::cout << "Processing weather data - " << (timeElapsed += dt) << " s elapsed\n";
+//                 sim.map[sx][sy].data = fetchWeather(cellLat(sy), cellLon(sx));
+//             }
+
+//         // Bracket an index between the two sample lines around it, and give the
+//         // blend fraction. sampleIdx is sorted ascending.
+//         auto bracket = [&](int i, int& lo, int& hi, float& f) {
+//             lo = sampleIdx.front();
+//             hi = sampleIdx.back();
+//             for (std::size_t s = 0; s + 1 < sampleIdx.size(); ++s)
+//                 if (i >= sampleIdx[s] && i <= sampleIdx[s + 1])
+//                 {
+//                     lo = sampleIdx[s];
+//                     hi = sampleIdx[s + 1];
+//                     break;
+//                 }
+//             f = (hi == lo) ? 0.f : float(i - lo) / float(hi - lo);
+//         };
+
+//         // Fill every cell by bilinear blend of its four surrounding samples.
+//         // Safe in place: the only cells ever read are sample-lattice cells, and
+//         // those reproduce themselves exactly, so they're never disturbed.
+//         for (int x = 0; x < kGridSize; ++x)
+//         {
+//             int x0, x1; float fx;
+//             bracket(x, x0, x1, fx);
+//             for (int y = 0; y < kGridSize; ++y)
+//             {
+//                 int y0, y1; float fy;
+//                 bracket(y, y0, y1, fy);
+//                 sim.map[x][y].data = blendWeather(
+//                     sim.map[x0][y0].data, sim.map[x1][y0].data,
+//                     sim.map[x0][y1].data, sim.map[x1][y1].data,
+//                     fx, fy);
+//             }
+//         }
+//     }
+
+//     int numStations = 1, numVessels = 1;
+
+//     // Stations.
+//     sim.stations.reserve(numStations);
+//     for (int i = 0; i < numStations; ++i)
+//     {
+//         Station s;
+//         s.name        = "S" + std::to_string(i);
+//         s.pos         = glm::vec2(posDist(rng), posDist(rng));
+//         s.capacity    = 1.f;
+//         s.fuel        = fuelDist(rng) * s.capacity;
+//         s.depleteRate = depleteDist(rng);
+//         sim.stations.push_back(std::move(s));
+//     }
+
+//     // Vessels. maxFuel / burnRate chosen so a full tank easily crosses the
+//     // map (range = maxFuel / burnRate = 400 units vs. ~70 unit diagonal),
+//     // so vessels don't strand under the default scenario.
+//     sim.vessels.reserve(numVessels);
+//     for (int i = 0; i < numVessels; ++i)
+//     {
+//         Vessel v;
+//         v.id       = i;
+//         v.pos      = glm::vec2(posDist(rng), posDist(rng));
+//         // Reference barge: kReferenceThrust engine + kReferenceWeightLbs hull
+//         // => ~7 kn cruise (up to ~9 kn with a strong tailwind). Weight will
+//         // vary per vessel later; for now every vessel is the reference boat.
+//         v.speed    = kReferenceThrust;
+//         v.weight   = kReferenceWeightLbs;
+//         v.maxFuel  = 1.f;
+//         v.fuel     = v.maxFuel;
+//         v.burnRate = 0.0025f;
+//         sim.vessels.push_back(v);
+//     }
+
+//     return sim; // NRVO
+// }

@@ -6,6 +6,7 @@
 
 #include <cmath>  // std::isfinite
 #include <string>
+#include <iostream>
 
 namespace
 {
@@ -50,7 +51,10 @@ WeatherData fetchWeather(HttpClient& http, float lat, float lon)
     // 1) Sanitize inputs: only ever request finite, in-range coordinates so a
     //    bad caller value can't produce "nan"/out-of-range URLs.
     if (!std::isfinite(lat) || !std::isfinite(lon))
+    {
+        std::cout << "err non-finite coordinates\n";
         return fallbackWeather();
+    }
     lat = lat < -90.f ? -90.f : (lat > 90.f ? 90.f : lat);
     lon = lon < -180.f ? -180.f : (lon > 180.f ? 180.f : lon);
 
@@ -62,17 +66,26 @@ WeatherData fetchWeather(HttpClient& http, float lat, float lon)
     //    redirect and response-size limits, treating HTTP >= 400 as failure).
     const HttpClient::Response res = http.get(url);
     if (!res || res.body.empty())
+    {
+        std::cout << "err request failed for " << url << " (HTTP status " << std::to_string(res.status) + ")\n";
         return fallbackWeather();
+    }
 
     // 3) Parse WITHOUT exceptions; bail to the fallback on any malformed JSON.
     const nlohmann::json json =
         nlohmann::json::parse(res.body, /*cb=*/nullptr, /*allow_exceptions=*/false);
     if (json.is_discarded() || !json.contains("current_weather"))
+    {
+        std::cout << "err current_weather is not an object\n";
         return fallbackWeather();
+    }
 
     const nlohmann::json& cw = json["current_weather"];
     if (!cw.is_object())
+    {
+        std::cout << "err current_weather is not an object\n";
         return fallbackWeather();
+    }
 
     // 4) Validate each field's presence/type/finiteness before use.
     WeatherData data;

@@ -26,6 +26,12 @@ constexpr int   kGridSize      = 60;
 constexpr float kCellDistanceNm  = 1;   // distance a singular cell measures in nautical miles
 constexpr float kArrivalRadius = 0.5f; // distance at which a vessel "docks"
 
+struct WorldCoords
+{
+    float latitude;
+    float longitude;
+};
+
 // --- Vessel speed model ---------------------------------------------------
 // A reference vessel (kReferenceThrust engine power, kReferenceWeightLbs hull
 // weight) cruises at kReferenceCruiseKnots in clear water. Speed scales up
@@ -197,6 +203,8 @@ public:
     // benchmarking. Vessels are given enough range not to strand under the
     // default parameters.
     static ServerNav makeRandomScenario(int numStations, int numVessels, float timeStep = 1.0f, uint32_t seed = 0);
+
+    static ServerNav makeStructuredScenario(WorldCoords start, WorldCoords dest, float timeStep = 1.0f);
 
     float simTimeStep = 1.0f;  // timestep is a modifer on the dt
 private:
