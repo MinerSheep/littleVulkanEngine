@@ -22,21 +22,34 @@ inline float clampF(float v, float lo, float hi)
     return v < lo ? lo : (v > hi ? hi : v);
 }
 
-// Bilinear blend of four WeatherData samples. Temperature is a plain scalar
-// blend, but wind is interpolated as a *vector* (decompose by speed+direction,
-// blend the components, recompose) so direction wraps correctly -- a naive lerp
-// of 350 deg and 10 deg would wrongly sweep through 180. The decode/encode
-// matches Vessel::speedKnots' convention: windVec = (-sin t, cos t) * speed.
-// Weights: s00 at (1-fx,1-fy) ... s11 at (fx,fy).
+// Wind as a velocity vector. Interpolating wind by speed+direction directly is
+// wrong: a naive lerp of 350 deg and 10 deg sweeps through 180. Instead we
+// decompose to a vector, blend the components, then recompose (storeWind). The
+// encoding windVec = (-sin t, cos t) * speed matches Vessel::speedKnots'.
+inline glm::vec2 windVec(const WeatherData& d)
+{
+    const float t = glm::radians(d.windDir);
+    return glm::vec2(-glm::sin(t), glm::cos(t)) * d.windSpeed;
+}
+
+// Store a blended wind velocity back onto a WeatherData as speed + direction.
+// The angle is the inverse of windVec(): t = atan2(-x, y); the zero-vector case
+// is pinned to a defined direction of 0.
+inline void storeWind(WeatherData& out, const glm::vec2& wv)
+{
+    out.windSpeed = glm::length(wv);
+    float dir = glm::degrees(std::atan2(-wv.x, wv.y));
+    if (dir < 0.f)
+        dir += 360.f;
+    out.windDir = out.windSpeed > 1e-4f ? dir : 0.f;
+}
+
+// Bilinear blend of four WeatherData samples: temperature as a scalar, wind as
+// a vector (see windVec). Weights: s00 at (1-fx,1-fy) ... s11 at (fx,fy).
 WeatherData blendWeather(const WeatherData& s00, const WeatherData& s10,
                          const WeatherData& s01, const WeatherData& s11,
                          float fx, float fy)
 {
-    auto windVec = [](const WeatherData& d) {
-        const float t = glm::radians(d.windDir);
-        return glm::vec2(-glm::sin(t), glm::cos(t)) * d.windSpeed;
-    };
-
     const float w00 = (1.f - fx) * (1.f - fy);
     const float w10 = fx * (1.f - fy);
     const float w01 = (1.f - fx) * fy;
@@ -45,15 +58,18 @@ WeatherData blendWeather(const WeatherData& s00, const WeatherData& s10,
     WeatherData out;
     out.temperature = w00 * s00.temperature + w10 * s10.temperature +
                       w01 * s01.temperature + w11 * s11.temperature;
+    storeWind(out, w00 * windVec(s00) + w10 * windVec(s10) +
+                       w01 * windVec(s01) + w11 * windVec(s11));
+    return out;
+}
 
-    const glm::vec2 wv = w00 * windVec(s00) + w10 * windVec(s10) +
-                         w01 * windVec(s01) + w11 * windVec(s11);
-    out.windSpeed = glm::length(wv);
-    // Inverse of windVec(): t = atan2(-x, y). Guard the zero-vector case.
-    float dir = glm::degrees(std::atan2(-wv.x, wv.y));
-    if (dir < 0.f)
-        dir += 360.f;
-    out.windDir = out.windSpeed > 1e-4f ? dir : 0.f;
+// Linear blend of two WeatherData samples at t in [0,1] (0 => a, 1 => b), using
+// the same scalar-temperature / vector-wind scheme as blendWeather.
+WeatherData lerpWeather(const WeatherData& a, const WeatherData& b, float t)
+{
+    WeatherData out;
+    out.temperature = (1.f - t) * a.temperature + t * b.temperature;
+    storeWind(out, (1.f - t) * windVec(a) + t * windVec(b));
     return out;
 }
 } // namespace
@@ -399,147 +415,68 @@ ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, float t
     return sim; // NRVO
 }
 
-// ServerNav ServerNav::makeStructuredScenario(WorldCoords start, WorldCoords dest, float timeStep) {
-//     ServerNav sim;
-//     sim.simTimeStep = timeStep;
+ServerNav ServerNav::makeStructuredScenario(WorldCoords start, WorldCoords dest, float timeStep)
+{
+    ServerNav sim;
+    sim.simTimeStep = timeStep;
 
-//     // Buffer (in degrees) kept between the grid centre and the lat/long limits
-//     // We deliberately don't halve this, to leave a little extra slack on the limit
-//     float latitudeRange  = static_cast<float>(kGridSize) / 60.0f;
-//     float longitudeRange = static_cast<float>(kGridSize) / 60.0f;
-//     std::uniform_real_distribution<float> latitudeDist(-90.0f + latitudeRange, 90.f - latitudeRange);
-//     std::uniform_real_distribution<float> longitudeDist(-180.f + longitudeRange, 180.f - longitudeRange);
+    // The grid's near corner (0,0) maps to `start` -- where the vessel begins --
+    // and its far corner (max,max) to `dest` -- where the station sits. So a
+    // straight run to the station is the (0,0)->(max,max) diagonal.
+    const int maxIdx = kGridSize - 1;
 
-//     auto currentTime = std::chrono::high_resolution_clock::now();
-//     double timeElapsed = 0;
+    /*
+    1 Degree of Latitude: Always equals 60 nautical miles.
+    1 Degree of Longitude: Equals 60 nautical miles ONLY at the Equator. Otherwise 60 * cos(latitude).
+    */
+    // Weather field. Rather than fetch real weather per cell, sample it once at
+    // each route endpoint and lerp across the grid: a cell's weather is the
+    // blend of the two endpoints by how far along the start->dest diagonal it
+    // lies (0 at the start corner, 1 at the dest corner). Two fetches total.
+    if (USING_RTS)
+    {
+        const WeatherData wStart = fetchWeather(start.latitude, start.longitude);
+        const WeatherData wDest  = fetchWeather(dest.latitude, dest.longitude);
 
-//     /*
-//     1 Degree of Latitude: Always equals 60 nautical miles.
-//     1 Degree of Longitude: Equals 60 nautical miles ONLY at the Equator. Otherwise 60 * cos(latitude).
-//     */
-//     // Weather field
-//     if (USING_RTS)
-//     {
-//         const float latitudeC  = latitudeDist(rng);
-//         const float longitudeC = longitudeDist(rng);
+        for (int x = 0; x < kGridSize; ++x)
+            for (int y = 0; y < kGridSize; ++y)
+            {
+                // Diagonal progress: the projection of (x,y) onto the (1,1)
+                // diagonal, normalized so start corner = 0, dest corner = 1.
+                const float t = maxIdx > 0 ? float(x + y) / float(2 * maxIdx) : 0.f;
+                sim.map[x][y].data = lerpWeather(wStart, wDest, t);
+            }
+    }
+    else
+    {
+        for (int x = 0; x < kGridSize; ++x)
+            for (int y = 0; y < kGridSize; ++y)
+                sim.map[x][y].weight = 0.f; // calm water
+    }
 
-//         // Half-span of the grid in degrees, about the centre. The grid is
-//         // kGridSize nm across; 1 deg latitude == 60 nm and 1 deg longitude ==
-//         // 60*cos(lat) nm, so the FULL spans are kGridSize/60 and
-//         // kGridSize/(60 cos lat) degrees -- halve them to reach +/- the centre.
-//         // (At kGridSize == 60 that's +/-0.5 deg latitude: a 1 deg total span.)
-//         const float latHalfDeg = (static_cast<float>(kGridSize) / 60.0f) * 0.5f;
-//         const float lonHalfDeg = (static_cast<float>(kGridSize) /
-//                                   (60.0f * std::cos(glm::radians(latitudeC)))) * 0.5f;
+    // One station at the far (dest) corner, kept low on fuel so the vessel is
+    // dispatched to it immediately (pickTarget only chases stations whose fuel
+    // ratio is below refuelThreshold).
+    Station s;
+    s.name        = "S0";
+    s.pos         = glm::vec2(static_cast<float>(maxIdx));
+    s.capacity    = 1.f;
+    s.fuel        = 0.1f;
+    s.depleteRate = 0.02f;
+    sim.stations.push_back(std::move(s));
 
-//         // Grid cell -> geographic coordinate. Column x runs West->East
-//         // (longitude); row y runs North->South (latitude), matching the map
-//         // render (+x East, +y South). Clamp/wrap to valid ranges so an edge
-//         // cell near a pole can't hand fetchWeather an out-of-range request.
-//         auto cellLat = [&](int y) {
-//             float lat = latitudeC + latHalfDeg - (y / float(kGridSize - 1)) * (2.f * latHalfDeg);
-//             return clampF(lat, -90.f, 90.f);
-//         };
-//         auto cellLon = [&](int x) {
-//             float lon = longitudeC - lonHalfDeg + (x / float(kGridSize - 1)) * (2.f * lonHalfDeg);
-//             while (lon < -180.f) lon += 360.f;
-//             while (lon >= 180.f) lon -= 360.f;
-//             return lon;
-//         };
+    // One vessel at the near (start) corner. maxFuel / burnRate give ~400 cells
+    // of range -- far more than the ~85-cell grid diagonal -- so it won't strand
+    // crossing to the station. Reference barge: ~7 kn cruise in calm air.
+    Vessel v;
+    v.id       = 0;
+    v.pos      = glm::vec2(0.f);
+    v.speed    = kReferenceThrust;
+    v.weight   = kReferenceWeightLbs;
+    v.maxFuel  = 1.f;
+    v.fuel     = v.maxFuel;
+    v.burnRate = 0.0025f;
+    sim.vessels.push_back(v);
 
-//         // --- Coarse sampling + bilinear interpolation --------------------
-//         // Fetching real weather for every cell is kGridSize*kGridSize blocking
-//         // HTTP calls (~3600 at 60x60): slow, and open-meteo rate-limits the
-//         // burst into empty responses that crash the JSON parse. Instead fetch
-//         // only a coarse lattice (every kWeatherSampleStride cells, plus the far
-//         // edge) and bilinearly interpolate the gaps -- 49 calls at stride 10.
-//         constexpr int kWeatherSampleStride = 10;
-
-//         std::vector<int> sampleIdx;
-//         for (int i = 0; i < kGridSize; i += kWeatherSampleStride)
-//             sampleIdx.push_back(i);
-//         if (sampleIdx.back() != kGridSize - 1)
-//             sampleIdx.push_back(kGridSize - 1); // anchor the far edge
-
-//         // Fetch the real data only on the sample lattice.
-//         for (int sx : sampleIdx)
-//             for (int sy : sampleIdx)
-//             {
-//                 auto newTime = std::chrono::high_resolution_clock::now();
-//                 float dt = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
-//                 currentTime = newTime;
-//                 std::cout << "Processing weather data - " << (timeElapsed += dt) << " s elapsed\n";
-//                 sim.map[sx][sy].data = fetchWeather(cellLat(sy), cellLon(sx));
-//             }
-
-//         // Bracket an index between the two sample lines around it, and give the
-//         // blend fraction. sampleIdx is sorted ascending.
-//         auto bracket = [&](int i, int& lo, int& hi, float& f) {
-//             lo = sampleIdx.front();
-//             hi = sampleIdx.back();
-//             for (std::size_t s = 0; s + 1 < sampleIdx.size(); ++s)
-//                 if (i >= sampleIdx[s] && i <= sampleIdx[s + 1])
-//                 {
-//                     lo = sampleIdx[s];
-//                     hi = sampleIdx[s + 1];
-//                     break;
-//                 }
-//             f = (hi == lo) ? 0.f : float(i - lo) / float(hi - lo);
-//         };
-
-//         // Fill every cell by bilinear blend of its four surrounding samples.
-//         // Safe in place: the only cells ever read are sample-lattice cells, and
-//         // those reproduce themselves exactly, so they're never disturbed.
-//         for (int x = 0; x < kGridSize; ++x)
-//         {
-//             int x0, x1; float fx;
-//             bracket(x, x0, x1, fx);
-//             for (int y = 0; y < kGridSize; ++y)
-//             {
-//                 int y0, y1; float fy;
-//                 bracket(y, y0, y1, fy);
-//                 sim.map[x][y].data = blendWeather(
-//                     sim.map[x0][y0].data, sim.map[x1][y0].data,
-//                     sim.map[x0][y1].data, sim.map[x1][y1].data,
-//                     fx, fy);
-//             }
-//         }
-//     }
-
-//     int numStations = 1, numVessels = 1;
-
-//     // Stations.
-//     sim.stations.reserve(numStations);
-//     for (int i = 0; i < numStations; ++i)
-//     {
-//         Station s;
-//         s.name        = "S" + std::to_string(i);
-//         s.pos         = glm::vec2(posDist(rng), posDist(rng));
-//         s.capacity    = 1.f;
-//         s.fuel        = fuelDist(rng) * s.capacity;
-//         s.depleteRate = depleteDist(rng);
-//         sim.stations.push_back(std::move(s));
-//     }
-
-//     // Vessels. maxFuel / burnRate chosen so a full tank easily crosses the
-//     // map (range = maxFuel / burnRate = 400 units vs. ~70 unit diagonal),
-//     // so vessels don't strand under the default scenario.
-//     sim.vessels.reserve(numVessels);
-//     for (int i = 0; i < numVessels; ++i)
-//     {
-//         Vessel v;
-//         v.id       = i;
-//         v.pos      = glm::vec2(posDist(rng), posDist(rng));
-//         // Reference barge: kReferenceThrust engine + kReferenceWeightLbs hull
-//         // => ~7 kn cruise (up to ~9 kn with a strong tailwind). Weight will
-//         // vary per vessel later; for now every vessel is the reference boat.
-//         v.speed    = kReferenceThrust;
-//         v.weight   = kReferenceWeightLbs;
-//         v.maxFuel  = 1.f;
-//         v.fuel     = v.maxFuel;
-//         v.burnRate = 0.0025f;
-//         sim.vessels.push_back(v);
-//     }
-
-//     return sim; // NRVO
-// }
+    return sim; // NRVO
+}

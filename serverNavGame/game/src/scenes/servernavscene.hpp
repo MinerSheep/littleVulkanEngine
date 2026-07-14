@@ -33,7 +33,7 @@ private:
  std::set<GameObject::id_t> top;
 
  // dt is 2 mins a sec
- ServerNav nav = ServerNav::makeRandomScenario(8, 2, 120.0f);
+ ServerNav nav = ServerNav::makeStructuredScenario(WorldCoords{45, 45}, WorldCoords{46,46}, 120.0f);
 
  // Draws on-screen HUD text by appending solid dot-quads to UIrenderItems.
  // Created in loadModels() (after the device exists).
