@@ -1,6 +1,7 @@
 #include <lve_engine.hpp>
 #include "scenes/levelscene.hpp"
 #include "scenes/servernavscene.hpp"
+#include "scenes/reforgescene.hpp" 
 #include "servernav_sim.hpp"
 #include "fetch_weather.hpp"
 
@@ -30,15 +31,28 @@ int main() {
     engine.init();
     try {
     
-        ServerNavScene scene;
-        scene.loadModels();
-        scene.setupLights();
+        static ServerNavScene snscene;
+        snscene.loadModels();
+        snscene.setupLights();
+
+        static ReforgeScene rscene;
+        rscene.loadModels();
+        rscene.setupLights();
 
         auto currentTime = std::chrono::high_resolution_clock::now();
+
+        GLFWwindow* window = engine.getGLFWWindow();
+        lve::LveScene *scene = &snscene;
     
         while (!engine.shouldClose()) {
             // this causes glitchiness on ubuntu because it blocks
             glfwPollEvents();
+
+            // Scene swap
+            if (glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS)
+                scene = &snscene;
+            if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
+                scene = &rscene;
 
             // Take the time after the block
             auto newTime = std::chrono::high_resolution_clock::now();
@@ -46,12 +60,13 @@ int main() {
             currentTime = newTime;
             dt = glm::min(dt, MAX_FRAME_TIME);
 
-            scene.update(dt);
+            scene->update(dt);
             // navGame.update(dt);
-            engine.render(scene);
+            engine.render(*scene);
         }
 
-        scene.cleanup();
+        snscene.cleanup();
+        rscene.cleanup();
         // app.run();
     } catch (const std::exception &e) {
         engine.cleanup();
