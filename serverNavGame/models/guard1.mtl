@@ -1,0 +1,14 @@
+# Blender 5.2.0 LTS MTL File: 'None'
+# www.blender.org
+
+newmtl Weapon_1
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd C:/Weapon_1_BaseColor.jpg
+map_Ns C:/Weapon_1_Roughness.jpg
+map_refl C:/Weapon_1_Metallic.jpg
+map_Bump -bm 1.000000 C:/Weapon_1_Normal.jpg

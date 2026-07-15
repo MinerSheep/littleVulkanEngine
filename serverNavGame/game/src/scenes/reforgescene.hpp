@@ -5,6 +5,8 @@
 #include "lve_camera.hpp"
 #include "keyboard_movement_controller.hpp"
 
+constexpr int   kReforgePieces  = 3;
+
 class ReforgeScene : public lve::LveScene
 {
 public: 
@@ -25,5 +27,5 @@ private:
  std::vector<GameObject::id_t> reforgeParts;
 
  // pool of models a reforge can pick from (loaded once in loadModels)
- std::vector<std::shared_ptr<lve::LveModel>> reforgeModels;
+ std::vector<std::shared_ptr<lve::LveModel>> reforgeModels[kReforgePieces];
 };

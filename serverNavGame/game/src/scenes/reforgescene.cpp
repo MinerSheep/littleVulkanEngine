@@ -26,25 +26,31 @@ void ReforgeScene::update(float dt)
 
     if (cooldown > 0.0f)
       cooldown -= dt;
-    else if (!reforgeModels.empty() &&
-             glfwGetKey(lve::LveEngine::instance().getGLFWWindow(), GLFW_KEY_R) == GLFW_PRESS)
+    else if (glfwGetKey(lve::LveEngine::instance().getGLFWWindow(), GLFW_KEY_R) == GLFW_PRESS)
     {
       static std::mt19937 rng{std::random_device{}()};
-      std::uniform_int_distribution<size_t> pickModel(0, reforgeModels.size() - 1);
       std::uniform_real_distribution<float> pickChannel(0.f, 1.f);
-
+      
+      int i = 0;
       for (auto& id : reforgeParts)
       {
-        auto it = gameObjects.find(id);
-        if (it != gameObjects.end()) {
-          GameObject& obj = it->second;
-
-          // randomize the model (shared_ptr, so parts can safely share one)
-          obj.model = reforgeModels[pickModel(rng)];
-
-          // randomize the color too
-          obj.color = {pickChannel(rng), pickChannel(rng), pickChannel(rng)};
+        if (!reforgeModels[i].empty())
+        {
+          std::uniform_int_distribution<size_t> pickModel(0, reforgeModels[i % kReforgePieces].size() - 1);
+  
+          auto it = gameObjects.find(id);
+          if (it != gameObjects.end()) {
+            GameObject& obj = it->second;
+  
+            // randomize the model (shared_ptr, so parts can safely share one)
+            obj.model = reforgeModels[i % kReforgePieces][pickModel(rng)];
+  
+            // randomize the color too
+            obj.color = {pickChannel(rng), pickChannel(rng), pickChannel(rng)};
+          }
         }
+
+        i++;
       }
 
       cooldown = 1.0f;
@@ -104,23 +110,48 @@ void ReforgeScene::loadModels()
     viewerObject->addComponent<TransformComponent>()->translation.z = -2.5f;
 
     // Preload the pool of models a reforge can randomly pick from.
-    // Loaded once here so pressing R never touches disk / creates GPU buffers.
+    int i = 0;
     for (const char* path : {
-             "models/flat_vase.obj",
-             "models/smooth_vase.obj",
-             "models/cube.obj",
-             "models/colored_cube.obj",
+             "models/hilt1.obj",
+             "models/guard1.obj",
+             "models/blade1.obj",
          }) {
-      reforgeModels.push_back(lve::LveModel::createModelFromFile(path));
+      reforgeModels[i % kReforgePieces].push_back(lve::LveModel::createModelFromFile(path));
+      i++;
     }
 
-    std::shared_ptr<lve::LveModel> lveModel = lve::LveModel::createModelFromFile("models/flat_vase.obj");
-
+    std::shared_ptr<lve::LveModel> lveModel = lve::LveModel::createModelFromFile("models/hilt1.obj");
     {
       auto gameObj = GameObject::createGameObject();
       gameObj.model = lveModel;
       TransformComponent* transform = gameObj.addComponent<TransformComponent>();
-      transform->translation = {-.5f, .5f, 0.f};
+      transform->translation = {-.5f, 1.5f, 0.f};
+      transform->scale = glm::vec3(3.f);
+      GameObject::id_t id = gameObj.getId();
+      gameObjects.emplace(id, std::move(gameObj));
+
+      reforgeParts.push_back(id);
+    }
+
+    lveModel = lve::LveModel::createModelFromFile("models/guard1.obj");
+    {
+      auto gameObj = GameObject::createGameObject();
+      gameObj.model = lveModel;
+      TransformComponent* transform = gameObj.addComponent<TransformComponent>();
+      transform->translation = {-.5f, 1.5f, 0.f};
+      transform->scale = glm::vec3(3.f);
+      GameObject::id_t id = gameObj.getId();
+      gameObjects.emplace(id, std::move(gameObj));
+
+      reforgeParts.push_back(id);
+    }
+
+    lveModel = lve::LveModel::createModelFromFile("models/blade1.obj");
+    {
+      auto gameObj = GameObject::createGameObject();
+      gameObj.model = lveModel;
+      TransformComponent* transform = gameObj.addComponent<TransformComponent>();
+      transform->translation = {-.5f, 1.5f, 0.f};
       transform->scale = glm::vec3(3.f);
       GameObject::id_t id = gameObj.getId();
       gameObjects.emplace(id, std::move(gameObj));

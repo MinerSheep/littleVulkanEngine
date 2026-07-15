@@ -49,9 +49,9 @@ int main() {
             glfwPollEvents();
 
             // Scene swap
-            if (glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS)
-                scene = &snscene;
             if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
+                scene = &snscene;
+            if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
                 scene = &rscene;
 
             // Take the time after the block
