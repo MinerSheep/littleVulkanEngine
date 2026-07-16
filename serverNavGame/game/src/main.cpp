@@ -13,10 +13,12 @@
 
 #include <chrono>
 
-// Cap per-frame dt. At low/erratic FPS (e.g. software rendering) a large dt makes
-// dt-scaled camera movement lurch in big discrete steps ("jumping"). Clamping to
-// ~1/30s keeps motion smooth (it just goes slow-motion when the FPS is low).
-#define MAX_FRAME_TIME (1.0f / 30.0f)
+// Upper bound on per-frame dt, to stop a one-off multi-second stall (first-frame
+// warmup, a hitch) from teleporting the camera. It must sit ABOVE the normal
+// frame time or it throttles every frame into slow-motion: measured ~86 ms/frame
+// (≈11 FPS) on the software renderer, so 0.2 s clears real frames yet still caps
+// a stall to a bounded step. Raise it if your steady frame time is ever higher.
+#define MAX_FRAME_TIME (1.0f / 5.0f)
 
 // these are used to avoid external memory leak warnings (out of control)
 extern "C" const char *__lsan_default_suppressions() {
