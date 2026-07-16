@@ -1,12 +1,24 @@
+/* lve_skinned_model.{hpp,cpp} — LveSkinnedModel: parses .glb via cgltf.h, 
+concatenates all primitives into one vertex+index buffer, 
+builds a bone-matrix palette (world(joint)·inverseBind, + a trailing identity slot for the file's 2 non-skinned meshes), 
+and owns the palette as an SSBO - Shader Storage Buffer Object with its own descriptor set. */
+
 #include "lve_skinned_model.hpp"
 
 #include "lve_engine.hpp"
 #include "lve_descriptors.hpp"
 
 // libs
+/*
+cgltf_parse_file cgltf_load_buffers
+cgltf_node_transform_world - world transform
+cgltf_accessor_read_float - from a cgltf_accessor
+
+cgltf_uint j[4] = {0, 0, 0, 0}; jointAcc = cgltf_accessor; cgltf_size v;
+cgltf_accessor_read_uint(jointAcc, v, j, 4);
+*/
 #define CGLTF_IMPLEMENTATION
 #include <cgltf/cgltf.h>
-
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtc/type_ptr.hpp>
 
@@ -25,6 +37,7 @@ std::unique_ptr<LveSkinnedModel> LveSkinnedModel::createModelFromFile(
 
 LveSkinnedModel::LveSkinnedModel(LveDevice& device, const std::string& filepath)
     : lveDevice(device) {
+  // load mesh, skin, joints
   loadGLTF(filepath);
   createBoneBuffer();
 }
@@ -39,6 +52,7 @@ void LveSkinnedModel::loadGLTF(const std::string& filepath) {
   cgltf_options options{};
   cgltf_data* data = nullptr;
 
+  // parse and output into data and options
   if (cgltf_parse_file(&options, filepath.c_str(), &data) != cgltf_result_success) {
     throw std::runtime_error("failed to parse glTF: " + filepath);
   }
@@ -51,15 +65,19 @@ void LveSkinnedModel::loadGLTF(const std::string& filepath) {
   std::vector<uint32_t> indices;
 
   // --- Build the bone matrix palette from the (first) skin ---------------------
-  // jointMatrices[k] = worldTransform(joint[k]) * inverseBindMatrix[k].
+  // Each bone gets a worldTransform multiplied by its inverseBindMatrix and stored in k
+  // jointMatrices[k] = worldTransform(joint[k]) * inverseBindMatrix[k]
+
   // JOINTS_0 values in the mesh index directly into skin->joints, so palette
-  // index == joint index. At bind pose each of these is ~identity.
+  // index == joint index. At bind pose each of these is ~identity
   cgltf_skin* skin = (data->skins_count > 0) ? &data->skins[0] : nullptr;
   jointMatrices.clear();
   if (skin) {
     jointMatrices.resize(skin->joints_count);
     for (cgltf_size i = 0; i < skin->joints_count; ++i) {
       glm::mat4 world(1.f);
+
+      // compute world transform
       cgltf_node_transform_world(skin->joints[i], glm::value_ptr(world));
 
       glm::mat4 ibm(1.f);
@@ -69,7 +87,9 @@ void LveSkinnedModel::loadGLTF(const std::string& filepath) {
       jointMatrices[i] = world * ibm;
     }
   }
-  // Trailing identity slot: used by non-skinned primitives (see below).
+
+  // Trailing identity slot: lets static meshes ride a fake bone
+  // used by non-skinned primitives
   const uint32_t staticJointIndex = static_cast<uint32_t>(jointMatrices.size());
   jointMatrices.push_back(glm::mat4(1.f));
 
@@ -85,10 +105,12 @@ void LveSkinnedModel::loadGLTF(const std::string& filepath) {
 
     // For a non-skinned mesh the vertices live in the node's local space, so we
     // bake the node's world transform into them and let them ride the identity
-    // joint. (Skinned meshes ignore their node transform per the glTF spec --
-    // the joint matrices already place them.)
+    // joint
+    // (Skinned meshes ignore their node transform per the glTF spec -- the joint matrices already place them.)
     glm::mat4 nodeWorld(1.f);
     cgltf_node_transform_world(node, glm::value_ptr(nodeWorld));
+
+    // Compute normal
     glm::mat3 nodeNormalMat = glm::transpose(glm::inverse(glm::mat3(nodeWorld)));
 
     cgltf_mesh* mesh = node->mesh;
@@ -101,6 +123,8 @@ void LveSkinnedModel::loadGLTF(const std::string& filepath) {
       cgltf_accessor* uvAcc = nullptr;
       cgltf_accessor* jointAcc = nullptr;
       cgltf_accessor* weightAcc = nullptr;
+
+      // extract attributes
       for (cgltf_size ai = 0; ai < prim->attributes_count; ++ai) {
         cgltf_attribute* attr = &prim->attributes[ai];
         switch (attr->type) {
@@ -114,6 +138,8 @@ void LveSkinnedModel::loadGLTF(const std::string& filepath) {
       }
       if (!posAcc) continue;
 
+      // this bool checks if the prim is skinned, if so, we can store joints + weights
+      // + raw vertex positions
       const bool primSkinned = nodeSkinned && jointAcc && weightAcc && skin;
       const cgltf_size vcount = posAcc->count;
       const uint32_t baseVertex = static_cast<uint32_t>(vertices.size());
@@ -150,7 +176,8 @@ void LveSkinnedModel::loadGLTF(const std::string& filepath) {
           cgltf_accessor_read_float(weightAcc, v, w, 4);
           vert.weights = glm::vec4(w[0], w[1], w[2], w[3]);
         } else {
-          // Bake node transform into the vertex; ride the identity joint.
+          // Bake node transform into vertex positions
+          // Assign identity joint index and ride it
           glm::vec4 wp = nodeWorld * glm::vec4(pos, 1.f);
           vert.position = glm::vec3(wp);
           vert.normal = glm::normalize(nodeNormalMat * nor);
@@ -158,6 +185,7 @@ void LveSkinnedModel::loadGLTF(const std::string& filepath) {
           vert.weights = glm::vec4(1.f, 0.f, 0.f, 0.f);
         }
 
+        // AABB - Tracks min/max vertex positions
         aabbMin = glm::min(aabbMin, vert.position);
         aabbMax = glm::max(aabbMax, vert.position);
         vertices.push_back(vert);
@@ -169,7 +197,7 @@ void LveSkinnedModel::loadGLTF(const std::string& filepath) {
       if (prim->indices) {
         const cgltf_size icount = prim->indices->count;
         for (cgltf_size ii = 0; ii < icount; ++ii) {
-          // Indices are local to this primitive; vertexOffset is applied at draw.
+          // Indices are local to this primitive; vertexOffset is applied at draw
           indices.push_back(static_cast<uint32_t>(cgltf_accessor_read_index(prim->indices, ii)));
         }
         out.indexCount = static_cast<uint32_t>(icount);

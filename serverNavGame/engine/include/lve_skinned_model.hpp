@@ -17,12 +17,13 @@ namespace lve {
 // A skinned (skeletal) mesh loaded from a glTF / .glb file.
 //
 // This is intentionally SEPARATE from LveModel (which loads static .obj files)
-// so the existing static render path stays untouched. Where LveModel produces a
-// single vertex/index buffer with position/color/normal/uv, LveSkinnedModel adds
-// two per-vertex attributes -- joint indices + blend weights -- and owns a bone
-// matrix "palette" (an SSBO) that the skinning vertex shader reads via set = 1.
+// Where LveModel produces a single vertex/index buffer with position/color/normal/uv
+// LveSkinnedModel adds two per-vertex attributes -- joint indices + blend weights
+// It also owns a bone matrix "palette" (an SSBO) that the skinning vertex shader reads via set = 1
 class LveSkinnedModel {
  public:
+
+  // Does not include color
   struct Vertex {
     glm::vec3 position{};
     glm::vec3 normal{};
@@ -35,7 +36,7 @@ class LveSkinnedModel {
   };
 
   // One drawable range inside the shared vertex/index buffers. glTF meshes are
-  // made of primitives; we concatenate them all so a whole model is one bind.
+  // made of primitives; we concatenate them all so a whole model is one bind
   struct Primitive {
     uint32_t firstIndex;
     uint32_t indexCount;
@@ -53,7 +54,7 @@ class LveSkinnedModel {
   void bind(VkCommandBuffer commandBuffer);
   void draw(VkCommandBuffer commandBuffer);
 
-  // The set = 1 descriptor holding this model's bone matrix palette.
+  // The set = 1 descriptor holding this model's bone matrix palette
   VkDescriptorSet boneDescriptorSet() const { return boneSet; }
   uint32_t jointCount() const { return static_cast<uint32_t>(jointMatrices.size()); }
 
@@ -74,10 +75,12 @@ class LveSkinnedModel {
 
   std::vector<Primitive> primitives;
 
-  // Bone matrix palette: one matrix per joint, plus a trailing identity slot
-  // (the last index) used by any non-skinned primitives whose node transform we
+  // Bone matrix palette: each joint has one matrix, and the palette has a trailing identity slot
+  // which is used by any non-skinned primitives whose node transform we
   // baked into their vertices at load time. At bind pose every joint matrix is
-  // ~identity, so with no animation the mesh renders in its authored rest pose.
+  // ~identity, so with no animation the mesh renders in its authored rest pose
+
+  // Later on, we will alter these joint matrices
   std::vector<glm::mat4> jointMatrices;
   std::unique_ptr<LveBuffer> boneBuffer;
   VkDescriptorSet boneSet = VK_NULL_HANDLE;

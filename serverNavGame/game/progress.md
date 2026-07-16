@@ -33,3 +33,18 @@ Audit Command to enable within game folder
 ASAN_OPTIONS=fast_unwind_on_malloc=0 \
 LSAN_OPTIONS="suppressions=$PWD/lsan.supp:print_suppressions=1" \
 ./game
+
+July 16th
+
+Made more expansions to the simulation.  Working on a structured mode soon which will use landmask data (checking elevations) to create a real world boat example.
+Additionally on the side, I'm looking into making models with bones
+
+Sanity check scripts
+cd "C:/Users/ryder/OneDrive/Desktop/Coding_Practice/littleVulkanEngine/serverNavGame" && echo "=== shaders dir ===" && ls -la shaders/
+print all of the shaders directory
+
+echo "=== .env hex ===" && xxd engine/.env | head -3
+xxd gives .env file data in hex
+
+echo "=== wsl login shell vulkan ===" && wsl.exe bash -lc 'echo VULKAN_SDK_PATH=$VULKAN_SDK_PATH; pkg-config --exists vulkan && echo "vulkan pc ok"; ls /usr/include/vulkan/vulkan.h 2>&1 | head -1' 2>&1 | head
+logs in to wsl, and asks about VULKAN PATH, at the end pipes everything into head including err data from 2

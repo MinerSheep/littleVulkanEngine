@@ -14,7 +14,7 @@
 
 namespace lve {
 
-// Same push layout as SimpleRenderSystem: places/orients the whole character.
+// Same push layout as SimpleRenderSystem
 struct SkinnedPushConstantData {
   glm::mat4 modelMatrix{1.f};
   glm::mat4 normalMatrix{1.f};
@@ -64,7 +64,8 @@ void SkinnedRenderSystem::render(FrameInfo& frameInfo) {
         sizeof(SkinnedPushConstantData),
         &push);
 
-    // set = 1 (this model's bone matrix palette).
+    // Each bone has a descriptor set
+    // first set = 1 because this is the model's bone matrix palette
     VkDescriptorSet boneSet = item.model->boneDescriptorSet();
     vkCmdBindDescriptorSets(
         frameInfo.commandBuffer,

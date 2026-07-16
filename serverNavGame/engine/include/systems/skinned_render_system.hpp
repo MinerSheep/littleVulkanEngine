@@ -11,8 +11,8 @@ namespace lve {
 
 // Renders skinned (skeletal) meshes. Mirrors SimpleRenderSystem, but its pipeline
 // uses the extended LveSkinnedModel::Vertex layout (position/normal/uv/joints/
-// weights) and a second descriptor set (set = 1) that supplies each model's bone
-// matrix palette to the skinning vertex shader.
+// weights) and a **second descriptor set (set = 1)** that supplies each model's bone
+// matrix palette -> to the skinning vertex shader
 class SkinnedRenderSystem {
  public:
   SkinnedRenderSystem(
