@@ -1,3 +1,6 @@
+USING_RTS = 0
+g++ -std=c++17 -O2 -Isrc bench/servernav_benchmark.cpp src/servernav_sim.cpp -o servernav_bench
+
 === ServerNav simulation benchmark ===
 
 functional tests
