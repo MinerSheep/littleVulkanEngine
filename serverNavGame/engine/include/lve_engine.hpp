@@ -9,6 +9,7 @@
 #include "lve_frame_info.hpp"
 #include "systems/simple_render_system.hpp"
 #include "systems/point_light_system.hpp"
+#include "systems/skinned_render_system.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 
 
@@ -45,9 +46,17 @@ namespace lve
         LveWindow& getWindow() { return lveWindow; }
         LveDevice& getDevice() { return lveDevice; }
         LveRenderer& getRenderer() { return lveRenderer; }
-    
+
+        // Shared by every LveSkinnedModel: they allocate their per-model bone
+        // descriptor set (set = 1) from this pool/layout in createModelFromFile.
+        LveDescriptorSetLayout& getBoneSetLayout() { return *boneSetLayout; }
+        LveDescriptorPool& getBonePool() { return *bonePool; }
+
     private:
         bool running = true;
+
+        // Max distinct skinned models that can own a bone descriptor set at once.
+        static constexpr uint32_t MAX_SKINNED_MODELS = 16;
 
         const uint32_t globalUniformBufferSize = LveSwapChain::MAX_FRAMES_IN_FLIGHT;
         
@@ -60,9 +69,16 @@ namespace lve
         std::unique_ptr<LveDescriptorPool> globalPool{};
         std::vector<VkDescriptorSet> globalDescriptorSets;
 
+        // Bone-matrix (set = 1) infrastructure for skinned models. These must
+        // outlive init() because skinned models allocate from them later, during
+        // the scene's loadModels().
+        std::unique_ptr<LveDescriptorSetLayout> boneSetLayout{};
+        std::unique_ptr<LveDescriptorPool> bonePool{};
+
         // std::unique_ptr<LveBuffer> globalUboBuffer {};
         std::vector<std::unique_ptr<LveBuffer>> uboBuffers;
         std::unique_ptr<SimpleRenderSystem> simpleRenderSystem {};
         std::unique_ptr<PointLightSystem> pointLightSystem {};
+        std::unique_ptr<SkinnedRenderSystem> skinnedRenderSystem {};
     };
 } // namespace lve

@@ -13,6 +13,9 @@ std::string getExecutableDir();   // declaration only
 
 namespace lve {
 
+  // Defined in lve_skinned_model.hpp; only referenced by pointer here.
+  class LveSkinnedModel;
+
   #define MAX_LIGHTS 10
 
   // iterate through each point light and accumulate its effects on the model
@@ -40,6 +43,11 @@ namespace lve {
     float alpha;
     LveModel* model;
   };
+  struct SkinnedRenderItem {
+    glm::mat4 modelMatrix;
+    glm::mat4 normalMatrix;
+    LveSkinnedModel* model;
+  };
 
   struct GlobalUbo {
     glm::mat4 projection{1.f};
@@ -58,5 +66,6 @@ struct FrameInfo {
   std::vector<RenderItem> renderItems;
   std::vector<UIRenderItem> UIrenderItems;
   std::vector<LightRenderItem> lightItems;
+  std::vector<SkinnedRenderItem> skinnedRenderItems;
 };
 }  // namespace lve

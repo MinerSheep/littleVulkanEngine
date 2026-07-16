@@ -1,7 +1,8 @@
 #include <lve_engine.hpp>
 #include "scenes/levelscene.hpp"
 #include "scenes/servernavscene.hpp"
-#include "scenes/reforgescene.hpp" 
+#include "scenes/reforgescene.hpp"
+#include "scenes/skinneddemoscene.hpp"
 #include "servernav_sim.hpp"
 #include "fetch_weather.hpp"
 
@@ -39,10 +40,14 @@ int main() {
         rscene.loadModels();
         rscene.setupLights();
 
+        static SkinnedDemoScene sdscene;
+        sdscene.loadModels();
+        sdscene.setupLights();
+
         auto currentTime = std::chrono::high_resolution_clock::now();
 
         GLFWwindow* window = engine.getGLFWWindow();
-        lve::LveScene *scene = &snscene;
+        lve::LveScene *scene = &sdscene;
     
         while (!engine.shouldClose()) {
             // this causes glitchiness on ubuntu because it blocks
@@ -53,6 +58,8 @@ int main() {
                 scene = &snscene;
             if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
                 scene = &rscene;
+            if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS)
+                scene = &sdscene;
 
             // Take the time after the block
             auto newTime = std::chrono::high_resolution_clock::now();
@@ -67,6 +74,7 @@ int main() {
 
         snscene.cleanup();
         rscene.cleanup();
+        sdscene.cleanup();
         // app.run();
     } catch (const std::exception &e) {
         engine.cleanup();

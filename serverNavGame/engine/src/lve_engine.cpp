@@ -59,6 +59,20 @@ void LveEngine::init() {
         .build(globalDescriptorSets[i]);
   }
 
+  // --- Skinned model (set = 1) bone-matrix infrastructure --------------------
+  // A single storage-buffer binding holding a model's joint matrix palette. One
+  // descriptor set is allocated per skinned model (up to MAX_SKINNED_MODELS).
+  boneSetLayout =
+      LveDescriptorSetLayout::Builder(lveDevice)
+          .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+          .build();
+
+  bonePool =
+      LveDescriptorPool::Builder(lveDevice)
+          .setMaxSets(MAX_SKINNED_MODELS)
+          .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, MAX_SKINNED_MODELS)
+          .build();
+
   simpleRenderSystem = std::make_unique<SimpleRenderSystem>(
       lveDevice,
       lveRenderer.getSwapChainRenderPass(),
@@ -68,6 +82,12 @@ void LveEngine::init() {
       lveDevice,
       lveRenderer.getSwapChainRenderPass(),
       globalSetLayout->getDescriptorSetLayout());
+
+  skinnedRenderSystem = std::make_unique<SkinnedRenderSystem>(
+      lveDevice,
+      lveRenderer.getSwapChainRenderPass(),
+      globalSetLayout->getDescriptorSetLayout(),
+      boneSetLayout->getDescriptorSetLayout());
 }
 
 void LveEngine::render(LveScene& scene) {
@@ -81,7 +101,8 @@ void LveEngine::render(LveScene& scene) {
         globalDescriptorSets[frameIndex],
         scene.renderItems,
         scene.UIrenderItems,
-        scene.lightItems};
+        scene.lightItems,
+        scene.skinnedRenderItems};
 
     // update
     pointLightSystem->update(frameInfo, scene.ubo);
@@ -94,6 +115,7 @@ void LveEngine::render(LveScene& scene) {
     lveRenderer.beginSwapChainRenderPass(commandBuffer);
 
     simpleRenderSystem->render(frameInfo);
+    skinnedRenderSystem->render(frameInfo);
     pointLightSystem->render(frameInfo);
     simpleRenderSystem->renderUI(frameInfo);
 

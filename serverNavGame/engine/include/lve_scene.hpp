@@ -19,5 +19,6 @@ namespace lve
         std::vector<RenderItem> renderItems;
         std::vector<UIRenderItem> UIrenderItems;
         std::vector<LightRenderItem> lightItems;
+        std::vector<SkinnedRenderItem> skinnedRenderItems;
     };
 } // namespace lve
