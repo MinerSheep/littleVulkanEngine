@@ -115,6 +115,9 @@ void ReforgeScene::loadModels()
              "models/hilt1.obj",
              "models/guard1.obj",
              "models/blade1.obj",
+             "models/hilt2.obj",
+             "models/guard2.obj",
+             "models/blade2.obj",
          }) {
       reforgeModels[i % kReforgePieces].push_back(lve::LveModel::createModelFromFile(path));
       i++;
