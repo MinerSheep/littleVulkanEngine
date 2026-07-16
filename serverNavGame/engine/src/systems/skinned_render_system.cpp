@@ -70,9 +70,12 @@ void SkinnedRenderSystem::render(FrameInfo& frameInfo) {
         sizeof(SkinnedPushConstantData),
         &push);
 
-    // Each bone has a descriptor set
-    // first set = 1 because this is the model's bone matrix palette
-    VkDescriptorSet boneSet = item.model->boneDescriptorSet();
+    // Push the model's current pose into THIS frame's bone buffer (safe now: the
+    // frame's fence was waited on in beginFrame, so the GPU is done with it)
+
+    // bind that frame's set = 1 bone-palette descriptor
+    item.model->uploadPose(frameInfo.frameIndex);
+    VkDescriptorSet boneSet = item.model->boneDescriptorSet(frameInfo.frameIndex);
     vkCmdBindDescriptorSets(
         frameInfo.commandBuffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,

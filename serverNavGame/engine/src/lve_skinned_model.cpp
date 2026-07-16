@@ -7,6 +7,7 @@ and owns the palette as an SSBO - Shader Storage Buffer Object with its own desc
 
 #include "lve_engine.hpp"
 #include "lve_descriptors.hpp"
+#include "lve_swap_chain.hpp"
 
 // libs
 /*
@@ -21,6 +22,7 @@ cgltf_accessor_read_uint(jointAcc, v, j, 4);
 #include <cgltf/cgltf.h>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 // std
 #include <cstring>
@@ -37,9 +39,11 @@ std::unique_ptr<LveSkinnedModel> LveSkinnedModel::createModelFromFile(
 
 LveSkinnedModel::LveSkinnedModel(LveDevice& device, const std::string& filepath)
     : lveDevice(device) {
-  // load mesh, skin, joints
+  // load mesh, skin, joints (fills the retained skeleton + jointMatrices sizing)
   loadGLTF(filepath);
-  createBoneBuffer();
+  // fill jointMatrices for the authored bind pose, then upload to every frame's buffer
+  recomputePalette();
+  createBoneBuffers();
 }
 
 LveSkinnedModel::~LveSkinnedModel() {
@@ -64,34 +68,70 @@ void LveSkinnedModel::loadGLTF(const std::string& filepath) {
   std::vector<Vertex> vertices;
   std::vector<uint32_t> indices;
 
-  // --- Build the bone matrix palette from the (first) skin ---------------------
-  // Each bone gets a worldTransform multiplied by its inverseBindMatrix and stored in k
-  // jointMatrices[k] = worldTransform(joint[k]) * inverseBindMatrix[k]
+  // --- Retain the whole node hierarchy so joints can be re-posed after load ----
+  // Store each node's T pose local transform + parent, and a parent-before-child ordering
+  // recomputePalette() later turns these into world transforms and then into
+  // the bone matrix palette (jointMatrices[k] = world(joint[k]) * inverseBind[k]).
+  const cgltf_size nodeCount = data->nodes_count;
+  nodeName.resize(nodeCount);
+  nodeLocalBind.resize(nodeCount);
+  nodeParent.resize(nodeCount);
+  nodeWorld.resize(nodeCount);
+  for (cgltf_size ni = 0; ni < nodeCount; ++ni) {
+    cgltf_node* n = &data->nodes[ni];
+    nodeName[ni] = n->name ? n->name : "";
+    cgltf_node_transform_local(n, glm::value_ptr(nodeLocalBind[ni]));
+    nodeParent[ni] = n->parent ? static_cast<int>(n->parent - data->nodes) : -1;
+  }
+  nodeLocal = nodeLocalBind;  // current pose starts at bind
 
-  // JOINTS_0 values in the mesh index directly into skin->joints, so palette
-  // index == joint index. At bind pose each of these is ~identity
+  // Parent-before-child order via an iterative Depth First Search from the roots
+  // (nodes with no parent)
+  // Popping a parent before pushing its children guarantees the parent
+  // lands in nodeOrder first, so world transforms accumulate in one forward pass
+  nodeOrder.clear();
+  nodeOrder.reserve(nodeCount);
+  std::vector<char> visited(nodeCount, 0);
+  std::vector<int> stack;
+  for (cgltf_size ni = 0; ni < nodeCount; ++ni)
+    if (!data->nodes[ni].parent) stack.push_back(static_cast<int>(ni));
+  while (!stack.empty()) {
+    int n = stack.back();
+    stack.pop_back();
+    if (visited[n]) continue;
+    visited[n] = 1;
+    nodeOrder.push_back(n);
+    cgltf_node* nd = &data->nodes[n];
+    for (cgltf_size c = 0; c < nd->children_count; ++c)
+      stack.push_back(static_cast<int>(nd->children[c] - data->nodes));
+  }
+
+  // Any node not reachable from a root (shouldn't happen) still gets processed.
+  for (cgltf_size ni = 0; ni < nodeCount; ++ni)
+    if (!visited[ni]) nodeOrder.push_back(static_cast<int>(ni));
+
+  // --- Skin: which node each palette joint maps to, plus its inverse bind matrix.
+  // JOINTS_0 values in the mesh index directly into skin->joints
+  // so palette index == joint index.
   cgltf_skin* skin = (data->skins_count > 0) ? &data->skins[0] : nullptr;
-  jointMatrices.clear();
+  jointNode.clear();
+  inverseBind.clear();
   if (skin) {
-    jointMatrices.resize(skin->joints_count);
+    jointNode.resize(skin->joints_count);
+    inverseBind.resize(skin->joints_count, glm::mat4(1.f));
     for (cgltf_size i = 0; i < skin->joints_count; ++i) {
-      glm::mat4 world(1.f);
-
-      // compute world transform
-      cgltf_node_transform_world(skin->joints[i], glm::value_ptr(world));
-
-      glm::mat4 ibm(1.f);
+      jointNode[i] = static_cast<int>(skin->joints[i] - data->nodes);
       if (skin->inverse_bind_matrices) {
-        cgltf_accessor_read_float(skin->inverse_bind_matrices, i, glm::value_ptr(ibm), 16);
+        cgltf_accessor_read_float(
+            skin->inverse_bind_matrices, i, glm::value_ptr(inverseBind[i]), 16);
       }
-      jointMatrices[i] = world * ibm;
     }
   }
 
-  // Trailing identity slot: lets static meshes ride a fake bone
-  // used by non-skinned primitives
-  const uint32_t staticJointIndex = static_cast<uint32_t>(jointMatrices.size());
-  jointMatrices.push_back(glm::mat4(1.f));
+  // Palette = one slot per joint + a trailing identity slot for non-skinned prims.
+  // recomputePalette() fills [0..jointCount-1]; the identity slot is set once here
+  const uint32_t staticJointIndex = static_cast<uint32_t>(jointNode.size());
+  jointMatrices.assign(jointNode.size() + 1, glm::mat4(1.f));
 
   // --- Walk every node that carries a mesh -------------------------------------
   glm::vec3 aabbMin(std::numeric_limits<float>::max());
@@ -104,8 +144,7 @@ void LveSkinnedModel::loadGLTF(const std::string& filepath) {
     const bool nodeSkinned = (node->skin != nullptr);
 
     // For a non-skinned mesh the vertices live in the node's local space, so we
-    // bake the node's world transform into them and let them ride the identity
-    // joint
+    // bake the node's world transform into them and let them ride the identity joint
     // (Skinned meshes ignore their node transform per the glTF spec -- the joint matrices already place them.)
     glm::mat4 nodeWorld(1.f);
     cgltf_node_transform_world(node, glm::value_ptr(nodeWorld));
@@ -279,27 +318,64 @@ void LveSkinnedModel::createIndexBuffer(const std::vector<uint32_t>& indices) {
   lveDevice.copyBuffer(stagingBuffer.getBuffer(), indexBuffer->getBuffer(), bufferSize);
 }
 
-void LveSkinnedModel::createBoneBuffer() {
+void LveSkinnedModel::createBoneBuffers() {
   const uint32_t count = static_cast<uint32_t>(jointMatrices.size());
-
-  // Host-visible + coherent -> ALLOWS writing to the palette directly. Bound at
-  // offset 0, so storage-buffer offset alignment is irrelevant here
-  boneBuffer = std::make_unique<LveBuffer>(
-      lveDevice,
-      sizeof(glm::mat4),
-      count,
-      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-  boneBuffer->map();
-  boneBuffer->writeToBuffer(jointMatrices.data());
+  const int frames = LveSwapChain::MAX_FRAMES_IN_FLIGHT;
 
   auto& layout = LveEngine::instance().getBoneSetLayout();
   auto& pool = LveEngine::instance().getBonePool();
-  auto bufferInfo = boneBuffer->descriptorInfo();
-  if (!LveDescriptorWriter(layout, pool).writeBuffer(0, &bufferInfo).build(boneSet)) {
-    throw std::runtime_error("failed to allocate bone descriptor set (pool exhausted?)");
+
+  // One host-visible, persistently-mapped buffer + descriptor set per in-flight
+  // frame, so uploadPose() can rewrite the palette each frame without ever
+  // touching memory a still-in-flight frame is reading. Bound at offset 0, so
+  // storage-buffer offset alignment does not matter here.
+  boneBuffers.resize(frames);
+  boneSets.resize(frames, VK_NULL_HANDLE);
+  for (int i = 0; i < frames; ++i) {
+    boneBuffers[i] = std::make_unique<LveBuffer>(
+        lveDevice,
+        sizeof(glm::mat4),
+        count,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    boneBuffers[i]->map();
+    boneBuffers[i]->writeToBuffer(jointMatrices.data());
+
+    auto bufferInfo = boneBuffers[i]->descriptorInfo();
+    if (!LveDescriptorWriter(layout, pool).writeBuffer(0, &bufferInfo).build(boneSets[i])) {
+      throw std::runtime_error("failed to allocate bone descriptor set (pool exhausted?)");
+    }
   }
+}
+
+int LveSkinnedModel::findNode(const std::string& substr) const {
+  for (size_t i = 0; i < nodeName.size(); ++i)
+    if (nodeName[i].find(substr) != std::string::npos) return static_cast<int>(i);
+  return -1;
+}
+
+void LveSkinnedModel::resetPose() { nodeLocal = nodeLocalBind; }
+
+void LveSkinnedModel::rotateJoint(int node, glm::vec3 axis, float radians) {
+  if (node < 0 || node >= static_cast<int>(nodeLocal.size())) return;  // safe no-op
+  if (glm::dot(axis, axis) < 1e-12f) return;
+  nodeLocal[node] = nodeLocal[node] * glm::rotate(glm::mat4(1.f), radians, glm::normalize(axis));
+}
+
+void LveSkinnedModel::recomputePalette() {
+  // World transforms in one forward pass (parents precede children in nodeOrder).
+  for (int n : nodeOrder) {
+    int p = nodeParent[n];
+    nodeWorld[n] = (p >= 0) ? nodeWorld[p] * nodeLocal[n] : nodeLocal[n];
+  }
+  // Palette entry per joint; the trailing identity slot (jointMatrices.back()) is
+  // left untouched so baked static primitives keep rendering correctly.
+  for (size_t k = 0; k < jointNode.size(); ++k)
+    jointMatrices[k] = nodeWorld[jointNode[k]] * inverseBind[k];
+}
+
+void LveSkinnedModel::uploadPose(int frameIndex) {
+  boneBuffers[frameIndex]->writeToBuffer(jointMatrices.data());
 }
 
 void LveSkinnedModel::bind(VkCommandBuffer commandBuffer) {

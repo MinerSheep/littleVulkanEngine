@@ -54,15 +54,41 @@ class LveSkinnedModel {
   void bind(VkCommandBuffer commandBuffer);
   void draw(VkCommandBuffer commandBuffer);
 
-  // The set = 1 descriptor holding this model's bone matrix palette
-  VkDescriptorSet boneDescriptorSet() const { return boneSet; }
+  // ---- Procedural posing ----
+  // A per-frame pose pass looks like:
+  //   resetPose();
+  //   rotateJoint(findNode("head.x"), {1,0,0}, angle);   // as many as you like
+  //   recomputePalette();
+  // then, at draw time, uploadPose(frameIndex) + boneDescriptorSet(frameIndex)
+
+  // First skeleton node whose name contains `substr`, or -1 if none.
+  int findNode(const std::string& substr) const;
+
+  // Restore every node to its authored T pose, always call once at the start of the pose
+  void resetPose();
+
+  // Post-rotate the node's local transform about axis by radians. Composes
+  // across calls, and moves that node plus everything parented beneath it. No-op
+  // for node < 0, so `rotateJoint(findNode(...), ...)` is safe when a name is absent
+  void rotateJoint(int node, glm::vec3 axis, float radians);
+  
+  // Rebuild the bone matrix palette from the current node transforms (CPU only)
+  void recomputePalette();
+  
+  // Copy the current palette into the frame at frameIndex's bone buffer. Call at draw
+  // time (after that frame's fence has been waited on in beginFrame):
+  // one buffer per in-flight frame means we never overwrite what gpu is reading
+  void uploadPose(int frameIndex);
+
+  // The set = 1 descriptor holding this model's bone palette for a given frame.
+  VkDescriptorSet boneDescriptorSet(int frameIndex) const { return boneSets[frameIndex]; }
   uint32_t jointCount() const { return static_cast<uint32_t>(jointMatrices.size()); }
 
  private:
   void loadGLTF(const std::string& filepath);
   void createVertexBuffers(const std::vector<Vertex>& vertices);
   void createIndexBuffer(const std::vector<uint32_t>& indices);
-  void createBoneBuffer();
+  void createBoneBuffers();
 
   LveDevice& lveDevice;
 
@@ -75,15 +101,28 @@ class LveSkinnedModel {
 
   std::vector<Primitive> primitives;
 
-  // Bone matrix palette: each joint has one matrix, and the palette has a trailing identity slot
-  // which is used by any non-skinned primitives whose node transform we
-  // baked into their vertices at load time. At bind pose every joint matrix is
-  // ~identity, so with no animation the mesh renders in its authored rest pose
+  // ---- Retained skeleton (kept so joints can be re-posed after load) ----
+  // Per node: name, authored (bind) local transform, current local transform, and
+  // parent index (-1 for roots). `nodeOrder` lists nodes parent-before-child so
+  // world transforms accumulate in a single pass; `nodeWorld` is scratch for that.
+  std::vector<std::string> nodeName;
+  std::vector<glm::mat4> nodeLocalBind;
+  std::vector<glm::mat4> nodeLocal;
+  std::vector<int> nodeParent;
+  std::vector<int> nodeOrder;
+  std::vector<glm::mat4> nodeWorld;
+  // Per palette joint: which node it comes from, and its inverse bind matrix.
+  std::vector<int> jointNode;
+  std::vector<glm::mat4> inverseBind;
 
-  // Later on, we will alter these joint matrices
+  // Bone matrix palette: one matrix per joint + a trailing identity slot used by
+  // non-skinned primitives (their node transform is baked into their vertices).
+  // At bind pose every joint matrix is ~identity (the authored rest pose).
   std::vector<glm::mat4> jointMatrices;
-  std::unique_ptr<LveBuffer> boneBuffer;
-  VkDescriptorSet boneSet = VK_NULL_HANDLE;
+
+  // One bone buffer + descriptor set per frame-in-flight (see uploadPose).
+  std::vector<std::unique_ptr<LveBuffer>> boneBuffers;
+  std::vector<VkDescriptorSet> boneSets;
 };
 
 }  // namespace lve

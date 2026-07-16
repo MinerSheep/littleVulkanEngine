@@ -30,4 +30,11 @@ class SkinnedDemoScene : public lve::LveScene {
   // Tune these to reframe the character (AABB is printed at load time).
   glm::vec3 manTranslation{0.f, 0.71f, 0.f};
   float manScale = 0.9f;
+
+  // Gently wiggles a few deform joints so the skinning is visible.
+  // Node indices are resolved once in loadModels; -1 means "not found" and animates nothing.
+  float animTime = 0.f;
+  int headNode = -1;
+  int neckNode = -1;
+  int spineNode = -1;
 };

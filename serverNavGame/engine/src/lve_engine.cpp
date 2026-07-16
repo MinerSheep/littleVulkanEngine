@@ -61,16 +61,19 @@ void LveEngine::init() {
 
   // --- Skinned model (set = 1) bone-matrix infrastructure --------------------
   // A single storage-buffer binding holding a model's joint matrix palette. One
-  // descriptor set is allocated per skinned model (up to MAX_SKINNED_MODELS).
+  // descriptor set is allocated per skinned model (up to MAX_SKINNED_MODELS)
   boneSetLayout =
       LveDescriptorSetLayout::Builder(lveDevice)
           .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
           .build();
 
+  // Each skinned model allocates one bone set per frame-in-flight
+  // uploadPose in LveSkinnedModel is how it gets applied
+  const uint32_t maxBoneSets = MAX_SKINNED_MODELS * LveSwapChain::MAX_FRAMES_IN_FLIGHT;
   bonePool =
       LveDescriptorPool::Builder(lveDevice)
-          .setMaxSets(MAX_SKINNED_MODELS)
-          .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, MAX_SKINNED_MODELS)
+          .setMaxSets(maxBoneSets)
+          .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, maxBoneSets)
           .build();
 
   simpleRenderSystem = std::make_unique<SimpleRenderSystem>(
