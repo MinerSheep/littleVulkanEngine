@@ -23,7 +23,6 @@
 // World is a fixed kGridSize x kGridSize field of weather cells. Positions are
 // expressed in the same units, i.e. in the range [0, kGridSize).
 constexpr int   kGridSize      = 60;
-constexpr float kCellDistanceNm  = 1;   // distance a singular cell measures in nautical miles
 constexpr float kArrivalRadius = 0.5f; // distance at which a vessel "docks"
 
 struct WorldCoords
@@ -173,6 +172,12 @@ public:
     // Above it, everything is "healthy enough" and idle vessels wait.
     float refuelThreshold = 0.6f;
 
+    // Nautical miles a single grid cell spans. Defaults to 1 (the grid is then
+    // kGridSize nm across); makeStructuredScenario overrides it so the real
+    // start->dest distance is preserved along the grid diagonal. Feeds every
+    // knots/distance/ETA readout below.
+    float cellDistanceNm = 1.f;
+
     SimStats stats;
 
     // Advance the simulation by dt seconds.
@@ -183,7 +188,7 @@ public:
 
     // --- Navigation readouts (for the on-screen HUD) --------------------
     // Computed on demand from the current state; none of these mutate the
-    // sim. They assume kCellDistance nautical miles per world cell and a
+    // sim. They assume cellDistanceNm nautical miles per world cell and a
     // 3600 sim-second == 1 hour clock (so stats.simTime is in sim seconds).
 
     // Speed over ground in knots (nm/hour), after local weather. 0 when the

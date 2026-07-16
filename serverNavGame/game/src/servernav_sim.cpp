@@ -187,7 +187,7 @@ void ServerNav::update(float dt)
 
         // Speed over ground in knots -> world cells covered this sim-step.
         float knots  = v.speedKnots(w);
-        float travel = (knots / (kCellDistanceNm * kSecondsPerHour)) * dt;
+        float travel = (knots / (cellDistanceNm * kSecondsPerHour)) * dt;
 
         if (travel > dist)
             travel = dist; // don't overshoot the station
@@ -218,7 +218,7 @@ float ServerNav::effectiveSpeedCells(const Vessel& v) const
     // No way when out of fuel or wrecked by a storm.
     if ((v.burnRate > 0.f && v.fuel <= 0.f) || v.health <= 0.f)
         return 0.f;
-    return v.speedKnots(weatherAt(v.pos)) / (kCellDistanceNm * kSecondsPerHour);
+    return v.speedKnots(weatherAt(v.pos)) / (cellDistanceNm * kSecondsPerHour);
 }
 
 float ServerNav::vesselSpeedKnots(const Vessel& v) const
@@ -226,8 +226,8 @@ float ServerNav::vesselSpeedKnots(const Vessel& v) const
     // Idle vessels (no target) aren't underway, so speed over ground is 0.
     if (v.targetIndex < 0 || v.targetIndex >= static_cast<int>(stations.size()))
         return 0.f;
-    // cells/simsec -> nm/simsec (*kCellDistance) -> nm/hour (*3600) = knots.
-    return effectiveSpeedCells(v) * kCellDistanceNm * kSecondsPerHour;
+    // cells/simsec -> nm/simsec (*cellDistanceNm) -> nm/hour (*3600) = knots.
+    return effectiveSpeedCells(v) * cellDistanceNm * kSecondsPerHour;
 }
 
 float ServerNav::vesselDistanceNm(const Vessel& v) const
@@ -235,7 +235,7 @@ float ServerNav::vesselDistanceNm(const Vessel& v) const
     if (v.targetIndex < 0 || v.targetIndex >= static_cast<int>(stations.size()))
         return 0.f;
     const Station& tgt = stations[v.targetIndex];
-    return glm::length(tgt.pos - v.pos) * kCellDistanceNm;
+    return glm::length(tgt.pos - v.pos) * cellDistanceNm;
 }
 
 double ServerNav::vesselEtaSimTime(const Vessel& v) const
@@ -429,14 +429,37 @@ ServerNav ServerNav::makeStructuredScenario(WorldCoords start, WorldCoords dest,
     1 Degree of Latitude: Always equals 60 nautical miles.
     1 Degree of Longitude: Equals 60 nautical miles ONLY at the Equator. Otherwise 60 * cos(latitude).
     */
-    // Weather field. Rather than fetch real weather per cell, sample it once at
-    // each route endpoint and lerp across the grid: a cell's weather is the
-    // blend of the two endpoints by how far along the start->dest diagonal it
-    // lies (0 at the start corner, 1 at the dest corner). Two fetches total.
+    // Scale the grid to the real world. The distance between the two coordinates
+    // is length(dest - start) degrees * 60 nm/deg (we treat a degree of
+    // longitude as 60 nm too -- a simplification; it's really 60*cos(lat)). That
+    // real distance is spread along the (0,0)->(max,max) diagonal, so one cell
+    // measures routeNm / diagonalCells nautical miles.
+    const glm::vec2 degDelta(dest.latitude - start.latitude,
+                             dest.longitude - start.longitude);
+    const float routeNm   = glm::length(degDelta) * 60.0f;
+    const float diagCells = glm::length(glm::vec2(static_cast<float>(maxIdx)));
+    if (diagCells > 0.f)
+        sim.cellDistanceNm = routeNm / diagCells;
+
+    // Weather field. Rather than fetch real weather per cell, sample it at a few
+    // points of interest along the start->dest route and piecewise-lerp across
+    // the grid: a cell's weather is the blend of the two nearest samples by how
+    // far along the start->dest diagonal it lies (0 at the start corner, 1 at
+    // the dest corner). For now the samples are start, midpoint, and dest.
     if (USING_RTS)
     {
-        const WeatherData wStart = fetchWeather(start.latitude, start.longitude);
-        const WeatherData wDest  = fetchWeather(dest.latitude, dest.longitude);
+        // Midpoint (and, later, other waypoints) between the endpoints.
+        const WorldCoords mid{(start.latitude + dest.latitude) * 0.5f,
+                              (start.longitude + dest.longitude) * 0.5f};
+
+        // Ordered start -> ... -> dest. Add more waypoints here to sharpen the
+        // field; the piecewise lerp below adapts to however many there are.
+        const std::vector<WeatherData> samples = {
+            fetchWeather(start.latitude, start.longitude),
+            fetchWeather(mid.latitude, mid.longitude),
+            fetchWeather(dest.latitude, dest.longitude),
+        };
+        const int segCount = static_cast<int>(samples.size()) - 1; // >= 1
 
         for (int x = 0; x < kGridSize; ++x)
             for (int y = 0; y < kGridSize; ++y)
@@ -444,7 +467,16 @@ ServerNav ServerNav::makeStructuredScenario(WorldCoords start, WorldCoords dest,
                 // Diagonal progress: the projection of (x,y) onto the (1,1)
                 // diagonal, normalized so start corner = 0, dest corner = 1.
                 const float t = maxIdx > 0 ? float(x + y) / float(2 * maxIdx) : 0.f;
-                sim.map[x][y].data = lerpWeather(wStart, wDest, t);
+
+                // Map t onto the piecewise path: which segment it falls in, and
+                // the local blend fraction within that segment.
+                const float scaled = t * static_cast<float>(segCount); // [0, segCount]
+                int         seg    = static_cast<int>(scaled);
+                if (seg >= segCount)
+                    seg = segCount - 1; // pin the t == 1 endpoint into the last segment
+                const float localT = scaled - static_cast<float>(seg);
+
+                sim.map[x][y].data = lerpWeather(samples[seg], samples[seg + 1], localT);
             }
     }
     else
