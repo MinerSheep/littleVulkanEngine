@@ -13,7 +13,10 @@
 
 #include <chrono>
 
-#define MAX_FRAME_TIME 1.0f
+// Cap per-frame dt. At low/erratic FPS (e.g. software rendering) a large dt makes
+// dt-scaled camera movement lurch in big discrete steps ("jumping"). Clamping to
+// ~1/30s keeps motion smooth (it just goes slow-motion when the FPS is low).
+#define MAX_FRAME_TIME (1.0f / 30.0f)
 
 // these are used to avoid external memory leak warnings (out of control)
 extern "C" const char *__lsan_default_suppressions() {
@@ -48,7 +51,11 @@ int main() {
 
         GLFWwindow* window = engine.getGLFWWindow();
         lve::LveScene *scene = &sdscene;
-    
+
+        // FPS readout (updates the window title once per second).
+        float fpsAccum = 0.f;
+        int fpsFrames = 0;
+
         while (!engine.shouldClose()) {
             // this causes glitchiness on ubuntu because it blocks
             glfwPollEvents();
@@ -63,9 +70,26 @@ int main() {
 
             // Take the time after the block
             auto newTime = std::chrono::high_resolution_clock::now();
-            float dt = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
+            // rawDt = true wall-clock frame time (used for the FPS meter).
+            float rawDt = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
             currentTime = newTime;
-            dt = glm::min(dt, MAX_FRAME_TIME);
+            // dt (clamped) is what the game/camera integrate against, so a slow
+            // frame can't produce a huge movement step.
+            float dt = glm::min(rawDt, MAX_FRAME_TIME);
+
+            // Report frames-per-second in the title bar once every second.
+            fpsAccum += rawDt;
+            fpsFrames++;
+            if (fpsAccum >= 1.0f) {
+                float fps = fpsFrames / fpsAccum;
+                int msPerFrame = static_cast<int>(1000.0f * fpsAccum / fpsFrames + 0.5f);
+                std::string label = "Hello Vulkan!  -  " + std::to_string(fps) + " FPS  (" +
+                                    std::to_string(msPerFrame) + " ms/frame)";
+                glfwSetWindowTitle(window, label.c_str());
+                std::cout << "FPS: " << fps << "  (" << msPerFrame << " ms/frame)" << std::endl;
+                fpsAccum = 0.f;
+                fpsFrames = 0;
+            }
 
             scene->update(dt);
             // navGame.update(dt);

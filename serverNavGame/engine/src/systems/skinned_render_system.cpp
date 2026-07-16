@@ -20,6 +20,12 @@ struct SkinnedPushConstantData {
   glm::mat4 normalMatrix{1.f};
 };
 
+// Which triangle winding counts as front-facing for the skinned mesh.
+// Confirmed visually: COUNTER_CLOCKWISE is correct for glTF meshes under this
+// engine's camera/projection (CLOCKWISE renders the man inside-out). If a future
+// asset ever shows up hollow/inside-out, this is the knob to flip
+static constexpr VkFrontFace kSkinnedFrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+
 SkinnedRenderSystem::SkinnedRenderSystem(
     LveDevice& device,
     VkRenderPass renderPass,
@@ -116,6 +122,13 @@ void SkinnedRenderSystem::createPipeline(VkRenderPass renderPass) {
   // Replace the default (static LveModel) vertex layout with the skinned one.
   pipelineConfig.bindingDescriptions = LveSkinnedModel::Vertex::getBindingDescriptions();
   pipelineConfig.attributeDescriptions = LveSkinnedModel::Vertex::getAttributeDescriptions();
+
+  // Back-face culling: the character is a closed solid, so ~half its triangles
+  // face away from the camera and can be skipped -- a real win on a software
+  // rasterizer, where fragment work dominates. (The default config uses
+  // CULL_MODE_NONE, so this is a skinned-pipeline-only change.)
+  pipelineConfig.rasterizationInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+  pipelineConfig.rasterizationInfo.frontFace = kSkinnedFrontFace;
 
   std::string exeDir = getExecutableDir();
   lvePipeline = std::make_unique<LvePipeline>(

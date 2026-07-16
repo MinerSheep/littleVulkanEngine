@@ -282,8 +282,8 @@ void LveSkinnedModel::createIndexBuffer(const std::vector<uint32_t>& indices) {
 void LveSkinnedModel::createBoneBuffer() {
   const uint32_t count = static_cast<uint32_t>(jointMatrices.size());
 
-  // Host-visible + coherent so we can write the palette directly. Bound at
-  // offset 0, so storage-buffer offset alignment is irrelevant here.
+  // Host-visible + coherent -> ALLOWS writing to the palette directly. Bound at
+  // offset 0, so storage-buffer offset alignment is irrelevant here
   boneBuffer = std::make_unique<LveBuffer>(
       lveDevice,
       sizeof(glm::mat4),

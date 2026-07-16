@@ -37,7 +37,7 @@ LSAN_OPTIONS="suppressions=$PWD/lsan.supp:print_suppressions=1" \
 July 16th
 
 Made more expansions to the simulation.  Working on a structured mode soon which will use landmask data (checking elevations) to create a real world boat example.
-Additionally on the side, I'm looking into making models with bones
+Additionally on the side, I'm looking into making models with bones.  I ran into a problem where the camera jumped around, this happened because **the frame rate was locked to a large value like 1.0f**
 
 Sanity check scripts
 cd "C:/Users/ryder/OneDrive/Desktop/Coding_Practice/littleVulkanEngine/serverNavGame" && echo "=== shaders dir ===" && ls -la shaders/
@@ -48,3 +48,5 @@ xxd gives .env file data in hex
 
 echo "=== wsl login shell vulkan ===" && wsl.exe bash -lc 'echo VULKAN_SDK_PATH=$VULKAN_SDK_PATH; pkg-config --exists vulkan && echo "vulkan pc ok"; ls /usr/include/vulkan/vulkan.h 2>&1 | head -1' 2>&1 | head
 logs in to wsl, and asks about VULKAN PATH, at the end pipes everything into head including err data from 2
+
+/color and /rename for claude windows
