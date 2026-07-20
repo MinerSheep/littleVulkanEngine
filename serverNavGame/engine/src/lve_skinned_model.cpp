@@ -23,6 +23,9 @@ cgltf_accessor_read_uint(jointAcc, v, j, 4);
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp> // glm::quat, slerp, mat4_cast
+
+#include <cmath> // std::fmod
 
 // std
 #include <cstring>
@@ -77,11 +80,22 @@ void LveSkinnedModel::loadGLTF(const std::string& filepath) {
   nodeLocalBind.resize(nodeCount);
   nodeParent.resize(nodeCount);
   nodeWorld.resize(nodeCount);
+  nodeBindT.resize(nodeCount);
+  nodeBindR.resize(nodeCount);
+  nodeBindS.resize(nodeCount);
   for (cgltf_size ni = 0; ni < nodeCount; ++ni) {
     cgltf_node* n = &data->nodes[ni];
     nodeName[ni] = n->name ? n->name : "";
     cgltf_node_transform_local(n, glm::value_ptr(nodeLocalBind[ni]));
     nodeParent[ni] = n->parent ? static_cast<int>(n->parent - data->nodes) : -1;
+
+    // Bind TranslationRotScale for animation seeding; initializes to identity
+
+    // glTF stores the quaternion as (x,y,z,w); glm::quat takes (w,x,y,z)
+    // This rig uses TRS nodes, instead of a raw matrix from the nodes
+    nodeBindT[ni] = glm::vec3(n->translation[0], n->translation[1], n->translation[2]);
+    nodeBindR[ni] = glm::quat(n->rotation[3], n->rotation[0], n->rotation[1], n->rotation[2]);
+    nodeBindS[ni] = glm::vec3(n->scale[0], n->scale[1], n->scale[2]);
   }
   nodeLocal = nodeLocalBind;  // current pose starts at bind
 
@@ -248,12 +262,75 @@ void LveSkinnedModel::loadGLTF(const std::string& filepath) {
     }
   }
 
+  // --- Animation clips ---------------------------------------------------------
+  // Copy each clip's keyframe tracks into our own storage so they survive
+  // cgltf_free. A channel targets ONE NODE's translation/rotation/scale and reads
+  // from ONE SAMPLER; poseAnimation() samples these at runtime. Only LINEAR and
+  // STEP interpolation are handled
+  animations.clear();
+  animations.resize(data->animations_count);
+
+  for (cgltf_size ai = 0; ai < data->animations_count; ++ai) {
+      cgltf_animation* src = &data->animations[ai];            // source animation from glTF data
+      AnimClip& clip = animations[ai];                         // destination clip
+
+      clip.name = src->name ? src->name : ("clip" + std::to_string(ai));
+
+      clip.samplers.resize(src->samplers_count);
+
+      for (cgltf_size si = 0; si < src->samplers_count; ++si) {
+        cgltf_animation_sampler* ss = &src->samplers[si];      // source sampler from glTF data
+        AnimSampler& out = clip.samplers[si];                  // destination sampler
+
+        out.step = (ss->interpolation == cgltf_interpolation_type_step);
+
+        const cgltf_size kcount = ss->input->count;            // number of keyframes
+
+        // output track has 4 components for rotation (quat) and 3 for translation/scale
+        // read up to 4 components and let the channel path decide how they are used
+        const cgltf_size comps = cgltf_num_components(ss->output->type); // number of float components
+
+        out.times.resize(kcount);
+        out.values.resize(kcount, glm::vec4(0.f));
+
+        for (cgltf_size k = 0; k < kcount; ++k) {
+          cgltf_accessor_read_float(ss->input, k, &out.times[k], 1);      // read keyframe time
+          float tmp[4] = {0.f, 0.f, 0.f, 0.f};                            // temp buffer for up to 4 floats
+          cgltf_accessor_read_float(ss->output, k, tmp, comps);           // read keyframe value components
+          out.values[k] = glm::vec4(tmp[0], tmp[1], tmp[2], tmp[3]);      // store as vec4
+          if (out.times[k] > clip.duration) clip.duration = out.times[k]; // update clip duration
+        }
+      }
+
+      clip.channels.resize(src->channels_count);
+
+      for (cgltf_size ci = 0; ci < src->channels_count; ++ci) {
+        cgltf_animation_channel* cc = &src->channels[ci];      // source channel from glTF data
+        AnimChannel& out = clip.channels[ci];                  // destination channel
+        out.node = cc->target_node ? static_cast<int>(cc->target_node - data->nodes) : -1; // target node index
+
+        // map glTF path to engine path enum
+        switch (cc->target_path) {
+          case cgltf_animation_path_type_translation: out.path = 0; break;  // translation track
+          case cgltf_animation_path_type_rotation:    out.path = 1; break;  // rotation track
+          case cgltf_animation_path_type_scale:       out.path = 2; break;  // scale track
+          default:                                    out.path = -1; break; // weights or unknown track
+        }
+
+        out.sampler = cc->sampler ? static_cast<int>(cc->sampler - src->samplers) : 0; // sampler index
+      }
+  }
+
   const cgltf_size skinJoints = skin ? skin->joints_count : 0;
+  const cgltf_size animCount = data->animations_count;
   cgltf_free(data);
 
   std::cout << "[SkinnedModel] " << filepath << "  verts=" << vertices.size()
             << " indices=" << indices.size() << " prims=" << primitives.size()
-            << " joints=" << skinJoints << "\n";
+            << " joints=" << skinJoints << " anims=" << animCount << "\n";
+  for (const auto& clip : animations)
+    std::cout << "[SkinnedModel]   clip '" << clip.name << "' "
+              << clip.duration << "s, " << clip.channels.size() << " channels\n";
   std::cout << "[SkinnedModel] AABB min=(" << aabbMin.x << ", " << aabbMin.y << ", " << aabbMin.z
             << ")  max=(" << aabbMax.x << ", " << aabbMax.y << ", " << aabbMax.z << ")\n";
 
@@ -372,6 +449,103 @@ void LveSkinnedModel::recomputePalette() {
   // left untouched so baked static primitives keep rendering correctly.
   for (size_t k = 0; k < jointNode.size(); ++k)
     jointMatrices[k] = nodeWorld[jointNode[k]] * inverseBind[k];
+}
+
+int LveSkinnedModel::findAnimation(const std::string& name) const {
+  for (size_t i = 0; i < animations.size(); ++i)
+    if (animations[i].name == name) return static_cast<int>(i);
+  return -1;
+}
+
+const std::string& LveSkinnedModel::animationName(int i) const {
+  static const std::string empty;
+  if (i < 0 || i >= static_cast<int>(animations.size())) return empty;
+  return animations[i].name;
+}
+
+namespace {
+
+// Ugly ahh code but basically
+// Locate the keyframe segment [k, k+1] bracketing `time`, and the blend fraction
+// u in [0,1] within it. Then clamp to the ends (u=0 there, k pinned in range)
+void locateSegment(const std::vector<float>& times, float time, int& k, float& u) {
+  const int last = static_cast<int>(times.size()) - 1;
+  if (last <= 0 || time <= times.front()) { k = 0; u = 0.f; return; }
+  if (time >= times.back()) { k = last; u = 0.f; return; }
+  int lo = 0, hi = last;
+  while (lo + 1 < hi) {
+    const int mid = (lo + hi) / 2;
+    if (times[mid] <= time) lo = mid; else hi = mid;
+  }
+  k = lo;
+  const float t0 = times[lo], t1 = times[hi];
+  u = (t1 > t0) ? (time - t0) / (t1 - t0) : 0.f;
+}
+} // namespace
+
+bool LveSkinnedModel::poseAnimation(const std::string& name, float timeSeconds, bool loop) {
+  const int ci = findAnimation(name);
+  if (ci < 0) return false;
+  const AnimClip& clip = animations[ci];
+
+  // Wrap (or clamp) the caller's clock into the clip's [0, duration]
+  float t = timeSeconds;
+  if (loop && clip.duration > 0.f) {
+    t = std::fmod(t, clip.duration);
+    if (t < 0.f) t += clip.duration;
+  } else {
+    t = t < 0.f ? 0.f : (t > clip.duration ? clip.duration : t);
+  }
+
+  // Seed every node's TRS from its bind pose, then let the clip's channels
+  // overwrite the components they drive. Untouched nodes keep their bind local
+  // transform (set below via nodeLocalBind), so partial clips still pose right
+  std::vector<glm::vec3> T = nodeBindT;
+  std::vector<glm::quat> R = nodeBindR;
+  std::vector<glm::vec3> S = nodeBindS;
+  std::vector<char> touched(nodeLocal.size(), 0);
+
+  for (const AnimChannel& ch : clip.channels) {
+    if (ch.node < 0 || ch.node >= static_cast<int>(nodeLocal.size()) || ch.path < 0) continue;
+
+    const AnimSampler& s = clip.samplers[ch.sampler];
+    if (s.times.empty()) continue;
+
+    int k; float u;
+    locateSegment(s.times, t, k, u);
+    const bool haveNext = (k + 1) < static_cast<int>(s.values.size());
+
+    if (ch.path == 1) 
+    {
+      // Rotation: quaternions stored as (x,y,z,w); glm::quat takes (w,x,y,z)
+      const glm::vec4& a = s.values[k];
+      glm::quat q0(a.w, a.x, a.y, a.z);
+      glm::quat q = q0;
+      if (!s.step && haveNext) {
+        const glm::vec4& b = s.values[k + 1];
+        q = glm::slerp(q0, glm::quat(b.w, b.x, b.y, b.z), u);
+      }
+      R[ch.node] = glm::normalize(q);
+    } 
+    else 
+    {
+      glm::vec3 v(s.values[k]);
+      if (!s.step && haveNext) v = glm::mix(v, glm::vec3(s.values[k + 1]), u);
+      if (ch.path == 0) T[ch.node] = v; else S[ch.node] = v;
+    }
+    touched[ch.node] = 1;
+  }
+
+  // Compose the animated nodes' local transforms; leave the rest at bind
+  nodeLocal = nodeLocalBind;
+  for (size_t n = 0; n < nodeLocal.size(); ++n) {
+    if (!touched[n]) continue;
+    nodeLocal[n] = glm::translate(glm::mat4(1.f), T[n]) *
+                   glm::mat4_cast(glm::normalize(R[n])) *
+                   glm::scale(glm::mat4(1.f), S[n]);
+  }
+  recomputePalette();
+  return true;
 }
 
 void LveSkinnedModel::uploadPose(int frameIndex) {

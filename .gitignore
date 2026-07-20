@@ -15,3 +15,4 @@ imgui.ini
 *.o
 serverNavGame\engine\*.o
 *.d
+serverNavGame/game/game

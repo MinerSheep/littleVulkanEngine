@@ -8,7 +8,11 @@ void SkinnedDemoScene::loadModels() {
   viewerObject = &cameraObject;
   viewerObject->addComponent<TransformComponent>()->translation.z = -2.5f;
 
-  man.setModel(lve::LveSkinnedModel::createModelFromFile("models/man.glb"));
+  // statue.glb ships 6 baked animation clips (Idle01/02, Walk01/02, Run, MutanWalk)
+  // GameCharacter starts on the first and keys 4..9 switch between them
+  man.setModel(lve::LveSkinnedModel::createModelFromFile("models/statue.glb"));
+  man.scale = 0.9f;
+  man.translation = {0.f, groundY, 0.f};
 
   // --- Static world models drawn via SimpleRenderSystem ---
   groundModel = lve::LveModel::createModelFromFile("models/quad.obj");          // flat XZ plane
@@ -17,7 +21,7 @@ void SkinnedDemoScene::loadModels() {
 
   // A few low-poly blocks resting on the ground around the man. A block scaled
   // by s (cube.obj half-extent 1) rests on the plane when its centre sits at
-  // groundY - s (remember -Y is up, so "on top of" means offset toward -Y).
+  // groundY - s (remember -Y is up, so "on top of" means offset toward -Y)
   props.clear();
   auto block = [&](lve::LveModel* m, float x, float z, float s, float yaw) {
     props.push_back({m, glm::vec3(x, groundY - s, z), glm::vec3(s), yaw});
@@ -42,9 +46,14 @@ void SkinnedDemoScene::update(float dt) {
   float aspect = lve::LveEngine::instance().getAspectRatio();
   camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
 
-  // --- Character: advance its idle animation, then emit its skinned draw ------
+  // Number keys 4..9 pick an animation clip
+  for (int i = 0; i < man.clipCount() && i < 6; i++)
+    if (glfwGetKey(window, GLFW_KEY_4 + i) == GLFW_PRESS)
+      man.setClipIndex(i);
+
+  // --- Character: advance its animation clip, then emit its skinned draw -----
   man.animate(dt);
-  
+
   skinnedRenderItems.clear();
   man.render(skinnedRenderItems);
 

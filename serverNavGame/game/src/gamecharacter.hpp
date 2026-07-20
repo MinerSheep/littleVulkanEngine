@@ -8,22 +8,25 @@
 #include <glm/glm.hpp>
 
 #include <memory>
+#include <string>
 #include <vector>
 
-// A skinned, animated character with a LveSkinnedModel, drives 
-// a small procedural idle animation, and emits one SkinnedRenderItem per frame 
+// A skinned, animated character with a LveSkinnedModel, plays one of the model's
+// glTF animation clips, and emits one SkinnedRenderItem per frame
 
 // A scene just holds GameCharacters and calls
 // setModel / animate / render on each.
 class GameCharacter {
  public:
-  // Take ownership of a skinned model and resolve the deform joints we animate
+  // Take ownership of a skinned model and default to its first clip, if any
   // Safe to call with nullptr (leaves the character empty)
   void setModel(std::unique_ptr<lve::LveSkinnedModel> model);
 
-  // Advance and apply the procedural pose. Throttled to kPoseHz so the (344-joint)
-  // re-pose doesn't run at full frame rate; animTime still advances every frame so
-  // the motion stays smooth. No-op until a model is set
+  void headSpin();
+
+  // Advance the active clip's clock and re-pose the skeleton. Throttled to
+  // kPoseHz so the re-pose doesn't run at full frame rate; animTime still
+  // advances every frame so the motion stays smooth. No-op until a model is set
   void animate(float dt);
 
   // Append this character's skinned draw (with the Y-up -> Y-down flip) to the
@@ -31,6 +34,14 @@ class GameCharacter {
   void render(std::vector<lve::SkinnedRenderItem>& items) const;
 
   bool hasModel() const { return model != nullptr; }
+
+  // Switch which clip is playing. Restarts the clock so the new clip begins at
+  // its first frame; a no-op if the same clip is already active. setClipIndex
+  // selects by the model's clip order (see LveSkinnedModel::animationName)
+  void setClip(const std::string& name);
+  void setClipIndex(int i);
+  int clipCount() const { return model ? model->animationCount() : 0; }
+  const std::string& clipName() const { return currentClip; }
 
   // Placement. glTF is Y-up but this engine is Y-down, so render() flips the model
   // 180 deg about Z; tune these to move/scale the character
@@ -46,7 +57,9 @@ class GameCharacter {
   int neckNode = -1;
   int spineNode = -1;
 
-  // Procedural-idle clock + re-pose throttle (see animate())
+  // Which clip is playing, and its playback clock. animTime feeds
+  // LveSkinnedModel::poseAnimation, which loops it over the clip length
+  std::string currentClip;
   float animTime = 0.f;
   float poseTimer = 0.f;
   static constexpr float kPoseHz = 45.f;
