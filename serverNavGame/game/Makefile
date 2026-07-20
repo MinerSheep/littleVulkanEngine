@@ -21,6 +21,12 @@ TARGET = game
 
 all: $(TARGET)
 
+# Pull in the auto-generated header dependencies (written by -MMD -MP) so that
+# editing a header rebuilds every .o that includes it. Without this the .d
+# files are produced but never read, and stale objects link against old
+# struct/function signatures (see CLAUDE.md's "Critical build gotcha").
+-include $(DEPS)
+
 # 🔥 NEW: Tell Make how to rebuild the engine
 ../engine/libvulkan_engine.a:
 	$(MAKE) -C ../engine
