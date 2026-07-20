@@ -1,5 +1,8 @@
 #include "servernav_sim.hpp"
 
+#include "landmask.hpp"    // isLand(lat, lon) -- geographic land lookup
+#include "pathfinding.hpp" // pathfinding::findPath -- route around land
+
 #include <cmath>   // std::atan2, std::cos
 #include <random>
 #include <utility> // std::move
@@ -72,6 +75,34 @@ WeatherData lerpWeather(const WeatherData& a, const WeatherData& b, float t)
     storeWind(out, (1.f - t) * windVec(a) + t * windVec(b));
     return out;
 }
+
+// Drop a few round synthetic islands onto the map's land mask. Used for the
+// non-geographic scenarios (which have no real coordinates to query the
+// elevation service with) so the land-avoidance routing still has something to
+// steer around. Islands are kept in the interior and small enough that open
+// water stays a single connected region, so any two water cells remain
+// reachable from each other.
+void generateSyntheticLand(WeatherCell map[kGridSize][kGridSize], std::mt19937& rng)
+{
+    std::uniform_real_distribution<float> centreDist(kGridSize * 0.25f, kGridSize * 0.75f);
+    std::uniform_real_distribution<float> radiusDist(kGridSize * 0.08f, kGridSize * 0.15f);
+    std::uniform_int_distribution<int>    countDist(1, 3);
+
+    const int islands = countDist(rng);
+    for (int n = 0; n < islands; ++n)
+    {
+        const glm::vec2 centre(centreDist(rng), centreDist(rng));
+        const float     radius  = radiusDist(rng);
+        const float     radiusSq = radius * radius;
+        for (int x = 0; x < kGridSize; ++x)
+            for (int y = 0; y < kGridSize; ++y)
+            {
+                const glm::vec2 d = glm::vec2(x, y) - centre;
+                if (glm::dot(d, d) <= radiusSq)
+                    map[x][y].land = true;
+            }
+    }
+}
 } // namespace
 
 const WeatherCell& ServerNav::weatherAt(const glm::vec2& p) const
@@ -79,6 +110,58 @@ const WeatherCell& ServerNav::weatherAt(const glm::vec2& p) const
     int x = clampInt(static_cast<int>(p.x), 0, kGridSize - 1);
     int y = clampInt(static_cast<int>(p.y), 0, kGridSize - 1);
     return map[x][y];
+}
+
+bool ServerNav::isBlockedCell(int x, int y) const
+{
+    // Off-grid counts as land so a route can never step outside the map.
+    if (x < 0 || y < 0 || x >= kGridSize || y >= kGridSize)
+        return true;
+    return map[x][y].land;
+}
+
+bool ServerNav::isLandAt(const glm::vec2& p) const
+{
+    int x = clampInt(static_cast<int>(p.x), 0, kGridSize - 1);
+    int y = clampInt(static_cast<int>(p.y), 0, kGridSize - 1);
+    return map[x][y].land;
+}
+
+bool ServerNav::segmentHitsLand(const glm::vec2& a, const glm::vec2& b) const
+{
+    const glm::vec2 d   = b - a;
+    const float     len = glm::length(d);
+    if (len < 1e-4f)
+        return isLandAt(a);
+
+    // Walk the segment at roughly one sample per cell; enough to catch any land
+    // cell the straight line would clip without an exact grid traversal.
+    const int steps = static_cast<int>(len) + 1;
+    for (int i = 0; i <= steps; ++i)
+    {
+        const float t = static_cast<float>(i) / static_cast<float>(steps);
+        if (isLandAt(a + d * t))
+            return true;
+    }
+    return false;
+}
+
+std::vector<glm::vec2> ServerNav::planRoute(const glm::vec2& from, const glm::vec2& to) const
+{
+    const glm::ivec2 start{clampInt(static_cast<int>(from.x), 0, kGridSize - 1),
+                           clampInt(static_cast<int>(from.y), 0, kGridSize - 1)};
+    const glm::ivec2 goal{clampInt(static_cast<int>(to.x), 0, kGridSize - 1),
+                          clampInt(static_cast<int>(to.y), 0, kGridSize - 1)};
+
+    const pathfinding::Path cells = pathfinding::findPath(
+        kGridSize, start, goal,
+        [this](int x, int y) { return isBlockedCell(x, y); });
+
+    std::vector<glm::vec2> route;
+    route.reserve(cells.size());
+    for (const glm::ivec2& c : cells)
+        route.push_back(glm::vec2(c)); // cell index == world position of that cell
+    return route;
 }
 
 int ServerNav::pickTarget(int vesselIndex) const
@@ -156,6 +239,9 @@ void ServerNav::update(float dt)
             v.fuel             = v.maxFuel;
             tgt.assignedVessel = -1;
             v.targetIndex      = -1;
+            v.path.clear(); // route consumed; the next target plans a fresh one
+            v.pathCursor      = 0;
+            v.pathTarget      = -1;
             continue;
         }
 
@@ -175,8 +261,44 @@ void ServerNav::update(float dt)
             continue;
         }
 
-        // Move toward the target, slowed by local weather.
-        glm::vec2          dir = delta / dist; // safe: dist > kArrivalRadius > 0
+        // --- Route around land ----------------------------------------
+        // Drop any stale route if the vessel just switched targets, then plan a
+        // detour only when the direct line to the station is actually blocked by
+        // land (open water keeps the original straight-line behaviour). A failed
+        // plan leaves path empty, so the vessel falls back to steering straight.
+        if (v.pathTarget != v.targetIndex)
+        {
+            v.path.clear();
+            v.pathCursor = 0;
+            v.pathTarget = v.targetIndex;
+        }
+        if (v.path.empty() && segmentHitsLand(v.pos, tgt.pos))
+        {
+            v.path       = planRoute(v.pos, tgt.pos);
+            v.pathCursor = 0;
+        }
+
+        // Immediate steering goal: the next unreached waypoint, or the station
+        // itself once the route is exhausted (or was never needed).
+        glm::vec2 steerTo = tgt.pos;
+        while (v.pathCursor < static_cast<int>(v.path.size()))
+        {
+            const glm::vec2& wp = v.path[v.pathCursor];
+            if (glm::length(wp - v.pos) > kWaypointRadius)
+            {
+                steerTo = wp; // still making for this waypoint
+                break;
+            }
+            ++v.pathCursor; // reached it; advance (falls through to station if last)
+        }
+
+        glm::vec2 stepDelta = steerTo - v.pos;
+        float     stepDist  = glm::length(stepDelta);
+        if (stepDist < 1e-5f)
+            continue; // already sitting on the steer target this step
+
+        // Move toward the steer target, slowed by local weather.
+        glm::vec2          dir = stepDelta / stepDist;
         v.dir                  = dir;          // remember heading for the wind calc
         const WeatherCell& w   = weatherAt(v.pos);
 
@@ -189,8 +311,8 @@ void ServerNav::update(float dt)
         float knots  = v.speedKnots(w);
         float travel = (knots / (cellDistanceNm * kSecondsPerHour)) * dt;
 
-        if (travel > dist)
-            travel = dist; // don't overshoot the station
+        if (travel > stepDist)
+            travel = stepDist; // don't overshoot the waypoint / station
 
         // Clamp travel to remaining fuel range.
         if (v.burnRate > 0.f)
@@ -256,7 +378,12 @@ void ServerNav::reset()
     for (auto& s : stations)
         s.assignedVessel = -1;
     for (auto& v : vessels)
+    {
         v.targetIndex = -1;
+        v.path.clear();
+        v.pathCursor = 0;
+        v.pathTarget = -1;
+    }
 }
 
 ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, float timeStep, uint32_t seed)
@@ -337,6 +464,9 @@ ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, float t
                 currentTime = newTime;
                 std::cout << "Processing weather data - " << (timeElapsed += dt) << " s elapsed\n";
                 sim.map[sx][sy].data = fetchWeather(cellLat(sy), cellLon(sx));
+                // Land mask, sampled on the same coarse lattice (an elevation
+                // lookup is one HTTP call each, same rate limits as weather).
+                sim.map[sx][sy].land = isLand(cellLat(sy), cellLon(sx));
             }
 
         // Bracket an index between the two sample lines around it, and give the
@@ -369,6 +499,12 @@ ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, float t
                     sim.map[x0][y0].data, sim.map[x1][y0].data,
                     sim.map[x0][y1].data, sim.map[x1][y1].data,
                     fx, fy);
+                // Land is boolean, so blend by nearest sample (blocky coastline)
+                // rather than interpolating. Reads only sample cells, so it is
+                // safe in place alongside the weather fill above.
+                const int nx = (fx < 0.5f) ? x0 : x1;
+                const int ny = (fy < 0.5f) ? y0 : y1;
+                sim.map[x][y].land = sim.map[nx][ny].land;
             }
         }
     }
@@ -377,7 +513,21 @@ ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, float t
         for (int x = 0; x < kGridSize; ++x)
             for (int y = 0; y < kGridSize; ++y)
                 sim.map[x][y].weight = weatherDist(rng);
+
+        // No real coordinates in this mode, so synthesize a few islands for the
+        // land-avoidance routing to steer around.
+        generateSyntheticLand(sim.map, rng);
     }
+
+    // Draw a random position that isn't on land, so vessels and stations never
+    // spawn inside an island (which would blockade their own pathfinding). Falls
+    // back to the last draw after a bounded number of tries.
+    auto waterPos = [&]() {
+        glm::vec2 p(posDist(rng), posDist(rng));
+        for (int tries = 0; tries < 64 && sim.isLandAt(p); ++tries)
+            p = glm::vec2(posDist(rng), posDist(rng));
+        return p;
+    };
 
     // Stations.
     sim.stations.reserve(numStations);
@@ -385,7 +535,7 @@ ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, float t
     {
         Station s;
         s.name        = "S" + std::to_string(i);
-        s.pos         = glm::vec2(posDist(rng), posDist(rng));
+        s.pos         = waterPos();
         s.capacity    = 1.f;
         s.fuel        = fuelDist(rng) * s.capacity;
         s.depleteRate = depleteDist(rng);
@@ -400,7 +550,7 @@ ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, float t
     {
         Vessel v;
         v.id       = i;
-        v.pos      = glm::vec2(posDist(rng), posDist(rng));
+        v.pos      = waterPos();
         // Reference barge: kReferenceThrust engine + kReferenceWeightLbs hull
         // => ~7 kn cruise (up to ~9 kn with a strong tailwind). Weight will
         // vary per vessel later; for now every vessel is the reference boat.

@@ -11,7 +11,7 @@
 // vec2) and the standard library, so it can be driven by a tiny main() or by
 // the accompanying benchmark without pulling in the rest of the engine.
 
-#define USING_RTS 0
+#define USING_RTS 1
 #include "fetch_weather.hpp"
 
 #include <cstdint>
@@ -24,6 +24,7 @@
 // expressed in the same units, i.e. in the range [0, kGridSize).
 constexpr int   kGridSize      = 60;
 constexpr float kArrivalRadius = 0.5f; // distance at which a vessel "docks"
+constexpr float kWaypointRadius = 0.4f; // distance at which a route waypoint is "reached"
 
 struct WorldCoords
 {
@@ -78,7 +79,16 @@ struct WeatherCell
 {
     float weight = 0.f; // 0 = clear; larger = heavier weather = slower travel
 
+    // True when this cell is land: impassable, so vessels must route around it.
+    // Filled in by the scenario builders (from the real elevation service in
+    // geographic mode, or a synthetic island otherwise); defaults to open water.
+    bool land = false;
+
     WeatherData data;
+
+    // Convenience predicate mirroring the free isLand(lat, lon) lookup: "is
+    // there land in this cell?"
+    bool isLand() const { return land; }
 };
 
 struct Vessel
@@ -99,6 +109,16 @@ struct Vessel
 
   // Index into ServerNav::stations of the current destination, or -1.
   int targetIndex = -1;
+
+  // Cached land-avoiding route to the current target, as world-unit waypoints
+  // (grid-cell centres). Empty means "steer straight at the station" -- the
+  // route is only planned when open water between the vessel and its station is
+  // blocked by land. pathCursor is the next waypoint to steer toward; pathTarget
+  // records which station the route was planned for, so it is rebuilt when the
+  // vessel switches targets. See pathfinding.hpp and ServerNav::planRoute.
+  std::vector<glm::vec2> path;
+  int pathCursor = 0;
+  int pathTarget = -1;
 
   // Clear-water cruise speed in knots. More thrust speeds the vessel up; more
   // hull weight slows it down (both linear about the reference vessel). Weight
@@ -186,6 +206,15 @@ public:
     // Clear accumulated stats and release all in-flight targets/claims.
     void reset();
 
+    // --- Land queries ---------------------------------------------------
+    // True if grid cell (x, y) is land (impassable). Out-of-range cells count
+    // as land, so a route can never leave the grid. Used as the pathfinding
+    // "blocked" predicate.
+    bool isBlockedCell(int x, int y) const;
+
+    // True if the world position p falls on a land cell.
+    bool isLandAt(const glm::vec2& p) const;
+
     // --- Navigation readouts (for the on-screen HUD) --------------------
     // Computed on demand from the current state; none of these mutate the
     // sim. They assume cellDistanceNm nautical miles per world cell and a
@@ -218,6 +247,16 @@ private:
 
     // Index of the neediest unclaimed station below refuelThreshold, or -1.
     int pickTarget(int vesselIndex) const;
+
+    // True if a straight line from a to b passes over any land cell (sampled
+    // roughly once per cell). Used to decide whether a vessel even needs a
+    // detour before paying for a full path search.
+    bool segmentHitsLand(const glm::vec2& a, const glm::vec2& b) const;
+
+    // Plan a land-avoiding route from `from` to `to` as world-unit waypoints
+    // (grid-cell centres). Empty if a straight line is already clear or no route
+    // exists. Thin wrapper over pathfinding::findPath using isBlockedCell.
+    std::vector<glm::vec2> planRoute(const glm::vec2& from, const glm::vec2& to) const;
 
     // Speed over ground in world cells per sim-second, after weather; 0 when
     // the vessel is stranded. Shared by the knots / ETA readouts.

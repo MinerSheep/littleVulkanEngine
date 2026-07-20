@@ -28,7 +28,12 @@ std::string formatSimClock(double simSeconds)
 } // namespace
 
 // How often (in real seconds) to print the navigation readout.
-static constexpr float kHudInterval = 0.5f;
+static constexpr float printHudInterval = 0.5f;
+
+// Left / Right arrow keys ramp nav.simTimeStep
+static constexpr float kTimeStepRampPerSec = 1.5f;   // ~e^1.5 (~4.5x) per second held
+static constexpr float kMinTimeStep        = 0.1f;   // near-paused slow motion
+static constexpr float kMaxTimeStep        = 10000.f;
 
 void ServerNavScene::update(float dt) 
 {
@@ -40,13 +45,22 @@ void ServerNavScene::update(float dt)
     // camera.setOrthographicProjection(-aspect, aspect, -1, 1, -1, 1);
     camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
 
+    // Holding the keys ramps nav.simTimeStep continuously
+    // clamped so the sim never stalls or runs away
+    GLFWwindow* window = lve::LveEngine::instance().getGLFWWindow();
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+        nav.simTimeStep *= 1.0f + kTimeStepRampPerSec * dt;
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+        nav.simTimeStep /= 1.0f + kTimeStepRampPerSec * dt;
+    nav.simTimeStep = glm::clamp(nav.simTimeStep, kMinTimeStep, kMaxTimeStep);
+
     // Update logic
     nav.update(dt);
 
     // Console HUD: per-vessel speed / distance / ETA, throttled to wall clock
     // so the terminal stays readable regardless of frame rate or simTimeStep.
     hudTimer += dt;
-    if (hudTimer >= kHudInterval)
+    if (hudTimer >= printHudInterval)
     {
         hudTimer = 0.f;
         for (const auto& vessel : nav.vessels)
@@ -202,6 +216,15 @@ void ServerNavScene::loadWeather() {
       transform->translation = {position.x * 2.0f, position.y * 2.0f};
       transform->scale = glm::vec3{.025f, .025f + .015f * glm::mix(0.0f, 1.0f, strength), .025f};
       transform->rotation = cell.data.windDir;
+
+      // Land cells
+      if (cell.isLand())
+      {
+        ui.color = {0.35f, 0.24f, 0.10f};  // brown
+        transform->scale = glm::vec3{.045f, .045f, .045f};
+        transform->rotation = 0.f;
+      }
+
       gameObjects.emplace(ui.getId(), std::move(ui));
     }
   }

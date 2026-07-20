@@ -7,9 +7,12 @@
 // libs — only glm headers.
 //
 // Build (from game/). On this machine glm is a system include (/usr/include),
-// so no -I for glm is needed; add -I"$VULKAN_SDK_PATH/include" if yours isn't:
+// so no -I for glm is needed; add -I"$VULKAN_SDK_PATH/include" if yours isn't.
+// servernav_sim.cpp now routes vessels around land, so pathfinding.cpp is linked
+// too; both are glm-only, so the benchmark stays free of the engine/curl deps
+// (isLand's HTTP land lookup lives on the USING_RTS path, which -O2 strips):
 //
-//   g++ -std=c++17 -O2 -Isrc bench/servernav_benchmark.cpp src/servernav_sim.cpp -o servernav_bench
+//   g++ -std=c++17 -O2 -Isrc bench/servernav_benchmark.cpp src/servernav_sim.cpp src/pathfinding.cpp -o servernav_bench
 //   ./servernav_bench
 //
 // Exit code is 0 if every correctness check passes, 1 otherwise.
