@@ -1,6 +1,7 @@
 #include <lve_engine.hpp>
 #include <scenes/skinneddemoscene.hpp>
 
+#include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 void SkinnedDemoScene::loadModels() {
@@ -9,10 +10,13 @@ void SkinnedDemoScene::loadModels() {
   viewerObject->addComponent<TransformComponent>()->translation.z = -2.5f;
 
   // statue.glb ships 6 baked animation clips (Idle01/02, Walk01/02, Run, MutanWalk)
-  // GameCharacter starts on the first and keys 4..9 switch between them
-  man.setModel(lve::LveSkinnedModel::createModelFromFile("models/statue.glb"));
-  man.scale = 0.9f;
-  man.translation = {0.f, groundY, 0.f};
+  // The character starts on the first; keys 4..9 switch between them (see update)
+  TransformComponent* manXform = man.addComponent<TransformComponent>();
+  manXform->translation = {0.f, groundY, 0.f};
+  manXform->scale = glm::vec3(0.9f);
+  manXform->rotation = {0.f, 0.f, glm::pi<float>()};  // glTF Y-up -> engine Y-down
+  manSkin = man.addComponent<SkinnedModelComponent>();
+  manSkin->setModel(lve::LveSkinnedModel::createModelFromFile("models/statue.glb"));
 
   // --- Static world models drawn via SimpleRenderSystem ---
   groundModel = lve::LveModel::createModelFromFile("models/quad.obj");          // flat XZ plane
@@ -47,15 +51,15 @@ void SkinnedDemoScene::update(float dt) {
   camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
 
   // Number keys 4..9 pick an animation clip
-  for (int i = 0; i < man.clipCount() && i < 6; i++)
+  for (int i = 0; i < manSkin->clipCount() && i < 6; i++)
     if (glfwGetKey(window, GLFW_KEY_4 + i) == GLFW_PRESS)
-      man.setClipIndex(i);
+      manSkin->setClipIndex(i);
 
-  // --- Character: advance its animation clip, then emit its skinned draw -----
-  man.animate(dt);
+  // --- Character: tick its components (advances the clip), then emit its draw -
+  man.updateComponents(dt);
 
   skinnedRenderItems.clear();
-  man.render(skinnedRenderItems);
+  collectSkinned(man, skinnedRenderItems);
 
   // --- Static world: ground plane + low-poly blocks --------------------------
   // Rebuilt each frame into the base-class renderItems, which the engine packs

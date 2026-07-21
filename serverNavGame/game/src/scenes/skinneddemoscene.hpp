@@ -3,7 +3,7 @@
 #include "lve_scene.hpp"
 #include "lve_camera.hpp"
 #include "lve_model.hpp"
-#include "gamecharacter.hpp"
+#include "skinned_model_component.hpp"
 #include "keyboard_movement_controller.hpp"
 
 #include <memory>
@@ -27,9 +27,11 @@ class SkinnedDemoScene : public lve::LveScene {
   GameObject* viewerObject = nullptr;
   KeyboardMovementController cameraController{};
 
-  // The animated character - Owns its skinned model + procedural idle; driven via
-  // setModel / animate / render below (see gamecharacter.hpp)
-  GameCharacter man;
+  // The character is a GameObject carrying a TransformComponent (placement) + a
+  // SkinnedModelComponent (owns the skinned model + clip playback). manSkin is
+  // cached from addComponent so update() can switch clips without a lookup
+  GameObject man = GameObject::createGameObject();
+  SkinnedModelComponent* manSkin = nullptr;
 
   std::unique_ptr<lve::LveModel> groundModel;  // models/quad.obj (flat XZ plane)
   std::unique_ptr<lve::LveModel> cubeModel;    // models/colored_cube.obj
