@@ -10,8 +10,8 @@ void KeyboardMovementController::moveInPlaneXZ(
   // During the last Window Event Buffer, lookRight key was in a pressed state
   if (glfwGetKey(window, keys.lookRight) == GLFW_PRESS) rotate.y += 1.f;
   if (glfwGetKey(window, keys.lookLeft) == GLFW_PRESS) rotate.y -= 1.f;
-  if (!planarOnly && glfwGetKey(window, keys.lookUp) == GLFW_PRESS) rotate.x += 1.f;
-  if (!planarOnly && glfwGetKey(window, keys.lookDown) == GLFW_PRESS) rotate.x -= 1.f;
+  if (glfwGetKey(window, keys.lookUp) == GLFW_PRESS) rotate.x += 1.f;
+  if (glfwGetKey(window, keys.lookDown) == GLFW_PRESS) rotate.x -= 1.f;
 
   TransformComponent* transform = gameObject.getComponent<TransformComponent>();
 
@@ -38,8 +38,8 @@ void KeyboardMovementController::moveInPlaneXZ(
   if (glfwGetKey(window, keys.moveBackward) == GLFW_PRESS) moveDir -= forwardDir;
   if (glfwGetKey(window, keys.moveRight) == GLFW_PRESS) moveDir += rightDir;
   if (glfwGetKey(window, keys.moveLeft) == GLFW_PRESS) moveDir -= rightDir;
-  if (!planarOnly && glfwGetKey(window, keys.moveUp) == GLFW_PRESS) moveDir += upDir;
-  if (!planarOnly && glfwGetKey(window, keys.moveDown) == GLFW_PRESS) moveDir -= upDir;
+  if (glfwGetKey(window, keys.moveUp) == GLFW_PRESS) moveDir += upDir;
+  if (glfwGetKey(window, keys.moveDown) == GLFW_PRESS) moveDir -= upDir;
 
   if (glm::dot(moveDir, moveDir) > std::numeric_limits<float>::epsilon()) {
     transform->translation += moveSpeed * dt * glm::normalize(moveDir);

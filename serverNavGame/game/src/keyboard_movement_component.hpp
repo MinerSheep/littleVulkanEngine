@@ -1,17 +1,31 @@
 #pragma once
 
-#include "keyboard_movement_controller.hpp"  // Component, GameObject, controller
-#include "lve_game_object.hpp"
+#include "lve_game_object.hpp"  // Component, GameObject, TransformComponent
+#include "lve_window.hpp"       // GLFW key codes + GLFWwindow
 
-// Walks its owning GameObject around the XZ plane from the keyboard. This is a thin
-// bridge onto KeyboardMovementController::moveInPlaneXZ (the same code the fly-camera
-// uses), run in planar mode: left/right arrows turn (yaw), WASD move relative to
-// facing, and pitch / vertical are disabled so the character stays on the ground.
-// Placement lives on the sibling TransformComponent, which moveInPlaneXZ mutates
+// Walks its owning GameObject around the XZ plane with WASD, relative to a forward
+// direction the owner supplies each frame (forwardYaw from Camera). 
+
+// Placement lives on the sibling TransformComponent, which
+// this mutates (its Y-up -> Y-down flip on rotation.z is left untouched)
 struct KeyboardMovementComponent : public Component {
-  KeyboardMovementController controller{};
+  struct KeyMappings {
+    int moveLeft = GLFW_KEY_A;
+    int moveRight = GLFW_KEY_D;
+    int moveForward = GLFW_KEY_W;
+    int moveBackward = GLFW_KEY_S;
+  };
 
-  KeyboardMovementComponent() { controller.planarOnly = true; }
+  KeyMappings keys{};
+  float moveSpeed{3.f};
+
+  // Yaw (radians about the vertical axis) that "forward" points along. Set this
+  // each frame before updateComponents; the scene feeds it the camera's yaw so
+  // movement follows where the camera looks
+  float forwardYaw = 0.f;
+
+  // Turn the body to face the movement direction while walking
+  bool faceMoveDir = true;
 
   void update(float dt, GameObject& obj) override;
 };

@@ -14,12 +14,12 @@ void SkinnedDemoScene::loadModels() {
   manSkin = man.addComponent<SkinnedModelComponent>();
   manSkin->setModel(lve::LveSkinnedModel::createModelFromFile("models/statue.glb"));
 
-  // WASD walks the man across the XZ plane, left/right arrows turn him; the
-  // KeyboardMovementComponent reuses the fly-camera controller in planar mode
-  man.addComponent<KeyboardMovementComponent>();
+  // WASD walks the man across the XZ plane, relative to the camera. update() sets
+  // the component's forwardYaw to the camera's look direction each frame
+  manMover = man.addComponent<KeyboardMovementComponent>();
 
   // --- Static world models drawn via SimpleRenderSystem ---
-  groundModel = lve::LveModel::createModelFromFile("models/quad.obj");          // flat XZ plane
+  groundModel = lve::LveModel::createModelFromFile("models/grass.obj");          // flat XZ plane
   cubeModel = lve::LveModel::createModelFromFile("models/colored_cube.obj");    // vertex-colored
   blockModel = lve::LveModel::createModelFromFile("models/cube.obj");           // white
 
@@ -41,14 +41,40 @@ void SkinnedDemoScene::setupLights() {
 }
 
 void SkinnedDemoScene::update(float dt) {
-  // --- Character: tick its components: advances the clip AND walks the man via
-  // the KeyboardMovementComponent (WASD move, left/right arrows turn) ----------
+  GLFWwindow* window = lve::LveEngine::instance().getGLFWWindow();
+
+  // --- Drag-to-orbit: hold the left mouse button and move to spin the camera --
+  bool dragBtn = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+
+  double cx, cy;
+  glfwGetCursorPos(window, &cx, &cy);
+  glm::vec2 cur{static_cast<float>(cx), static_cast<float>(cy)};
+
+  if (dragBtn && !dragging) lastCursor = cur;             // drag just began: zero the first delta
+  if (dragBtn) {
+    glm::vec2 delta = cur - lastCursor;
+    lastCursor = cur;
+    cameraYaw -= delta.x * mouseSensitivity;              // drag right swings the camera round
+    cameraPitch -= delta.y * mouseSensitivity;            // drag up lifts it
+    cameraPitch = glm::clamp(cameraPitch, 0.05f, 1.45f);  // stay above ground, below top
+  }
+  dragging = dragBtn;
+
+  // WASD is camera-relative: point the mover's forward down the camera's ground
+  // look direction (from the camera toward the man)
+  if (manMover) manMover->forwardYaw = cameraYaw + glm::pi<float>();
+
+  // --- Character: tick its components (advances the clip AND walks the man) ---
   man.updateComponents(dt);
 
-  // Third-person follow camera: sit at a fixed world offset from the man and aim
-  // at him so he stays centred as he walks (remember -Y is up)
+  // --- Orbit-follow camera: spherical offset around the man, looking at him ---
   TransformComponent* manXform = man.getComponent<TransformComponent>();
-  camera.setViewTarget(manXform->translation + cameraOffset, manXform->translation);
+  const float cp = glm::cos(cameraPitch);
+  const float sp = glm::sin(cameraPitch);
+  glm::vec3 offset{cameraDistance * cp * glm::sin(cameraYaw),
+                   -cameraDistance * sp,  // -Y is up, so subtract to lift the camera
+                   cameraDistance * cp * glm::cos(cameraYaw)};
+  camera.setViewTarget(manXform->translation + offset, manXform->translation);
 
   float aspect = lve::LveEngine::instance().getAspectRatio();
   camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
@@ -103,14 +129,13 @@ void SkinnedDemoScene::update(float dt) {
 }
 
 void SkinnedDemoScene::onEvent(const lve::Event& event) {
-  // Number keys 4..9 pick an animation clip (statue.glb ships 6). Driven by
-  // events now instead of polling in update — main posts a KeyPressed on each
-  // key-down edge, and the dispatcher hands it here for the active scene
-  if (event.type == lve::EventType::KeyPressed) {
-    int clip = event.i - GLFW_KEY_4;
-    if (manSkin && clip >= 0 && clip < manSkin->clipCount() && clip < 6)
-      manSkin->setClipIndex(clip);
-  }
+  if (event.type != lve::EventType::KeyPressed) return;
+
+  // Number keys 4..9 pick an animation clip (statue.glb ships 6). main posts a
+  // KeyPressed on each key-down edge, and the dispatcher hands it here
+  int clip = event.i - GLFW_KEY_4;
+  if (manSkin && clip >= 0 && clip < manSkin->clipCount() && clip < 6)
+    manSkin->setClipIndex(clip);
 }
 
 void SkinnedDemoScene::cleanup() {}
