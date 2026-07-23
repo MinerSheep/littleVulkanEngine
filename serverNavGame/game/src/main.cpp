@@ -1,4 +1,5 @@
 #include <lve_engine.hpp>
+#include <lve_event_dispatcher.hpp>
 #include "scenes/levelscene.hpp"
 #include "scenes/servernavscene.hpp"
 #include "scenes/reforgescene.hpp"
@@ -54,21 +55,49 @@ int main() {
         GLFWwindow* window = engine.getGLFWWindow();
         lve::LveScene *scene = &sdscene;
 
+        // --- Event wiring --------------------------------------------------
+        // The dispatcher is the single hop between "something happened" and the
+        // code that reacts. Below, the game loop turns raw key polling into
+        // events; these two listeners decide what to do with them.
+        auto& events = lve::EventDispatcher::instance();
+
+        // events are forwarded to the active scene
+        events.subscribe([&](const lve::Event& e) {
+            if (scene) scene->onEvent(e);
+        });
+
+        // swaps the active scene
+        events.subscribe([&](const lve::Event& e) {
+            if (e.i == GLFW_KEY_1) scene = &snscene;
+            else if (e.i == GLFW_KEY_2) scene = &rscene;
+            else if (e.i == GLFW_KEY_3) scene = &sdscene;
+        }, lve::EventType::KeyPressed);
+
+        // Keys we lift into events.  Main reads GLFW
+        // The rest of the code just consumes events
+        const int watchedKeys[] = {
+            GLFW_KEY_1, GLFW_KEY_2, GLFW_KEY_3, GLFW_KEY_4, GLFW_KEY_5,
+            GLFW_KEY_6, GLFW_KEY_7, GLFW_KEY_8, GLFW_KEY_9,
+        };
+        constexpr int watchedKeyCount = sizeof(watchedKeys) / sizeof(watchedKeys[0]);
+        bool prevDown[watchedKeyCount] = {};
+
         // FPS readout (updates the window title once per second).
         float fpsAccum = 0.f;
         int fpsFrames = 0;
 
         while (!engine.shouldClose()) {
-            // this causes glitchiness on ubuntu because it blocks
+            // this can cause glitchiness on ubuntu because it blocks
             glfwPollEvents();
 
-            // Scene swap
-            if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
-                scene = &snscene;
-            if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
-                scene = &rscene;
-            if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS)
-                scene = &sdscene;
+            // Key presses are turned into events
+            for (int i = 0; i < watchedKeyCount; i++) {
+                bool down = glfwGetKey(window, watchedKeys[i]) == GLFW_PRESS;
+
+                if (down && !prevDown[i])
+                    events.post(lve::makeKeyEvent(watchedKeys[i]));
+                prevDown[i] = down;
+            }
 
             // Take the time after the block
             auto newTime = std::chrono::high_resolution_clock::now();
@@ -92,6 +121,8 @@ int main() {
                 fpsAccum = 0.f;
                 fpsFrames = 0;
             }
+
+            events.dispatch();
 
             scene->update(dt);
             // navGame.update(dt);

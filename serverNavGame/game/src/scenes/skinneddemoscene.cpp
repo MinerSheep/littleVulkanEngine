@@ -50,11 +50,6 @@ void SkinnedDemoScene::update(float dt) {
   float aspect = lve::LveEngine::instance().getAspectRatio();
   camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
 
-  // Number keys 4..9 pick an animation clip
-  for (int i = 0; i < manSkin->clipCount() && i < 6; i++)
-    if (glfwGetKey(window, GLFW_KEY_4 + i) == GLFW_PRESS)
-      manSkin->setClipIndex(i);
-
   // --- Character: tick its components (advances the clip), then emit its draw -
   man.updateComponents(dt);
 
@@ -105,6 +100,17 @@ void SkinnedDemoScene::update(float dt) {
   ubo.projection = camera.getProjection();
   ubo.view = camera.getView();
   ubo.inverseView = camera.getInverseView();
+}
+
+void SkinnedDemoScene::onEvent(const lve::Event& event) {
+  // Number keys 4..9 pick an animation clip (statue.glb ships 6). Driven by
+  // events now instead of polling in update — main posts a KeyPressed on each
+  // key-down edge, and the dispatcher hands it here for the active scene
+  if (event.type == lve::EventType::KeyPressed) {
+    int clip = event.i - GLFW_KEY_4;
+    if (manSkin && clip >= 0 && clip < manSkin->clipCount() && clip < 6)
+      manSkin->setClipIndex(clip);
+  }
 }
 
 void SkinnedDemoScene::cleanup() {}

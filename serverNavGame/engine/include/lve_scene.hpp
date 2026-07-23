@@ -2,6 +2,7 @@
 #pragma once
 
 #include "lve_frame_info.hpp"
+#include "lve_event.hpp"
 
 namespace lve
 {
@@ -14,6 +15,11 @@ namespace lve
 
         virtual void loadModels() {}
         virtual void setupLights() {}
+
+        // Called by the game loop (via EventDispatcher) for each event delivered
+        // this frame. Override in a subclass to react to input or game events;
+        // the default does nothing so scenes only handle what they care about
+        virtual void onEvent(const Event& event) {}
 
         GlobalUbo ubo{};
         std::vector<RenderItem> renderItems;

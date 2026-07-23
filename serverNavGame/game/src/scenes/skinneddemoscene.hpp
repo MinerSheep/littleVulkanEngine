@@ -17,6 +17,7 @@ class SkinnedDemoScene : public lve::LveScene {
  public:
   SkinnedDemoScene() {}
   void update(float dt) override;
+  void onEvent(const lve::Event& event) override;
   void cleanup() override;
 
   void loadModels() override;
