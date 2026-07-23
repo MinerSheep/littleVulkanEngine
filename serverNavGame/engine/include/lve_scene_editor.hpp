@@ -36,7 +36,7 @@ namespace lve {
 
     struct EditorObject {
       int       preset = 0;
-      glm::vec3 translation{0.f};
+      glm::vec3 translation{0.f, groundY, 0.f};
       glm::vec3 rotation{0.f};
       glm::vec3 scale{1.f};
     };
