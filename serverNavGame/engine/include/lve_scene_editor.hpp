@@ -49,7 +49,7 @@ namespace lve {
     int   selected = 0;
     float elapsed  = 0.f;  // drives the selection marker's bob
 
-    // The spawnable presets, and which one the next Space spawns
+    // The spawnable presets, and which one the next Space will spawn
     std::vector<Preset> presets;
     int spawnPreset = 0;
 

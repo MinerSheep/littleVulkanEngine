@@ -567,6 +567,11 @@ ServerNav ServerNav::makeRandomScenario(int numStations, int numVessels, float t
 
 ServerNav ServerNav::makeStructuredScenario(WorldCoords start, WorldCoords dest, float timeStep)
 {
+    #if USING_RTS
+    #else
+        return makeRandomScenario(6, 4, 120);
+    #endif
+    
     ServerNav sim;
     sim.simTimeStep = timeStep;
 

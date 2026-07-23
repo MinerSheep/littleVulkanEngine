@@ -8,6 +8,8 @@
 
 #include <glm/gtc/constants.hpp>
 #include <memory>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 // Minimal scene that shows a single skinned (skeletal) glTF mesh in isolation, so
@@ -57,12 +59,21 @@ class SkinnedDemoScene : public lve::LveScene {
     lve::LveModel* model = nullptr;
     glm::vec3 translation{0.f};
     glm::vec3 scale{1.f};
-    float yaw = 0.f;  // rotation about the vertical (Y) axis, radians
+    glm::vec3 rotation{0.f};  // euler radians (matches the editor's TRS order)
   };
   std::vector<StaticProp> props;
 
+  // Reads scene_layout.txt and reproduces here, resolving each line's preset name
+  // to a model (the name is the model's file basename, e.g. "grass" -> models/grass.obj) 
+  // and appending a StaticProp to it
+  // Models are owned by layoutModels, keyed by preset name so a mesh referenced 
+  // by several objects is loaded only once
+  void loadSceneLayout(const std::string& path);
+  lve::LveModel* modelForPreset(const std::string& name);
+  std::unordered_map<std::string, std::unique_ptr<lve::LveModel>> layoutModels;
+
   // Man's feet sit at world Y ~= manTranslation.y - manScale * yMin_model,
   // with yMin_model ~= -0.43 for man.glb. Tune if you swap the mesh
-  float groundY = 1.10f;
+  float groundY = 0.5f;
   float groundHalfExtent = 8.f;  // quad spans [-1,1]; this scales it to +/-8
 };

@@ -11,7 +11,7 @@
 // vec2) and the standard library, so it can be driven by a tiny main() or by
 // the accompanying benchmark without pulling in the rest of the engine.
 
-#define USING_RTS 0
+#define USING_RTS 1
 #include "fetch_weather.hpp"
 
 #include <cstdint>

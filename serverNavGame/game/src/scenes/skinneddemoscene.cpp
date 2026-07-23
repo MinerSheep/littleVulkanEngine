@@ -4,6 +4,11 @@
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+// std
+#include <fstream>
+#include <iostream>
+#include <sstream>
+
 void SkinnedDemoScene::loadModels() {
   // statue.glb ships 6 baked animation clips (Idle01/02, Walk01/02, Run, MutanWalk)
   // The character starts on the first; keys 4..9 switch between them (see update)
@@ -19,7 +24,7 @@ void SkinnedDemoScene::loadModels() {
   manMover = man.addComponent<KeyboardMovementComponent>();
 
   // --- Static world models drawn via SimpleRenderSystem ---
-  groundModel = lve::LveModel::createModelFromFile("models/grass.obj");          // flat XZ plane
+  groundModel = lve::LveModel::createModelFromFile("models/quad.obj");          // flat XZ plane
   cubeModel = lve::LveModel::createModelFromFile("models/colored_cube.obj");    // vertex-colored
   blockModel = lve::LveModel::createModelFromFile("models/cube.obj");           // white
 
@@ -28,13 +33,67 @@ void SkinnedDemoScene::loadModels() {
   // groundY - s (remember -Y is up, so "on top of" means offset toward -Y)
   props.clear();
   auto block = [&](lve::LveModel* m, float x, float z, float s, float yaw) {
-    props.push_back({m, glm::vec3(x, groundY - s, z), glm::vec3(s), yaw});
+    props.push_back({m, glm::vec3(x, groundY - s, z), glm::vec3(s), glm::vec3(0.f, yaw, 0.f)});
   };
   block(cubeModel.get(),  2.6f,  0.6f, 0.50f,  0.40f);
   block(cubeModel.get(), -2.4f, -1.2f, 0.35f, -0.20f);
   block(cubeModel.get(), -1.6f,  2.4f, 0.60f,  0.00f);
   block(blockModel.get(), 0.7f, -2.8f, 0.25f,  0.80f);
   block(blockModel.get(), 3.0f, -2.2f, 0.30f,  0.30f);
+
+  // Reproduce objects authored in the layout editor. getExecutableDir() resolves
+  // to the game/ dir, where the editor's Enter-save writes scene_layout.txt
+  loadSceneLayout(getExecutableDir() + "/scene_layout.txt");
+}
+
+lve::LveModel* SkinnedDemoScene::modelForPreset(const std::string& name) {
+  auto it = layoutModels.find(name);
+  if (it != layoutModels.end()) return it->second.get();  // cached (may be null on prior failure)
+
+  // Preset names are the model's file basename (see the editor's presets)
+  std::string path = "models/" + name + ".obj";
+  try {
+    std::unique_ptr<lve::LveModel> model = lve::LveModel::createModelFromFile(path);
+    lve::LveModel* raw = model.get();
+    layoutModels.emplace(name, std::move(model));
+    return raw;
+  } catch (const std::exception& e) {
+    std::cerr << "[skinneddemo] could not load preset '" << name << "' from " << path << ": "
+              << e.what() << '\n';
+    layoutModels.emplace(name, nullptr);  // cache the failure so we don't retry every reference
+    return nullptr;
+  }
+}
+
+void SkinnedDemoScene::loadSceneLayout(const std::string& path) {
+  std::ifstream in(path);
+  if (!in) {
+    std::cerr << "[skinneddemo] no scene layout at " << path << " (skipping)\n";
+    return;
+  }
+
+  // One object per line: "<preset>  tx ty tz  rx ry rz  sx sy sz". Blank lines
+  // and '#' comments are ignored, matching what the editor's save() writes
+  std::string line;
+  int loaded = 0;
+  while (std::getline(in, line)) {
+    if (line.empty() || line[0] == '#') continue;
+
+    std::istringstream ss(line);
+    std::string name;
+    glm::vec3 t{0.f}, r{0.f}, s{1.f};
+    if (!(ss >> name >> t.x >> t.y >> t.z >> r.x >> r.y >> r.z >> s.x >> s.y >> s.z)) {
+      std::cerr << "[skinneddemo] skipping malformed layout line: " << line << '\n';
+      continue;
+    }
+
+    lve::LveModel* model = modelForPreset(name);
+    if (!model) continue;  // unknown/failed preset already logged
+
+    props.push_back({model, t, s, r});  // StaticProp{model, translation, scale, rotation}
+    loaded++;
+  }
+  std::cout << "[skinneddemo] loaded " << loaded << " object(s) from " << path << std::endl;
 }
 
 void SkinnedDemoScene::setupLights() {
@@ -98,11 +157,15 @@ void SkinnedDemoScene::update(float dt) {
            glm::translate(glm::mat4(1.f), glm::vec3(0.f, groundY, 0.f)) *
                glm::scale(glm::mat4(1.f), glm::vec3(groundHalfExtent, 1.f, groundHalfExtent)));
 
-  // Blocks
+  // Props: hand-placed blocks + objects loaded from the editor's layout. Same
+  // TRS order the editor uses (yaw, then pitch/roll, then scale) so a saved
+  // layout renders identically here
   for (const auto& p : props) {
-    glm::mat4 mat = glm::translate(glm::mat4(1.f), p.translation) *
-                    glm::rotate(glm::mat4(1.f), p.yaw, glm::vec3(0.f, 1.f, 0.f)) *
-                    glm::scale(glm::mat4(1.f), p.scale);
+    glm::mat4 mat = glm::translate(glm::mat4(1.f), p.translation);
+    mat = glm::rotate(mat, p.rotation.y, glm::vec3(0.f, 1.f, 0.f));
+    mat = glm::rotate(mat, p.rotation.x, glm::vec3(1.f, 0.f, 0.f));
+    mat = glm::rotate(mat, p.rotation.z, glm::vec3(0.f, 0.f, 1.f));
+    mat = glm::scale(mat, p.scale);
     pushItem(p.model, mat);
   }
 

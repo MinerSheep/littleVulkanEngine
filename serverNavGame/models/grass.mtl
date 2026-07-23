@@ -1,7 +1,7 @@
 # Blender 5.2.0 LTS MTL File: 'None'
 # www.blender.org
 
-newmtl M_Grass_Generic_Set.001
+newmtl M_Grass_Generic_Set
 Ns 200.000000
 Ka 1.000000 1.000000 1.000000
 Kd 1.000000 1.000000 1.000000
