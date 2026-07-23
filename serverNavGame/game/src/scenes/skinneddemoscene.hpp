@@ -4,7 +4,7 @@
 #include "lve_camera.hpp"
 #include "lve_model.hpp"
 #include "skinned_model_component.hpp"
-#include "keyboard_movement_controller.hpp"
+#include "keyboard_movement_component.hpp"
 
 #include <memory>
 #include <vector>
@@ -12,7 +12,8 @@
 // Minimal scene that shows a single skinned (skeletal) glTF mesh in isolation, so
 // the new skinning path can be seen without the clutter of the other scenes
 
-// Fly the camera with WASD / QE / arrow keys
+// WASD walks the man around the XZ plane, left/right arrows turn him; the camera
+// follows him third-person
 class SkinnedDemoScene : public lve::LveScene {
  public:
   SkinnedDemoScene() {}
@@ -25,8 +26,10 @@ class SkinnedDemoScene : public lve::LveScene {
 
  private:
   lve::LveCamera camera{};
-  GameObject* viewerObject = nullptr;
-  KeyboardMovementController cameraController{};
+
+  // Third-person follow: camera sits at man.translation + cameraOffset and looks
+  // at the man each frame (remember -Y is up, so a -Y offset lifts the camera)
+  glm::vec3 cameraOffset{0.f, -2.f, -4.f};
 
   // The character is a GameObject carrying a TransformComponent (placement) + a
   // SkinnedModelComponent (owns the skinned model + clip playback). manSkin is

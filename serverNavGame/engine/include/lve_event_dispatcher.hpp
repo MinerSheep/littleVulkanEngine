@@ -17,7 +17,6 @@ namespace lve {
    public:
 
     // listener is how others subscribe by using lambda and event as a parameter
-    // event is from std::function, event.i catches button presses for example
     using Listener = std::function<void(const Event&)>;
 
     static EventDispatcher& instance() {

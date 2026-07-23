@@ -5,10 +5,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 void SkinnedDemoScene::loadModels() {
-  static GameObject cameraObject = GameObject::createGameObject();
-  viewerObject = &cameraObject;
-  viewerObject->addComponent<TransformComponent>()->translation.z = -2.5f;
-
   // statue.glb ships 6 baked animation clips (Idle01/02, Walk01/02, Run, MutanWalk)
   // The character starts on the first; keys 4..9 switch between them (see update)
   TransformComponent* manXform = man.addComponent<TransformComponent>();
@@ -17,6 +13,10 @@ void SkinnedDemoScene::loadModels() {
   manXform->rotation = {0.f, 0.f, glm::pi<float>()};  // glTF Y-up -> engine Y-down
   manSkin = man.addComponent<SkinnedModelComponent>();
   manSkin->setModel(lve::LveSkinnedModel::createModelFromFile("models/statue.glb"));
+
+  // WASD walks the man across the XZ plane, left/right arrows turn him; the
+  // KeyboardMovementComponent reuses the fly-camera controller in planar mode
+  man.addComponent<KeyboardMovementComponent>();
 
   // --- Static world models drawn via SimpleRenderSystem ---
   groundModel = lve::LveModel::createModelFromFile("models/quad.obj");          // flat XZ plane
@@ -41,17 +41,17 @@ void SkinnedDemoScene::setupLights() {
 }
 
 void SkinnedDemoScene::update(float dt) {
-  GLFWwindow* window = lve::LveEngine::instance().getGLFWWindow();
+  // --- Character: tick its components: advances the clip AND walks the man via
+  // the KeyboardMovementComponent (WASD move, left/right arrows turn) ----------
+  man.updateComponents(dt);
 
-  cameraController.moveInPlaneXZ(window, dt, *viewerObject);
-  TransformComponent* view = viewerObject->getComponent<TransformComponent>();
-  camera.setViewYXZ(view->translation, view->rotation);
+  // Third-person follow camera: sit at a fixed world offset from the man and aim
+  // at him so he stays centred as he walks (remember -Y is up)
+  TransformComponent* manXform = man.getComponent<TransformComponent>();
+  camera.setViewTarget(manXform->translation + cameraOffset, manXform->translation);
 
   float aspect = lve::LveEngine::instance().getAspectRatio();
   camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
-
-  // --- Character: tick its components (advances the clip), then emit its draw -
-  man.updateComponents(dt);
 
   skinnedRenderItems.clear();
   collectSkinned(man, skinnedRenderItems);

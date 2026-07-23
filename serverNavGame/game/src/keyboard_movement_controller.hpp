@@ -23,4 +23,8 @@ class KeyboardMovementController {
   KeyMappings keys{};
   float moveSpeed{3.f};
   float lookSpeed{1.5f};
+
+  // When true, confine motion to the XZ plane: skip pitch look (up/down arrows)
+  // and vertical move (Q/E) so a ground character stays upright and grounded
+  bool planarOnly{false};
 };
