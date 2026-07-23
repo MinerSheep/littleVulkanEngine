@@ -1,5 +1,6 @@
 #include <lve_engine.hpp>
 #include <lve_event_dispatcher.hpp>
+#include <lve_scene_editor.hpp>
 #include "scenes/levelscene.hpp"
 #include "scenes/servernavscene.hpp"
 #include "scenes/reforgescene.hpp"
@@ -50,6 +51,11 @@ int main() {
         sdscene.loadModels();
         sdscene.setupLights();
 
+        // A layout editor used to spawn/move/save quads; engine specific
+        static lve::LveSceneEditor editorScene;
+        editorScene.loadModels();
+        editorScene.setupLights();
+
         auto currentTime = std::chrono::high_resolution_clock::now();
 
         GLFWwindow* window = engine.getGLFWWindow();
@@ -71,13 +77,15 @@ int main() {
             if (e.i == GLFW_KEY_1) scene = &snscene;
             else if (e.i == GLFW_KEY_2) scene = &rscene;
             else if (e.i == GLFW_KEY_3) scene = &sdscene;
+            else if (e.i == GLFW_KEY_0) scene = &editorScene;
         }, lve::EventType::KeyPressed);
 
-        // Keys we lift into events.  Main reads GLFW
+        // Keys we lift into events, main reads GLFW
         // The rest of the code just consumes events
+        // 4-9 belong to the skinned demo's clip picker, off limits
         const int watchedKeys[] = {
-            GLFW_KEY_1, GLFW_KEY_2, GLFW_KEY_3, GLFW_KEY_4, GLFW_KEY_5,
-            GLFW_KEY_6, GLFW_KEY_7, GLFW_KEY_8, GLFW_KEY_9,
+            GLFW_KEY_0, GLFW_KEY_1, GLFW_KEY_2, GLFW_KEY_3, GLFW_KEY_4,
+            GLFW_KEY_5, GLFW_KEY_6, GLFW_KEY_7, GLFW_KEY_8, GLFW_KEY_9,
         };
         constexpr int watchedKeyCount = sizeof(watchedKeys) / sizeof(watchedKeys[0]);
         bool prevDown[watchedKeyCount] = {};
