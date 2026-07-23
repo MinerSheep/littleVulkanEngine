@@ -12,18 +12,26 @@
 namespace lve {
 
 void LveSceneEditor::loadModels() {
-  // cube.obj marks the current selection
-  quadModel = LveModel::createModelFromFile("models/quad.obj");
-  groundModel = LveModel::createModelFromFile("models/quad.obj");
-  markerModel = LveModel::createModelFromFile("models/cube.obj");
+  // Spawnable presets list
+  // Order here is the Up/Down cycle order and the `preset`
+  // index stored per object / written to the save file
+  presets.clear();
+  presets.push_back({"flat_vase", LveModel::createModelFromFile("models/flat_vase.obj")});
+  presets.push_back({"grass", LveModel::createModelFromFile("models/grass.obj")});
+
+  groundModel = LveModel::createModelFromFile("models/quad.obj");  // scaled-out floor
+  markerModel = LveModel::createModelFromFile("models/cube.obj");  // selection marker
+
+  textRenderer = std::make_unique<LveTextRenderer>(LveEngine::instance().getDevice());
 
   objects.clear();
-  spawn(0);  // start with a single quad, selected
+  spawnPreset = 0;
+  spawn(spawnPreset);  // start with a single object, selected
 }
 
 void LveSceneEditor::spawn(int preset) {
   EditorObject o;
-  o.preset = preset;  // 0 = quad (only preset for now)
+  o.preset = preset;
   objects.push_back(o);
   selected = static_cast<int>(objects.size()) - 1;
 }
@@ -54,7 +62,9 @@ void LveSceneEditor::save() const {
   out << "# preset  tx ty tz  rx ry rz  sx sy sz\n";
   out << std::fixed << std::setprecision(3);
   for (const auto& o : objects) {
-    const char* name = (o.preset == 0) ? "quad" : "unknown";
+    const std::string& name =
+        (o.preset >= 0 && o.preset < static_cast<int>(presets.size())) ? presets[o.preset].name
+                                                                       : std::string("unknown");
     out << name << "  " << o.translation.x << ' ' << o.translation.y << ' ' << o.translation.z
         << "  " << o.rotation.x << ' ' << o.rotation.y << ' ' << o.rotation.z
         << "  " << o.scale.x << ' ' << o.scale.y << ' ' << o.scale.z << '\n';
@@ -71,9 +81,13 @@ void LveSceneEditor::update(float dt) {
   // lambda function for quickly checking if a key is pressed
   auto down = [&](int key) { return glfwGetKey(window, key) == GLFW_PRESS; };
 
-  // select
+  // select the placed object to edit (left/right)
   bool leftNow = down(GLFW_KEY_LEFT);
   bool rightNow = down(GLFW_KEY_RIGHT);
+
+  // choose which preset the next Space spawns (up/down)
+  bool upNow = down(GLFW_KEY_UP);
+  bool downNow = down(GLFW_KEY_DOWN);
 
   // spawn
   bool spaceNow = down(GLFW_KEY_SPACE);
@@ -88,11 +102,18 @@ void LveSceneEditor::update(float dt) {
     if (leftNow && !prevLeft) selected = (selected + count - 1) % count;
     if (rightNow && !prevRight) selected = (selected + 1) % count;
   }
-  if (spaceNow && !prevSpace) spawn(0);
+  if (!presets.empty()) {
+    int pc = static_cast<int>(presets.size());
+    if (upNow && !prevUp) spawnPreset = (spawnPreset + pc - 1) % pc;
+    if (downNow && !prevDown) spawnPreset = (spawnPreset + 1) % pc;
+  }
+  if (spaceNow && !prevSpace) spawn(spawnPreset);
   if (enterNow && !prevEnter) save();
 
   prevLeft = leftNow;
   prevRight = rightNow;
+  prevUp = upNow;
+  prevDown = downNow;
   prevSpace = spaceNow;
   prevEnter = enterNow;
 
@@ -144,9 +165,11 @@ void LveSceneEditor::update(float dt) {
            glm::translate(glm::mat4(1.f), glm::vec3(0.f, groundY, 0.f)) *
            glm::scale(glm::mat4(1.f), glm::vec3(groundHalfExtent, 1.f, groundHalfExtent)));
 
-  // Placed objects
+  // Placed objects: each draws its preset's mesh
   for (const auto& o : objects) {
-    LveModel* mdl = (o.preset == 0) ? quadModel.get() : nullptr;
+    LveModel* mdl = (o.preset >= 0 && o.preset < static_cast<int>(presets.size()))
+                        ? presets[o.preset].model.get()
+                        : nullptr;
     pushItem(mdl, matrixOf(o));
   }
 
@@ -176,6 +199,39 @@ void LveSceneEditor::update(float dt) {
 
   addLight({2.0f, -3.0f, -2.0f}, {1.0f, 1.0f, 1.0f}, 8.f);
   addLight({-3.0f, -2.0f, 1.0f}, {0.7f, 0.8f, 1.0f}, 6.f);
+
+  // --- HUD: current spawn preset + counts, drawn as on-screen text -----------
+  UIrenderItems.clear();
+  if (textRenderer) {
+    const std::string spawnName = presets.empty() ? "none" : presets[spawnPreset].name;
+
+    std::string hud = "EDITOR\n"
+                      "SPAWN: " + spawnName + " (UP/DOWN)\n" +
+                      "OBJECTS: " + std::to_string(objects.size()) +
+                      "  SEL: " + std::to_string(objects.empty() ? 0 : selected + 1) + "\n" +
+                      "SPACE ADD  ENTER SAVE";
+
+    const glm::vec2 origin{-0.97f, -0.95f};  // top-left in NDC (y is down)
+    const float dotHeight = 0.008f;
+
+    float aspect = LveEngine::instance().getAspectRatio();
+    if (aspect <= 0.f) aspect = 1.f;
+    const float dotW = dotHeight / aspect;
+
+    // Dark panel behind the text so it stays readable over the scene
+    UIRenderItem panel{};
+    panel.transform = glm::mat2(
+        textRenderer->measureWidth(hud, dotHeight) + 2.f * dotW, 0.f,
+        0.f, (LveTextRenderer::lineCount(hud) * 8 - 1) * dotHeight + 2.f * dotHeight);
+    panel.offset = {origin.x - dotW, origin.y - dotHeight};
+    panel.color = {0.03f, 0.03f, 0.06f};
+    panel.alpha = 1.f;
+    panel.model = textRenderer->quad();
+    UIrenderItems.push_back(panel);
+
+    // Emitted after the panel so the text glyphs will paint on top of it
+    textRenderer->emit(UIrenderItems, hud, origin, dotHeight, {1.f, 1.f, 1.f});
+  }
 
   // last rendering steps
   ubo.ambientLightColor = {1.f, 1.f, 1.f, 0.20f};
