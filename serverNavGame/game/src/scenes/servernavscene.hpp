@@ -16,6 +16,7 @@ class ServerNavScene : public lve::LveScene
 public: 
     ServerNavScene() {}
     void update(float dt) override;
+    void onEvent(const lve::Event& event) override;
     void cleanup() override;
 
     void loadWeather();
@@ -33,8 +34,8 @@ private:
  std::set<GameObject::id_t> top;
 
  // dt is 2 mins a sec
-//  ServerNav nav = ServerNav::makeStructuredScenario(WorldCoords{45, 45}, WorldCoords{46,46}, 120.0f);
-    ServerNav nav = ServerNav::makeRandomScenario(8, 2, 120);
+// ServerNav nav = ServerNav::makeStructuredScenario(WorldCoords{37.805641,-122.611101}, WorldCoords{37.748082, -122.490994}, 120.0f);
+ ServerNav nav = ServerNav::makeRandomScenario(8, 2, 120);
 
  // Draws on-screen HUD text by appending solid dot-quads to UIrenderItems.
  // Created in loadModels() (after the device exists).

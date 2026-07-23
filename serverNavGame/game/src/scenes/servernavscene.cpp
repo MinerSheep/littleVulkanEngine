@@ -310,3 +310,10 @@ void ServerNavScene::setupLights()
 void ServerNavScene::cleanup() 
 { 
 }
+
+void ServerNavScene::onEvent(const lve::Event& event) {
+  if (event.type != lve::EventType::KeyPressed) return;
+
+  if (event.i == GLFW_KEY_R)
+    nav = ServerNav::makeRandomScenario(8, 2, 120);
+}

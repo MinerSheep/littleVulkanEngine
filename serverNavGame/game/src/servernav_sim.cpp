@@ -103,6 +103,62 @@ void generateSyntheticLand(WeatherCell map[kGridSize][kGridSize], std::mt19937& 
             }
     }
 }
+
+// Populate the land mask by coarse-sampling isLand() on a lattice and snapping
+// the gaps to the nearest sample (blocky coastline). Same tradeoff as the coarse
+// weather sampling in makeRandomScenario: an elevation lookup is one HTTP call
+// each and open-meteo rate-limits a per-cell burst, so we query ~49 points at
+// stride 10 and fill the rest. cellLat(y)/cellLon(x) map a grid index to its
+// geographic coordinate.
+template <typename LatFn, typename LonFn>
+void sampleLandMask(WeatherCell map[kGridSize][kGridSize], LatFn cellLat, LonFn cellLon)
+{
+    constexpr int kLandSampleStride = 10;
+
+    std::vector<int> sampleIdx;
+    for (int i = 0; i < kGridSize; i += kLandSampleStride)
+        sampleIdx.push_back(i);
+    if (sampleIdx.back() != kGridSize - 1)
+        sampleIdx.push_back(kGridSize - 1); // anchor the far edge
+
+    std::cout << "Sampling land mask across " << sampleIdx.size() * sampleIdx.size()
+              << " points...\n";
+
+    // Real elevation lookups only on the sample lattice.
+    for (int sx : sampleIdx)
+        for (int sy : sampleIdx)
+            map[sx][sy].land = isLand(cellLat(sy), cellLon(sx));
+
+    // Bracket an index between the two sample lines around it (sampleIdx sorted).
+    auto bracket = [&](int i, int& lo, int& hi) {
+        lo = sampleIdx.front();
+        hi = sampleIdx.back();
+        for (std::size_t s = 0; s + 1 < sampleIdx.size(); ++s)
+            if (i >= sampleIdx[s] && i <= sampleIdx[s + 1])
+            {
+                lo = sampleIdx[s];
+                hi = sampleIdx[s + 1];
+                break;
+            }
+    };
+
+    // Land is boolean, so snap each cell to its nearest sample rather than
+    // interpolating. Only sample cells are ever read, and they reproduce
+    // themselves, so this is safe in place.
+    for (int x = 0; x < kGridSize; ++x)
+    {
+        int x0, x1;
+        bracket(x, x0, x1);
+        for (int y = 0; y < kGridSize; ++y)
+        {
+            int y0, y1;
+            bracket(y, y0, y1);
+            const int nx = (x - x0 <= x1 - x) ? x0 : x1;
+            const int ny = (y - y0 <= y1 - y) ? y0 : y1;
+            map[x][y].land = map[nx][ny].land;
+        }
+    }
+}
 } // namespace
 
 const WeatherCell& ServerNav::weatherAt(const glm::vec2& p) const
@@ -633,6 +689,26 @@ ServerNav ServerNav::makeStructuredScenario(WorldCoords start, WorldCoords dest,
 
                 sim.map[x][y].data = lerpWeather(samples[seg], samples[seg + 1], localT);
             }
+
+        // --- Land mask ----------------------------------------------------
+        // The weather above only varies along the route, but land needs the real
+        // 2D geography so the vessel can route around it. Map the grid onto the
+        // lat/lon rectangle with start at corner (0,0) and dest at (maxIdx,maxIdx)
+        // -- x runs West->East (longitude), y North->South (latitude), matching
+        // the map render -- then coarse-sample isLand across it (see sampleLandMask).
+        const float latSpan = dest.latitude - start.latitude;
+        const float lonSpan = dest.longitude - start.longitude;
+        const float invMax  = maxIdx > 0 ? 1.f / static_cast<float>(maxIdx) : 0.f;
+        auto cellLat = [&](int y) {
+            return clampF(start.latitude + latSpan * (y * invMax), -90.f, 90.f);
+        };
+        auto cellLon = [&](int x) {
+            float lon = start.longitude + lonSpan * (x * invMax);
+            while (lon < -180.f) lon += 360.f;
+            while (lon >= 180.f) lon -= 360.f;
+            return lon;
+        };
+        sampleLandMask(sim.map, cellLat, cellLon);
     }
     else
     {
