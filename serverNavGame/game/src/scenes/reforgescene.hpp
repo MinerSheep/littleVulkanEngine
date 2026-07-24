@@ -4,6 +4,7 @@
 #include "lve_scene.hpp"
 #include "lve_camera.hpp"
 #include "keyboard_movement_controller.hpp"
+#include "lve_game_object.hpp"  // GameObject / TransformComponent (formerly pulled in transitively)
 
 constexpr int   kReforgePieces  = 3;
 
@@ -20,7 +21,7 @@ public:
 private:
  lve::LveCamera camera{};
  GameObject* viewerObject = nullptr;
- KeyboardMovementController cameraController{};
+ lve::KeyboardMovementController cameraController{};
 
  std::unordered_map<id_t, GameObject> gameObjects;
 

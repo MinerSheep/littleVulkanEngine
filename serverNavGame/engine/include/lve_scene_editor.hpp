@@ -4,6 +4,9 @@
 #include "lve_camera.hpp"
 #include "lve_model.hpp"
 #include "lve_text.hpp"
+#include "keyboard_movement_controller.hpp"
+
+#include <glm/gtc/constants.hpp>  // glm::quarter_pi
 
 // std
 #include <memory>
@@ -63,9 +66,18 @@ namespace lve {
 
     LveCamera camera{};
 
+    // Fly-camera 
+    // camTranslation/camRotation persist the camera pose
+    // T toggles cameraMode, deciding whether WASDQE/arrows fly the camera or edit the selected object
+    KeyboardMovementController cameraController{};
+    glm::vec3 camTranslation{0.f, -7.f, -7.f};
+    glm::vec3 camRotation{-glm::quarter_pi<float>(), 0.f, 0.f};
+    bool cameraMode = false;
+
     // Keys fire once per press, not per frame held
     bool prevLeft = false, prevRight = false, prevSpace = false, prevEnter = false;
     bool prevUp = false, prevDown = false;  // cycle the spawn preset
+    bool prevT = false;                     // toggle camera/object mode
 
     // Tuning (units per second, scaled by dt)
     static constexpr float moveSpeed  = 3.0f;

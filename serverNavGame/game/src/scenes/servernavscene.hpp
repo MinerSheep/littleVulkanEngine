@@ -5,6 +5,7 @@
 #include "lve_camera.hpp"
 #include "lve_text.hpp"
 #include "keyboard_movement_controller.hpp"
+#include "lve_game_object.hpp"  // GameObject / TransformComponent (formerly pulled in transitively)
 
 #include "servernav_sim.hpp"
 
@@ -26,7 +27,7 @@ public:
 private:
  lve::LveCamera camera{};
  GameObject* viewerObject = nullptr;
- KeyboardMovementController cameraController{};
+ lve::KeyboardMovementController cameraController{};
 
  std::unordered_map<id_t, GameObject> gameObjects;
  std::unordered_map<Vessel::id_t, GameObject::id_t> vesselMap;

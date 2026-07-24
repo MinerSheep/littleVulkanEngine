@@ -38,8 +38,9 @@ static constexpr float kMaxTimeStep        = 10000.f;
 void ServerNavScene::update(float dt) 
 {
     // Camera logic
-    cameraController.moveInPlaneXZ(lve::LveEngine::instance().getGLFWWindow(), dt, *viewerObject);
-    camera.setViewYXZ(viewerObject->getComponent<TransformComponent>()->translation, viewerObject->getComponent<TransformComponent>()->rotation);
+    auto* vt = viewerObject->getComponent<TransformComponent>();
+    cameraController.moveInPlaneXZ(lve::LveEngine::instance().getGLFWWindow(), dt, vt->translation, vt->rotation);
+    camera.setViewYXZ(vt->translation, vt->rotation);
 
     float aspect = lve::LveEngine::instance().getAspectRatio();
     // camera.setOrthographicProjection(-aspect, aspect, -1, 1, -1, 1);

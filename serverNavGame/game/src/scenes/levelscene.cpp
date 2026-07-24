@@ -11,9 +11,9 @@
 void LevelScene::update(float dt) 
 {
     // Camera logic
-    cameraController.moveInPlaneXZ(lve::LveEngine::instance().getGLFWWindow(), dt, *viewerObject);
-    // lve::LveEngine::instance().setCamera(lve::LveEngine::Camera{ translation = viewerObject.transform.translation, rotation = viewerObject->transform.rotation});
-    camera.setViewYXZ(viewerObject->getComponent<TransformComponent>()->translation, viewerObject->getComponent<TransformComponent>()->rotation);
+    auto* vt = viewerObject->getComponent<TransformComponent>();
+    cameraController.moveInPlaneXZ(lve::LveEngine::instance().getGLFWWindow(), dt, vt->translation, vt->rotation);
+    camera.setViewYXZ(vt->translation, vt->rotation);
 
     // This is responsible for maintaining object projection size
     // across different window aspect ratios

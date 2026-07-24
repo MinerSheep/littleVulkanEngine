@@ -91,6 +91,10 @@ void LveSceneEditor::update(float dt) {
   // lambda function for quickly checking if a key is pressed
   auto down = [&](int key) { return glfwGetKey(window, key) == GLFW_PRESS; };
 
+  // T flips between editing objects and flying the camera
+  bool tNow = down(GLFW_KEY_T);
+  if (tNow && !prevT) cameraMode = !cameraMode;
+
   // select the placed object to edit (left/right)
   bool leftNow = down(GLFW_KEY_LEFT);
   bool rightNow = down(GLFW_KEY_RIGHT);
@@ -105,19 +109,26 @@ void LveSceneEditor::update(float dt) {
   // save
   bool enterNow = down(GLFW_KEY_ENTER);
 
-  if (!objects.empty()) {
-    int count = static_cast<int>(objects.size());
+  // Object-mode edits are suppressed while flying so the shared WASDQE/arrow keys
+  // drive the camera instead of the selected object
+  if (!cameraMode) 
+  {
+    if (!objects.empty()) {
+      int count = static_cast<int>(objects.size());
 
-    // change selected
-    if (leftNow && !prevLeft) selected = (selected + count - 1) % count;
-    if (rightNow && !prevRight) selected = (selected + 1) % count;
+      // change selected
+      if (leftNow && !prevLeft) selected = (selected + count - 1) % count;
+      if (rightNow && !prevRight) selected = (selected + 1) % count;
+    }
+    if (!presets.empty()) {
+      int pc = static_cast<int>(presets.size());
+      if (upNow && !prevUp) spawnPreset = (spawnPreset + pc - 1) % pc;
+      if (downNow && !prevDown) spawnPreset = (spawnPreset + 1) % pc;
+    }
+    if (spaceNow && !prevSpace) spawn(spawnPreset);
   }
-  if (!presets.empty()) {
-    int pc = static_cast<int>(presets.size());
-    if (upNow && !prevUp) spawnPreset = (spawnPreset + pc - 1) % pc;
-    if (downNow && !prevDown) spawnPreset = (spawnPreset + 1) % pc;
-  }
-  if (spaceNow && !prevSpace) spawn(spawnPreset);
+
+  // Enter saves
   if (enterNow && !prevEnter) save();
 
   prevLeft = leftNow;
@@ -126,9 +137,10 @@ void LveSceneEditor::update(float dt) {
   prevDown = downNow;
   prevSpace = spaceNow;
   prevEnter = enterNow;
+  prevT = tNow;
 
   // --- Continuous transform of the selected object ---------------------------
-  if (!objects.empty()) {
+  if (!cameraMode && !objects.empty()) {
     EditorObject& o = objects[selected];
 
     const float m = moveSpeed * dt;
@@ -155,9 +167,12 @@ void LveSceneEditor::update(float dt) {
     o.scale = glm::max(o.scale, glm::vec3(minScale));
   }
 
-  // Camera is a fixed angled view pointing at origin
+  // Camera - fly in camera mode, otherwise stays
+  if (cameraMode)
+    cameraController.moveInPlaneXZ(window, dt, camTranslation, camRotation);
+    
   float aspect = LveEngine::instance().getAspectRatio();
-  camera.setViewTarget({0.f, -7.f, -7.f}, {0.f, 0.f, 0.f});
+  camera.setViewYXZ(camTranslation, camRotation);
   camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
 
   // Rebuild the draw list each frame into renderItems
@@ -216,6 +231,7 @@ void LveSceneEditor::update(float dt) {
     const std::string spawnName = presets.empty() ? "none" : presets[spawnPreset].name;
 
     std::string hud = "EDITOR\n"
+                      "MODE: " + std::string(cameraMode ? "CAMERA" : "OBJECT") + " (T)\n" +
                       "SPAWN: " + spawnName + " (UP/DOWN)\n" +
                       "OBJECTS: " + std::to_string(objects.size()) +
                       "  SEL: " + std::to_string(objects.empty() ? 0 : selected + 1) + "\n" +
