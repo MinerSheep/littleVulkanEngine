@@ -16,10 +16,17 @@ void LveSceneEditor::loadModels() {
   // Order here is the Up/Down cycle order and the `preset`
   // index stored per object / written to the save file
   presets.clear();
+  // Blockout primitives - all unit-sized (fit a 2x2x2 box) so they scale predictably
+  presets.push_back({"plane", LveModel::createModelFromFile("models/plane.obj")});
+  presets.push_back({"cube", LveModel::createModelFromFile("models/cube.obj")});
+  presets.push_back({"sphere", LveModel::createModelFromFile("models/sphere.obj")});
+  presets.push_back({"cylinder", LveModel::createModelFromFile("models/cylinder.obj")});
+  
   presets.push_back({"flat_vase", LveModel::createModelFromFile("models/flat_vase.obj")});
   presets.push_back({"grass", LveModel::createModelFromFile("models/grass.obj")});
   presets.push_back({"tree", LveModel::createModelFromFile("models/tree.obj")});
   presets.push_back({"rock", LveModel::createModelFromFile("models/rock.obj")});
+
 
 
   groundModel = LveModel::createModelFromFile("models/quad.obj");  // scaled-out floor
