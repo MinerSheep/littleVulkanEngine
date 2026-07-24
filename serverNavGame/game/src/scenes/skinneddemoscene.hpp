@@ -5,6 +5,7 @@
 #include "lve_model.hpp"
 #include "skinned_model_component.hpp"
 #include "keyboard_movement_component.hpp"
+#include "player_ability_component.hpp"
 
 #include <glm/gtc/constants.hpp>
 #include <memory>
@@ -50,6 +51,7 @@ class SkinnedDemoScene : public lve::LveScene {
   GameObject man = GameObject::createGameObject();
   SkinnedModelComponent* manSkin = nullptr;
   KeyboardMovementComponent* manMover = nullptr;
+  PlayerAbilityComponent* manAbility = nullptr;  // press F to launch a sphere.obj fireball
 
   std::unique_ptr<lve::LveModel> groundModel;  // models/quad.obj (flat XZ plane)
   std::unique_ptr<lve::LveModel> cubeModel;    // models/colored_cube.obj

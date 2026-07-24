@@ -23,6 +23,10 @@ void SkinnedDemoScene::loadModels() {
   // the component's forwardYaw to the camera's look direction each frame
   manMover = man.addComponent<KeyboardMovementComponent>();
 
+  // Press F to launch a sphere.obj "fireball" along the camera's look direction
+  manAbility = man.addComponent<PlayerAbilityComponent>();
+  manAbility->setModel(lve::LveModel::createModelFromFile("models/sphere.obj"));
+
   // --- Static world models drawn via SimpleRenderSystem ---
   groundModel = lve::LveModel::createModelFromFile("models/quad.obj");          // flat XZ plane
   cubeModel = lve::LveModel::createModelFromFile("models/colored_cube.obj");    // vertex-colored
@@ -120,8 +124,10 @@ void SkinnedDemoScene::update(float dt) {
   dragging = dragBtn;
 
   // WASD is camera-relative: point the mover's forward down the camera's ground
-  // look direction (from the camera toward the man)
-  if (manMover) manMover->forwardYaw = cameraYaw + glm::pi<float>();
+  // look direction (from the camera toward the man). The fireball aims the same way
+  const float lookYaw = cameraYaw + glm::pi<float>();
+  if (manMover) manMover->forwardYaw = lookYaw;
+  if (manAbility) manAbility->aimYaw = lookYaw;
 
   // --- Character: tick its components (advances the clip AND walks the man) ---
   man.updateComponents(dt);
@@ -169,6 +175,15 @@ void SkinnedDemoScene::update(float dt) {
     pushItem(p.model, mat);
   }
 
+  // Live fireballs: draw each as a small sphere at its current position
+  if (manAbility && manAbility->model()) {
+    for (const auto& shot : manAbility->activeProjectiles()) {
+      glm::mat4 mat = glm::translate(glm::mat4(1.f), shot.position) *
+                      glm::scale(glm::mat4(1.f), glm::vec3(manAbility->radius));
+      pushItem(manAbility->model(), mat);
+    }
+  }
+
   // --- A couple of point lights so the grey mesh is clearly shaded -----------
   lightItems.clear();
   auto addLight = [&](glm::vec3 pos, glm::vec3 color, float intensity) {
@@ -184,6 +199,15 @@ void SkinnedDemoScene::update(float dt) {
   // Remember: -Y is "up" in this engine.
   addLight({1.5f, -1.5f, -1.8f}, {1.0f, 1.0f, 1.0f}, 6.f);
   addLight({-2.0f, -0.5f, -1.0f}, {0.6f, 0.7f, 1.0f}, 5.f);
+
+  // A warm glow trailing each fireball so the grey sphere reads as fire
+  // WARNING: The point light system asserts on more than MAX_LIGHTS, so stop once the budget is spent
+  if (manAbility) {
+    for (const auto& shot : manAbility->activeProjectiles()) {
+      if (lightItems.size() >= MAX_LIGHTS) break;
+      addLight(shot.position, {1.0f, 0.5f, 0.1f}, 4.f);
+    }
+  }
 
   ubo.ambientLightColor = {1.f, 1.f, 1.f, 0.15f};
   ubo.projection = camera.getProjection();
