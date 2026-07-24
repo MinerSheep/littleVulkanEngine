@@ -59,7 +59,7 @@ int main() {
         auto currentTime = std::chrono::high_resolution_clock::now();
 
         GLFWwindow* window = engine.getGLFWWindow();
-        lve::LveScene *scene = &snscene;
+        engine.activeScene = &sdscene;
 
         // --- Event wiring --------------------------------------------------
         // The dispatcher is the single hop between "something happened" and the
@@ -69,15 +69,15 @@ int main() {
 
         // events are forwarded to the active scene
         events.subscribe([&](const lve::Event& e) {
-            if (scene) scene->onEvent(e);
+            if (engine.activeScene) engine.activeScene->onEvent(e);
         });
 
-        // swaps the active scene
+        // swaps the active engine.activeScene
         events.subscribe([&](const lve::Event& e) {
-            if (e.i == GLFW_KEY_1) scene = &snscene;
-            else if (e.i == GLFW_KEY_2) scene = &rscene;
-            else if (e.i == GLFW_KEY_3) scene = &sdscene;
-            else if (e.i == GLFW_KEY_0) scene = &editorScene;
+            if (e.i == GLFW_KEY_1) engine.activeScene = &snscene;
+            else if (e.i == GLFW_KEY_2) engine.activeScene = &rscene;
+            else if (e.i == GLFW_KEY_3) engine.activeScene = &sdscene;
+            else if (e.i == GLFW_KEY_0) engine.activeScene = &editorScene;
         }, lve::EventType::KeyPressed);
 
         // Keys we lift into events, main reads GLFW
@@ -133,9 +133,9 @@ int main() {
 
             events.dispatch();
 
-            scene->update(dt);
+            engine.activeScene->update(dt);
             // navGame.update(dt);
-            engine.render(*scene);
+            engine.render();
         }
 
         snscene.cleanup();

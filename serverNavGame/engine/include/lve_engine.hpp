@@ -35,13 +35,16 @@ namespace lve
 
         void init();
         void update();
-        void render(LveScene& scene);
+        void render();
         void cleanup();
         VkRenderPass getRenderPass() const;
-
+        
         GLFWwindow* getGLFWWindow();
         float getAspectRatio();
         bool shouldClose();
+        
+        // Self managed variable, optional to set or not
+        LveScene* activeScene;
 
         LveWindow& getWindow() { return lveWindow; }
         LveDevice& getDevice() { return lveDevice; }
@@ -80,5 +83,6 @@ namespace lve
         std::unique_ptr<SimpleRenderSystem> simpleRenderSystem {};
         std::unique_ptr<PointLightSystem> pointLightSystem {};
         std::unique_ptr<SkinnedRenderSystem> skinnedRenderSystem {};
+
     };
 } // namespace lve

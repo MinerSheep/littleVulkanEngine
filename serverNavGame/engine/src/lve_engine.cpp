@@ -93,9 +93,12 @@ void LveEngine::init() {
       boneSetLayout->getDescriptorSetLayout());
 }
 
-void LveEngine::render(LveScene& scene) {
+void LveEngine::render() {
   // Returns null if swap chain needs to be recreated!
   if (!running) return;
+  if (activeScene == nullptr) return;
+
+  LveScene& scene = *activeScene;
   if (auto commandBuffer = lveRenderer.beginFrame()) {
     int frameIndex = lveRenderer.getFrameIndex();
     FrameInfo frameInfo{
