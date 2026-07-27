@@ -4,6 +4,27 @@ A Vulkan project split into a reusable **engine** static library and a **game** 
 Derived from Brendan Galea's "Little Vulkan Engine" tutorial series, restructured so the engine
 is built as `libvulkan_engine.a` and the game consumes it.
 
+## Comment style
+
+Write comments in plain, simple language — describe what the thing *does* in the game, not what
+the API contract is.
+
+- Use the game's own words (fireball, collider, light), not qualified C++ names
+  (`PlayerAbilityComponent::onImpact`).
+- One idea per line. Two short lines beat one long sentence that wraps.
+- No clause-stacking ("which both consumes X and leaves Y") — just say the effect.
+- No period at the end of a comment.
+
+```cpp
+// bad
+// Answers PlayerAbilityComponent::onImpact: true once a shot has hit something
+// solid, which both consumes the projectile and leaves its light behind
+
+// good
+// Returns true when the fireball hits a collider
+// onImpact makes fireball disappear and leaves a light behind
+```
+
 ## Toolchain / environment
 
 - **Built and run under WSL2 (Ubuntu), GCC 9** (`/usr/include/c++/9`). Source lives on the Windows

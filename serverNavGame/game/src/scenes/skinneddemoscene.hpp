@@ -10,6 +10,7 @@
 #include "rigidbody_component.hpp"
 
 #include <glm/gtc/constants.hpp>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -118,6 +119,42 @@ class SkinnedDemoScene : public lve::LveScene {
 
   void spawnFallingBoxes();
   void resetFallingBoxes();  // bound to R
+
+
+
+
+
+  // --- Fireball impacts ------------------------------------------------------
+
+  // A fireball that hits something hands its point light over to whatever it hit
+  // Rather than caching a position, the light holds the collider it landed on and 
+  // reads that box back every frame
+  struct AttachedLight {
+    const ColliderComponent* target = nullptr;  // null: a fixed spot (a ground hit)
+    glm::vec3 fixedPosition{0.f};
+    glm::vec3 color{1.f};
+    float intensity = 0.f;
+  };
+  std::vector<AttachedLight> attachedLights;
+
+  // Returns true when the fireball hits something solid
+  // Hitting something makes the fireball disappear and leaves a light behind
+  bool onFireballImpact(const PlayerAbilityComponent::Projectile& shot);
+
+  // Attach a light to a target, or place it at a fixed spot if target is null
+  void attachLight(const ColliderComponent* target, const glm::vec3& fixedPosition);
+
+  // Finds where the light should sit: above the top of the target’s box
+  glm::vec3 attachedLightPosition(const AttachedLight& light) const;
+
+  float lightHoverHeight = 0.4f; // How high the light floats above the target
+
+  glm::vec3 fireballLightColor{1.0f, 0.5f, 0.1f};
+  float attachedLightIntensity = 5.f;
+
+  // Max number of attached lights allowed.
+  // If we go over, we drop the oldest one.
+  std::size_t maxAttachedLights = 6;
 
 
 

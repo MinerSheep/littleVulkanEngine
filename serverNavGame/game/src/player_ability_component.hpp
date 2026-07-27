@@ -7,6 +7,7 @@
 #include <glm/glm.hpp>
 
 // std
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -19,12 +20,21 @@ struct PlayerAbilityComponent : public Component {
     glm::vec3 position{0.f};
     glm::vec3 velocity{0.f};
     float distanceTravelled = 0.f;
+    bool spent = false;  // hit something this frame, culled with the out-of-range shots
   };
 
   int fireKey = GLFW_KEY_F;
 
   // The scene sets this each frame, KeyboardMovementComponent::forwardYaw
   float aimYaw = 0.f;
+
+  // The scene owns the world's colliders, so it decides what a shot runs into
+  //
+  // Called once per step with the projectile already at its new position; return
+  // true to consume it, which ends the shot exactly like running out of range
+  //
+  // Left unset the fireballs pass through everything, as they did before
+  std::function<bool(const Projectile&)> onImpact;
 
   float speed = 9.f;      // units per second
   float maxRange = 6.f;   // the "short distance": culled after travelling this far

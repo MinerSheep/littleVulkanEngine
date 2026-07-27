@@ -20,12 +20,19 @@ void PlayerAbilityComponent::update(float dt, GameObject& obj) {
     glm::vec3 step = p.velocity * dt;
     p.position += step;
     p.distanceTravelled += glm::length(step);
+
+    // Then ask the scene whether that landed the shot in something solid.
+    // One test per frame is enough while a step stays shorter than the ball is
+    // wide (speed * dt < radius * 2), because consecutive positions then overlap
+    // and leave no gap for a thin prop to slip through
+    if (onImpact && onImpact(p)) p.spent = true;
   }
 
-  // Deleting old fireballs
+  // Deleting spent and old fireballs
   projectiles.erase(
-      std::remove_if(projectiles.begin(), projectiles.end(),
-                     [&](const Projectile& p) { return p.distanceTravelled >= maxRange; }),
+      std::remove_if(
+          projectiles.begin(), projectiles.end(),
+          [&](const Projectile& p) { return p.spent || p.distanceTravelled >= maxRange; }),
       projectiles.end());
 }
 

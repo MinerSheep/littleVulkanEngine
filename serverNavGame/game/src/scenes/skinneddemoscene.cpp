@@ -27,6 +27,12 @@ void SkinnedDemoScene::loadModels() {
   manAbility = man.addComponent<PlayerAbilityComponent>();
   manAbility->setModel(lve::LveModel::createModelFromFile("models/sphere.obj"));
 
+  // The ability moves its own shots but knows nothing about the world, so the
+  // scene answers what each one has flown into
+  manAbility->onImpact = [this](const PlayerAbilityComponent::Projectile& shot) {
+    return onFireballImpact(shot);
+  };
+
   // Gravity, added after movement so the two never argue over a frame's motion
   manBody = man.addComponent<RigidbodyComponent>();
 
@@ -230,6 +236,78 @@ void SkinnedDemoScene::settleBody(GameObject& obj, ColliderComponent* collider, 
   if (supported) body->setGrounded(glm::vec3(0.f, -1.f, 0.f));
 }
 
+// --- Fireball impacts --------------------------------------------------------
+
+// Runs once a frame for every fireball in the air
+// Returns true when the fireball hits something
+// A true answer deletes the fireball and leaves a light behind
+bool SkinnedDemoScene::onFireballImpact(const PlayerAbilityComponent::Projectile& shot) {
+  if (!manAbility) return false;
+
+  // The fireball looks like a sphere but hits like a box
+  // Everything else in the scene collides as boxes too
+  const glm::vec3 reach{manAbility->radius};
+  const ColliderComponent::Aabb shotBox{shot.position - reach, shot.position + reach};
+
+  // The man is skipped on purpose
+  // Fireballs spawn right next to him, so he would eat every shot instantly
+  for (const auto& prop : props) {
+    if (prop.collider.enabled && shotBox.overlaps(prop.collider.worldBox())) {
+      attachLight(&prop.collider, glm::vec3(0.f));
+      return true;
+    }
+  }
+
+  for (const auto& box : boxes) {
+    if (box.collider && box.collider->enabled && shotBox.overlaps(box.collider->worldBox())) {
+      attachLight(box.collider, glm::vec3(0.f));
+      return true;
+    }
+  }
+
+  // The ground is one big slab, so its "top" is the middle of the map
+  // A ground hit puts the light where the fireball landed instead
+  if (groundCollider.enabled && shotBox.overlaps(groundCollider.worldBox())) {
+    attachLight(nullptr, glm::vec3(shot.position.x,
+                                   groundCollider.worldBox().min.y - lightHoverHeight,
+                                   shot.position.z));
+    return true;
+  }
+
+  return false;
+}
+
+void SkinnedDemoScene::attachLight(const ColliderComponent* target, const glm::vec3& fixedPosition) {
+  // Hitting something that is already lit just brightens it again
+  // Two lights in one spot look the same and waste a light slot
+  if (target) {
+    for (AttachedLight& light : attachedLights) {
+      if (light.target == target) {
+        light.intensity = attachedLightIntensity;
+        return;
+      }
+    }
+  }
+
+  // Out of light slots, so the oldest light goes away
+  // Fireballs keep working once the budget is full
+  if (attachedLights.size() >= maxAttachedLights) attachedLights.erase(attachedLights.begin());
+
+  attachedLights.push_back({target, fixedPosition, fireballLightColor, attachedLightIntensity});
+}
+
+glm::vec3 SkinnedDemoScene::attachedLightPosition(const AttachedLight& light) const {
+  if (!light.target) return light.fixedPosition;
+
+  // -Y is up, so the top of a box is its smallest y
+  // Using the box instead of the object's origin keeps the light above big props
+  const ColliderComponent::Aabb& box = light.target->worldBox();
+  const glm::vec3 centre = box.center();
+  return glm::vec3(centre.x, box.min.y - lightHoverHeight, centre.z);
+}
+
+// -----------------------------------------------------------------------------
+
 lve::LveModel* SkinnedDemoScene::modelForPreset(const std::string& name) {
   auto it = layoutModels.find(name);
   if (it != layoutModels.end()) return it->second.get();  // cached (may be null on prior failure)
@@ -383,8 +461,13 @@ void SkinnedDemoScene::update(float dt) {
   }
 
   // --- A couple of point lights so the grey mesh is clearly shaded -----------
+  // WARNING: the point light system asserts on more than MAX_LIGHTS. The budget
+  // is spent in the order below, so the two scene lights and the lights already
+  // stuck to objects survive and it is the newest fireball trails that go without
   lightItems.clear();
   auto addLight = [&](glm::vec3 pos, glm::vec3 color, float intensity) {
+    if (lightItems.size() >= MAX_LIGHTS) return;
+
     lve::LightRenderItem item;
     item.position = pos;
     item.color = color;
@@ -398,13 +481,17 @@ void SkinnedDemoScene::update(float dt) {
   addLight({1.5f, -1.5f, -1.8f}, {1.0f, 1.0f, 1.0f}, 6.f);
   addLight({-2.0f, -0.5f, -1.0f}, {0.6f, 0.7f, 1.0f}, 5.f);
 
-  // A warm glow trailing each fireball so the grey sphere reads as fire
-  // WARNING: The point light system asserts on more than MAX_LIGHTS, so stop once the budget is spent
+  // Lights handed over by fireballs that have already hit something. Their
+  // position is re-read from the target's box each frame, so one sitting on a
+  // falling box tracks it
+  for (const AttachedLight& light : attachedLights)
+    addLight(attachedLightPosition(light), light.color, light.intensity);
+
+  // A warm glow trailing each fireball still in flight, so the grey sphere reads
+  // as fire until it lands and gives the light away
   if (manAbility) {
-    for (const auto& shot : manAbility->activeProjectiles()) {
-      if (lightItems.size() >= MAX_LIGHTS) break;
-      addLight(shot.position, {1.0f, 0.5f, 0.1f}, 4.f);
-    }
+    for (const auto& shot : manAbility->activeProjectiles())
+      addLight(shot.position, fireballLightColor, 4.f);
   }
 
   ubo.ambientLightColor = {1.f, 1.f, 1.f, 0.15f};
