@@ -34,6 +34,23 @@ struct ColliderComponent : public Component {
     // Shortest horizontal shove that separates this box from other
     // Y is left alone: these props all stand on one ground plane
     glm::vec3 pushOutXZ(const Aabb& other) const;
+
+
+
+    // --- Interaction with RigidBody ------------------------------------------
+
+    // Shortest shove along ANY axis, vertical included (unlike pushOutXZ)
+    //
+    // Being the shortest way out, it lifts a body onto a low prop once it has
+    // sunk further into the sides than into the top: a short block is steppable,
+    // a tall one is still a wall
+    glm::vec3 pushOut(const Aabb& other) const;
+
+    // A copy that is grown by `amount` on every axis, for probing just past a surface
+    // 
+    // A body resting won't detect floor contact (overlaps it by zero)
+    // We have settleBody in skinneddemoscene for this purpose
+    Aabb expanded(float amount) const;
   };
 
   // Model space box, basically before the owner's translate/rotate/scale

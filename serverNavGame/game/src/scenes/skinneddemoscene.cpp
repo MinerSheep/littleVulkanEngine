@@ -27,6 +27,13 @@ void SkinnedDemoScene::loadModels() {
   manAbility = man.addComponent<PlayerAbilityComponent>();
   manAbility->setModel(lve::LveModel::createModelFromFile("models/sphere.obj"));
 
+  // Gravity, added after movement so the two never argue over a frame's motion
+  manBody = man.addComponent<RigidbodyComponent>();
+
+  // X and Z are frozen because KeyboardMovementComponent writes translation directly
+  manBody->freezePositionX = true;
+  manBody->freezePositionZ = true;
+
   // Collision box, added LAST so it ticks after movement and ends the frame
   // in the correct position
   manCollider = man.addComponent<ColliderComponent>();
@@ -63,7 +70,71 @@ void SkinnedDemoScene::loadModels() {
   // placement is known
   fitPropColliders();
   refreshPropColliders();
+
+  // The ground collider is a slab rather than a plane
+  groundCollider.setLocalBox(glm::vec3(0.f, 0.5f * groundThickness, 0.f),
+                             glm::vec3(groundHalfExtent, 0.5f * groundThickness, groundHalfExtent));
+  groundCollider.refresh(glm::translate(glm::mat4(1.f), glm::vec3(0.f, groundY, 0.f)));
+
+  spawnFallingBoxes();
 }
+
+
+
+// --- Demo Functions ------------------------------------------
+
+void SkinnedDemoScene::spawnFallingBoxes() {
+  // Dropped from well above the scene so the fall is visible on the way in.
+  // They land on the ground, stack on the props and bounce a little
+  const glm::vec3 starts[] = {
+      {-0.8f, groundY - 6.0f, 1.4f},
+      { 1.2f, groundY - 7.5f, 1.9f},
+      { 2.6f, groundY - 9.0f, 0.6f},  // lands on the tall block
+      {-2.4f, groundY - 8.0f, -1.2f}, // lands on the short block
+  };
+
+  for (const glm::vec3& start : starts) {
+    FallingBox box;
+    box.spawn = start;
+
+    TransformComponent* xform = box.object.addComponent<TransformComponent>();
+    xform->translation = start;
+    xform->scale = glm::vec3(0.25f);
+    box.object.color = {0.9f, 0.5f, 0.2f};
+
+    box.body = box.object.addComponent<RigidbodyComponent>();
+    box.body->mass = 1.f;
+    box.body->drag = 0.05f;        // just enough to settle rather than skate
+    box.body->bounciness = 0.35f;  // a couple of visible hops before it rests
+
+    // Collider last, so its world box reflects the move the rigidbody just made
+    box.collider = box.object.addComponent<ColliderComponent>();
+    box.collider->isStatic = false;
+    if (blockModel) box.collider->fitToModel(*blockModel);
+    box.collider->refresh(xform->mat4());
+
+    boxes.push_back(std::move(box));
+  }
+}
+
+void SkinnedDemoScene::resetFallingBoxes() {
+  for (FallingBox& box : boxes) {
+    TransformComponent* xform = box.object.getComponent<TransformComponent>();
+    if (!xform) continue;
+
+    xform->translation = box.spawn;
+    if (box.body) {
+      box.body->velocity = glm::vec3(0.f);
+      box.body->grounded = false;
+    }
+    if (box.collider) box.collider->refresh(xform->mat4());
+  }
+}
+
+// ---------------------------------------------------------------------
+
+
+
 
 void SkinnedDemoScene::fitPropColliders() {
   for (auto& prop : props) {
@@ -88,12 +159,26 @@ void SkinnedDemoScene::refreshPropColliders() {
 }
 
 
-//  Temp function for resolving man's collider box
-void SkinnedDemoScene::resolveManCollision() {
-  TransformComponent* manXform = man.getComponent<TransformComponent>();
-  if (!manCollider || !manCollider->enabled || !manXform) return;
+//  Resolves one body's collider box against everything solid in the scene
+void SkinnedDemoScene::settleBody(GameObject& obj, ColliderComponent* collider, RigidbodyComponent* body) {
 
-  // Two passes: 
+  TransformComponent* xform = obj.getComponent<TransformComponent>();
+  if (!collider || !collider->enabled || !xform) return;
+
+  // Am I inside this thing?  If yes, push me out!
+  auto settleAgainst = [&](const ColliderComponent& solid) -> bool {
+    if (!solid.enabled || &solid == collider) return false;  // never test a body against itself
+
+    const glm::vec3 push = collider->worldBox().pushOut(solid.worldBox());
+    if (push == glm::vec3(0.f)) return false;
+
+    xform->translation += push;
+    collider->refresh(xform->mat4());
+    if (body) body->resolveContact(push);
+    return true;
+  };
+
+  // Two passes:
   // 1: First shove can slide him straight into a neighbouring prop
   // 2: Second handles that case and anything still overlapping
   // after that is "wedged", stopping beats jittering between two props
@@ -102,20 +187,47 @@ void SkinnedDemoScene::resolveManCollision() {
     // push check
     bool pushed = false;
 
-    for (const auto& prop : props) {
-      if (!prop.collider.enabled) continue;
+    pushed |= settleAgainst(groundCollider);
+    for (const auto& prop : props) pushed |= settleAgainst(prop.collider);
 
-      const glm::vec3 push = manCollider->worldBox().pushOutXZ(prop.collider.worldBox());
-      if (push == glm::vec3(0.f)) continue;
 
-      manXform->translation += push;
-      manCollider->refresh(manXform->mat4());  // the next prop tests his new spot
-      pushed = true;
+    // Stack other dynamic bodies
+    // Only the moving one is settled - the one it landed on stays put and settles on its own turn
+    for (const auto& other : boxes) {
+      if (other.collider) pushed |= settleAgainst(*other.collider);
     }
 
     // Exit early if no collision
     if (!pushed) break;
   }
+
+  if (!body) return;
+
+  // A body resting on a surface penetrates it by exactly zero, so the passes
+  // above find nothing and would never report it as grounded. Probe a thin slab
+  // just past its underside instead (+Y, since -Y is up) - that is what tells
+  // the man he is standing on something and may jump
+  ColliderComponent::Aabb feet = collider->worldBox();
+  feet.min.y = feet.max.y;
+  feet.max.y += groundProbeDepth;
+
+  auto standingOn = [&](const ColliderComponent& solid) {
+    return solid.enabled && &solid != collider && feet.overlaps(solid.worldBox());
+  };
+
+  bool supported = standingOn(groundCollider);
+  if (!supported) {
+    for (const auto& prop : props) {
+      if (standingOn(prop.collider)) { supported = true; break; }
+    }
+  }
+  if (!supported) {
+    for (const auto& other : boxes) {
+      if (other.collider && standingOn(*other.collider)) { supported = true; break; }
+    }
+  }
+
+  if (supported) body->setGrounded(glm::vec3(0.f, -1.f, 0.f));
 }
 
 lve::LveModel* SkinnedDemoScene::modelForPreset(const std::string& name) {
@@ -197,12 +309,28 @@ void SkinnedDemoScene::update(float dt) {
   if (manMover) manMover->forwardYaw = lookYaw;
   if (manAbility) manAbility->aimYaw = lookYaw;
 
+  // Space jumps, one per press, and only with his feet on something. It goes in
+  // as a velocity change so jump height does not depend on his mass, and it is
+  // negative because -Y is up. Must come before updateComponents so the impulse
+  // is part of this frame's integration
+  const bool jumpDown = glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
+  if (jumpDown && !jumpPrevDown && manBody && manBody->grounded) {
+    manBody->addForce(glm::vec3(0.f, -jumpSpeed, 0.f),
+                      RigidbodyComponent::ForceMode::VelocityChange);
+    manBody->grounded = false;  // he has left the floor as of now
+  }
+  jumpPrevDown = jumpDown;
+
   // --- Character: tick its components (advances the clip AND walks the man) ---
   man.updateComponents(dt);
 
-  // His components have moved him and his collider has followed; shove him back
-  // out of anything he walked into before camera and draws read him
-  resolveManCollision();
+  // --- Falling boxes: gravity and their colliders ride on the same tick -------
+  for (FallingBox& box : boxes) box.object.updateComponents(dt);
+
+  // Everything has moved and every collider has followed; shove each body back
+  // out of what it moved into before camera and draws read them
+  settleBody(man, manCollider, manBody);
+  for (FallingBox& box : boxes) settleBody(box.object, box.collider, box.body);
 
   // --- Orbit-follow camera: spherical offset around the man, looking at him ---
   TransformComponent* manXform = man.getComponent<TransformComponent>();
@@ -236,8 +364,14 @@ void SkinnedDemoScene::update(float dt) {
                glm::scale(glm::mat4(1.f), glm::vec3(groundHalfExtent, 1.f, groundHalfExtent)));
 
   // Props: hand-placed blocks + objects loaded from the editor's layout
-  for (const auto& p : props) 
+  for (const auto& p : props)
     pushItem(p.model, propMatrix(p));
+
+  // Falling boxes, drawn wherever gravity and the contact pass left them
+  for (auto& box : boxes) {
+    TransformComponent* xform = box.object.getComponent<TransformComponent>();
+    if (xform) pushItem(blockModel.get(), xform->mat4());
+  }
 
   // Live fireballs: draw each as a small sphere at its current position
   if (manAbility && manAbility->model()) {
@@ -281,6 +415,12 @@ void SkinnedDemoScene::update(float dt) {
 
 void SkinnedDemoScene::onEvent(const lve::Event& event) {
   if (event.type != lve::EventType::KeyPressed) return;
+
+  // R drops the test boxes again from where they started
+  if (event.i == GLFW_KEY_R) {
+    resetFallingBoxes();
+    return;
+  }
 
   // Number keys 4..9 pick an animation clip (statue.glb ships 6). main posts a
   // KeyPressed on each key-down edge, and the dispatcher hands it here

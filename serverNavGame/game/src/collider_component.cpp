@@ -34,6 +34,32 @@ glm::vec3 ColliderComponent::Aabb::pushOutXZ(const Aabb& other) const {
   return (std::abs(dx) < std::abs(dz)) ? glm::vec3(dx, 0.f, 0.f) : glm::vec3(0.f, 0.f, dz);
 }
 
+// Same idea as pushOutXZ but the vertical axis competes too, so a body can land
+// on top of something instead of only ever sliding around it
+glm::vec3 ColliderComponent::Aabb::pushOut(const Aabb& other) const {
+  if (!overlaps(other)) return glm::vec3(0.f);
+
+  const float outPosX = other.max.x - min.x;
+  const float outNegX = max.x - other.min.x;
+  const float outPosY = other.max.y - min.y;
+  const float outNegY = max.y - other.min.y;
+  const float outPosZ = other.max.z - min.z;
+  const float outNegZ = max.z - other.min.z;
+
+  const float dx = (outPosX < outNegX) ? outPosX : -outNegX;
+  const float dy = (outPosY < outNegY) ? outPosY : -outNegY;
+  const float dz = (outPosZ < outNegZ) ? outPosZ : -outNegZ;
+
+  // Whichever axis it has sunk into least is the cheapest way back out
+  if (std::abs(dx) < std::abs(dy) && std::abs(dx) < std::abs(dz)) return glm::vec3(dx, 0.f, 0.f);
+  if (std::abs(dy) < std::abs(dz)) return glm::vec3(0.f, dy, 0.f);
+  return glm::vec3(0.f, 0.f, dz);
+}
+
+ColliderComponent::Aabb ColliderComponent::Aabb::expanded(float amount) const {
+  return Aabb{min - glm::vec3(amount), max + glm::vec3(amount)};
+}
+
 void ColliderComponent::fitToModel(const lve::LveModel& model) {
   setLocalBox(0.5f * (model.boundsMin() + model.boundsMax()),
               0.5f * (model.boundsMax() - model.boundsMin()));

@@ -7,6 +7,7 @@
 #include "keyboard_movement_component.hpp"
 #include "player_ability_component.hpp"
 #include "collider_component.hpp"
+#include "rigidbody_component.hpp"
 
 #include <glm/gtc/constants.hpp>
 #include <memory>
@@ -45,6 +46,10 @@ class SkinnedDemoScene : public lve::LveScene {
   glm::vec2 lastCursor{0.f};
   bool dragging = false;
 
+
+
+
+
   // The character is a GameObject carrying a TransformComponent (placement),
   // a SkinnedModelComponent (skinned model + clip playback), and
   // a KeyboardMovementComponent (WASD walk)
@@ -54,7 +59,14 @@ class SkinnedDemoScene : public lve::LveScene {
   SkinnedModelComponent* manSkin = nullptr;
   KeyboardMovementComponent* manMover = nullptr;
   PlayerAbilityComponent* manAbility = nullptr;  // press F to launch a sphere.obj fireball
+  RigidbodyComponent* manBody = nullptr;         // gravity + jumping; X/Z frozen for the mover
   ColliderComponent* manCollider = nullptr;      // stops him walking through the props
+
+  // Space jumps, but only with his feet on something. Held here rather than in
+  // the rigidbody because input is the scene's business, the same way the
+  // fireball's aim is
+  float jumpSpeed = 4.5f;  // upward, so it becomes -Y at the call site
+  bool jumpPrevDown = false;
 
   // Half width of the man's collision box, in model units (the mesh's own bounds
   // give the height)
@@ -62,6 +74,11 @@ class SkinnedDemoScene : public lve::LveScene {
   // The static mesh pose gives the height, so the
   // footprint is pinned to manBodyRadius and outstretched arms don't widen it
   float manBodyRadius = 0.35f;
+
+
+
+
+
 
   std::unique_ptr<lve::LveModel> groundModel;  // models/quad.obj (flat XZ plane)
   std::unique_ptr<lve::LveModel> cubeModel;    // models/colored_cube.obj
@@ -79,6 +96,33 @@ class SkinnedDemoScene : public lve::LveScene {
   };
   std::vector<StaticProp> props;
 
+  ColliderComponent groundCollider{};
+  float groundThickness = 1.f;
+
+  // How far past a body's underside to look for a surface holding it up. Small
+  // enough not to catch a floor it is genuinely falling toward, big enough to
+  // survive a body settling a hair off the ground
+  float groundProbeDepth = 0.03f;
+
+
+
+
+
+  struct FallingBox {
+    GameObject object = GameObject::createGameObject();
+    RigidbodyComponent* body = nullptr;
+    ColliderComponent* collider = nullptr;
+    glm::vec3 spawn{0.f};  // where R puts it back
+  };
+  std::vector<FallingBox> boxes;
+
+  void spawnFallingBoxes();
+  void resetFallingBoxes();  // bound to R
+
+
+
+
+
   // Prop placement, shared by the draw and the collider so the box can never
   // drift from the mesh it is standing in for
   static glm::mat4 propMatrix(const StaticProp& prop);
@@ -89,9 +133,14 @@ class SkinnedDemoScene : public lve::LveScene {
   void fitPropColliders();
   void refreshPropColliders();
 
-  // Push the man back out of any prop he has walked into. Runs after his
-  // components have moved him and before the camera/draws read his position
-  void resolveManCollision();
+  // Push one body back out of everything solid it has moved into 
+  // and tell its rigidbody about each shove so the velocity that 
+  // drove it there gets cancelled or bounced
+  void settleBody(GameObject& obj, ColliderComponent* collider, RigidbodyComponent* body);
+
+
+
+  
 
   // Reads scene_layout.txt and reproduces here, resolving each line's preset name
   // to a model (the name is the model's file basename, e.g. "grass" -> models/grass.obj) 
