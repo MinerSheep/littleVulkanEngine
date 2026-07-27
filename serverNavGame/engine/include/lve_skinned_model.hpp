@@ -95,6 +95,12 @@ class LveSkinnedModel {
   int animationCount() const { return static_cast<int>(animations.size()); }
   const std::string& animationName(int i) const;
 
+  // Local-space (pre-transform) bounding box of the mesh, measured off the
+  // vertex positions at load - box colliders are sized from this (in Game)
+  // Uses the STATIC MESH, not the current animation pose
+  const glm::vec3& boundsMin() const { return aabbMin; }
+  const glm::vec3& boundsMax() const { return aabbMax; }
+
   // The set = 1 descriptor holding this model's bone palette for a given frame.
   VkDescriptorSet boneDescriptorSet(int frameIndex) const { return boneSets[frameIndex]; }
   uint32_t jointCount() const { return static_cast<uint32_t>(jointMatrices.size()); }
@@ -118,6 +124,11 @@ class LveSkinnedModel {
   uint32_t indexCount = 0;
 
   std::vector<Primitive> primitives;
+
+  // This uses the bind pose, not an animation
+  // aabb - Axis Aligned Bounding Box
+  glm::vec3 aabbMin{0.f};
+  glm::vec3 aabbMax{0.f};
 
   // ---- Retained skeleton (kept so joints can be re-posed after load) ----
   // Per node: name, authored (bind) local transform, current local transform, and

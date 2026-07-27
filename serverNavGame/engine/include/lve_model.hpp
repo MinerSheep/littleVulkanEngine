@@ -50,9 +50,15 @@ namespace lve
         void bind(VkCommandBuffer commandBuffer);
         void draw(VkCommandBuffer commandBuffer);
 
+        // Local-space (pre-transform) bounding box of the mesh, measured off the
+        // vertex positions at load - box colliders are sized from this (in Game)
+        const glm::vec3& boundsMin() const { return aabbMin; }
+        const glm::vec3& boundsMax() const { return aabbMax; }
+
     private:
         void createVertexBuffers(const std::vector<Vertex> & vertices);
         void createIndexBuffer(const std::vector<uint32_t> &indices);
+        void computeBounds(const std::vector<Vertex> & vertices);
 
         LveDevice& lveDevice;
 
@@ -61,6 +67,10 @@ namespace lve
 
         bool hasIndexBuffer = false;
         std::unique_ptr<LveBuffer> indexBuffer;
-        uint32_t indexCount; 
+        uint32_t indexCount;
+
+        // aabb - Axis Aligned Bounding Box
+        glm::vec3 aabbMin{0.f};
+        glm::vec3 aabbMax{0.f};
     };
 } // namespace lve

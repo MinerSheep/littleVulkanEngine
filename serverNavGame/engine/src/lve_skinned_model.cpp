@@ -147,10 +147,11 @@ void LveSkinnedModel::loadGLTF(const std::string& filepath) {
   const uint32_t staticJointIndex = static_cast<uint32_t>(jointNode.size());
   jointMatrices.assign(jointNode.size() + 1, glm::mat4(1.f));
 
+  // Set bounds to max for now as it will be resolved later
+  aabbMin = glm::vec3(std::numeric_limits<float>::max());
+  aabbMax = glm::vec3(std::numeric_limits<float>::lowest());
+  
   // --- Walk every node that carries a mesh -------------------------------------
-  glm::vec3 aabbMin(std::numeric_limits<float>::max());
-  glm::vec3 aabbMax(std::numeric_limits<float>::lowest());
-
   for (cgltf_size ni = 0; ni < data->nodes_count; ++ni) {
     cgltf_node* node = &data->nodes[ni];
     if (!node->mesh) continue;

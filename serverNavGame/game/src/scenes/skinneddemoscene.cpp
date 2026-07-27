@@ -27,6 +27,16 @@ void SkinnedDemoScene::loadModels() {
   manAbility = man.addComponent<PlayerAbilityComponent>();
   manAbility->setModel(lve::LveModel::createModelFromFile("models/sphere.obj"));
 
+  // Collision box, added LAST so it ticks after movement and ends the frame
+  // in the correct position
+  manCollider = man.addComponent<ColliderComponent>();
+  manCollider->isStatic = false;  // he is the one that gets pushed
+  if (manSkin->model) {
+    manCollider->fitToModel(*manSkin->model);
+    manCollider->localHalfExtent.x = glm::min(manCollider->localHalfExtent.x, manBodyRadius);
+    manCollider->localHalfExtent.z = glm::min(manCollider->localHalfExtent.z, manBodyRadius);
+  }
+
   // --- Static world models drawn via SimpleRenderSystem ---
   groundModel = lve::LveModel::createModelFromFile("models/quad.obj");          // flat XZ plane
   cubeModel = lve::LveModel::createModelFromFile("models/colored_cube.obj");    // vertex-colored
@@ -48,6 +58,64 @@ void SkinnedDemoScene::loadModels() {
   // Reproduce objects authored in the layout editor. getExecutableDir() resolves
   // to the game/ dir, where the editor's Enter-save writes scene_layout.txt
   loadSceneLayout(getExecutableDir() + "/scene_layout.txt");
+
+  // Every prop - whether hand-placed or authored - gets a box collider once its final
+  // placement is known
+  fitPropColliders();
+  refreshPropColliders();
+}
+
+void SkinnedDemoScene::fitPropColliders() {
+  for (auto& prop : props) {
+    if (prop.model) prop.collider.fitToModel(*prop.model);
+  }
+}
+
+glm::mat4 SkinnedDemoScene::propMatrix(const StaticProp& prop) {
+
+  // Same TranslationRotScale order the editor uses (yaw, then pitch/roll, then scale)
+  // A saved layout renders, collides, exactly how it was authored
+  glm::mat4 mat = glm::translate(glm::mat4(1.f), prop.translation);
+  mat = glm::rotate(mat, prop.rotation.y, glm::vec3(0.f, 1.f, 0.f));
+  mat = glm::rotate(mat, prop.rotation.x, glm::vec3(1.f, 0.f, 0.f));
+  mat = glm::rotate(mat, prop.rotation.z, glm::vec3(0.f, 0.f, 1.f));
+  return glm::scale(mat, prop.scale);
+}
+
+void SkinnedDemoScene::refreshPropColliders() {
+  for (auto& prop : props) 
+    prop.collider.refresh(propMatrix(prop));
+}
+
+
+//  Temp function for resolving man's collider box
+void SkinnedDemoScene::resolveManCollision() {
+  TransformComponent* manXform = man.getComponent<TransformComponent>();
+  if (!manCollider || !manCollider->enabled || !manXform) return;
+
+  // Two passes: 
+  // 1: First shove can slide him straight into a neighbouring prop
+  // 2: Second handles that case and anything still overlapping
+  // after that is "wedged", stopping beats jittering between two props
+  for (int pass = 0; pass < 2; pass++) {
+
+    // push check
+    bool pushed = false;
+
+    for (const auto& prop : props) {
+      if (!prop.collider.enabled) continue;
+
+      const glm::vec3 push = manCollider->worldBox().pushOutXZ(prop.collider.worldBox());
+      if (push == glm::vec3(0.f)) continue;
+
+      manXform->translation += push;
+      manCollider->refresh(manXform->mat4());  // the next prop tests his new spot
+      pushed = true;
+    }
+
+    // Exit early if no collision
+    if (!pushed) break;
+  }
 }
 
 lve::LveModel* SkinnedDemoScene::modelForPreset(const std::string& name) {
@@ -132,6 +200,10 @@ void SkinnedDemoScene::update(float dt) {
   // --- Character: tick its components (advances the clip AND walks the man) ---
   man.updateComponents(dt);
 
+  // His components have moved him and his collider has followed; shove him back
+  // out of anything he walked into before camera and draws read him
+  resolveManCollision();
+
   // --- Orbit-follow camera: spherical offset around the man, looking at him ---
   TransformComponent* manXform = man.getComponent<TransformComponent>();
   const float cp = glm::cos(cameraPitch);
@@ -163,17 +235,9 @@ void SkinnedDemoScene::update(float dt) {
            glm::translate(glm::mat4(1.f), glm::vec3(0.f, groundY, 0.f)) *
                glm::scale(glm::mat4(1.f), glm::vec3(groundHalfExtent, 1.f, groundHalfExtent)));
 
-  // Props: hand-placed blocks + objects loaded from the editor's layout. Same
-  // TRS order the editor uses (yaw, then pitch/roll, then scale) so a saved
-  // layout renders identically here
-  for (const auto& p : props) {
-    glm::mat4 mat = glm::translate(glm::mat4(1.f), p.translation);
-    mat = glm::rotate(mat, p.rotation.y, glm::vec3(0.f, 1.f, 0.f));
-    mat = glm::rotate(mat, p.rotation.x, glm::vec3(1.f, 0.f, 0.f));
-    mat = glm::rotate(mat, p.rotation.z, glm::vec3(0.f, 0.f, 1.f));
-    mat = glm::scale(mat, p.scale);
-    pushItem(p.model, mat);
-  }
+  // Props: hand-placed blocks + objects loaded from the editor's layout
+  for (const auto& p : props) 
+    pushItem(p.model, propMatrix(p));
 
   // Live fireballs: draw each as a small sphere at its current position
   if (manAbility && manAbility->model()) {

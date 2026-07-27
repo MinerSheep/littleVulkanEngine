@@ -6,6 +6,7 @@
 #include "skinned_model_component.hpp"
 #include "keyboard_movement_component.hpp"
 #include "player_ability_component.hpp"
+#include "collider_component.hpp"
 
 #include <glm/gtc/constants.hpp>
 #include <memory>
@@ -44,14 +45,23 @@ class SkinnedDemoScene : public lve::LveScene {
   glm::vec2 lastCursor{0.f};
   bool dragging = false;
 
-  // The character is a GameObject carrying a TransformComponent (placement), a
-  // SkinnedModelComponent (skinned model + clip playback) and a
-  // KeyboardMovementComponent (WASD walk). The component pointers are cached from
-  // addComponent so update() can drive them without a lookup
+  // The character is a GameObject carrying a TransformComponent (placement),
+  // a SkinnedModelComponent (skinned model + clip playback), and
+  // a KeyboardMovementComponent (WASD walk)
+
+  // The component pointers are cached from addComponent so update() can drive them without a lookup
   GameObject man = GameObject::createGameObject();
   SkinnedModelComponent* manSkin = nullptr;
   KeyboardMovementComponent* manMover = nullptr;
   PlayerAbilityComponent* manAbility = nullptr;  // press F to launch a sphere.obj fireball
+  ColliderComponent* manCollider = nullptr;      // stops him walking through the props
+
+  // Half width of the man's collision box, in model units (the mesh's own bounds
+  // give the height)
+
+  // The static mesh pose gives the height, so the
+  // footprint is pinned to manBodyRadius and outstretched arms don't widen it
+  float manBodyRadius = 0.35f;
 
   std::unique_ptr<lve::LveModel> groundModel;  // models/quad.obj (flat XZ plane)
   std::unique_ptr<lve::LveModel> cubeModel;    // models/colored_cube.obj
@@ -62,12 +72,30 @@ class SkinnedDemoScene : public lve::LveScene {
     glm::vec3 translation{0.f};
     glm::vec3 scale{1.f};
     glm::vec3 rotation{0.f};  // euler radians (matches the editor's TRS order)
+
+    // Box collision sized from the model's mesh bounds
+    // The scene refreshes the collision (fitPropColliders / refreshPropColliders)
+    ColliderComponent collider{};
   };
   std::vector<StaticProp> props;
 
+  // Prop placement, shared by the draw and the collider so the box can never
+  // drift from the mesh it is standing in for
+  static glm::mat4 propMatrix(const StaticProp& prop);
+
+  // Size each prop's box to its mesh, then project it into world space. Props
+  // hold still, so both run once after loading; call refreshPropColliders again
+  // if one is ever moved at runtime
+  void fitPropColliders();
+  void refreshPropColliders();
+
+  // Push the man back out of any prop he has walked into. Runs after his
+  // components have moved him and before the camera/draws read his position
+  void resolveManCollision();
+
   // Reads scene_layout.txt and reproduces here, resolving each line's preset name
   // to a model (the name is the model's file basename, e.g. "grass" -> models/grass.obj) 
-  // and appending a StaticProp to it
+  //
   // Models are owned by layoutModels, keyed by preset name so a mesh referenced 
   // by several objects is loaded only once
   void loadSceneLayout(const std::string& path);

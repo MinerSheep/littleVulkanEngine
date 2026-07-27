@@ -11,6 +11,7 @@
 
 #include <cstring>
 #include <iostream>
+#include <limits>
 #include <unordered_map>
 
 namespace std {
@@ -28,8 +29,31 @@ namespace std {
 
 lve::LveModel::LveModel(LveDevice& device, const LveModel::Builder& builder)
     : lveDevice(device) {
+    computeBounds(builder.vertices);
     createVertexBuffers(builder.vertices);
     createIndexBuffer(builder.indices);
+}
+
+// Mesh bounds in model space. The vertex data is only ever staged to the GPU.
+// This is the only chance to measure it, game code reads it back through
+// boundsMin/boundsMax (box colliders size themselves with it)
+void lve::LveModel::computeBounds(const std::vector<Vertex>& vertices) {
+
+    // aabb - axis aligned bounding box
+    if (vertices.empty()) {
+        aabbMin = glm::vec3(0.f);
+        aabbMax = glm::vec3(0.f);
+        return;
+    }
+
+    aabbMin = glm::vec3(std::numeric_limits<float>::max());
+    aabbMax = glm::vec3(std::numeric_limits<float>::lowest());
+    for (const auto& vertex : vertices) {
+
+        // uses glm to check the vertex bounds
+        aabbMin = glm::min(aabbMin, vertex.position);
+        aabbMax = glm::max(aabbMax, vertex.position);
+    }
 }
 
 lve::LveModel::~LveModel() {
