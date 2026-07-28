@@ -1,6 +1,8 @@
 
 #include "lve_game_object.hpp"
 
+#include "light_component.hpp"  // PointLightComponent, for makePointLight
+
 glm::mat4 TransformComponent::mat4() {
     const float c3 = glm::cos(rotation.z);
     const float s3 = glm::sin(rotation.z);

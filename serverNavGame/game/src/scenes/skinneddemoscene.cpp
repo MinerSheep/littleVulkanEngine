@@ -83,6 +83,9 @@ void SkinnedDemoScene::loadModels() {
   groundCollider.refresh(glm::translate(glm::mat4(1.f), glm::vec3(0.f, groundY, 0.f)));
 
   spawnFallingBoxes();
+
+  // Last, because the collision system keeps pointers into props and boxes
+  registerColliders();
 }
 
 
@@ -160,80 +163,21 @@ glm::mat4 SkinnedDemoScene::propMatrix(const StaticProp& prop) {
 }
 
 void SkinnedDemoScene::refreshPropColliders() {
-  for (auto& prop : props) 
+  for (auto& prop : props)
     prop.collider.refresh(propMatrix(prop));
 }
 
+// Hands the whole world to the collision system, which does the pushing from here on
+void SkinnedDemoScene::registerColliders() {
+  collisions.clear();
 
-//  Resolves one body's collider box against everything solid in the scene
-void SkinnedDemoScene::settleBody(GameObject& obj, ColliderComponent* collider, RigidbodyComponent* body) {
+  // Never move: the ground slab, plus every prop whether hand-placed or loaded from the layout
+  collisions.addStatic(&groundCollider);
+  for (const StaticProp& prop : props) collisions.addStatic(&prop.collider);
 
-  TransformComponent* xform = obj.getComponent<TransformComponent>();
-  if (!collider || !collider->enabled || !xform) return;
-
-  // Am I inside this thing?  If yes, push me out!
-  auto settleAgainst = [&](const ColliderComponent& solid) -> bool {
-    if (!solid.enabled || &solid == collider) return false;  // never test a body against itself
-
-    const glm::vec3 push = collider->worldBox().pushOut(solid.worldBox());
-    if (push == glm::vec3(0.f)) return false;
-
-    xform->translation += push;
-    collider->refresh(xform->mat4());
-    if (body) body->resolveContact(push);
-    return true;
-  };
-
-  // Two passes:
-  // 1: First shove can slide him straight into a neighbouring prop
-  // 2: Second handles that case and anything still overlapping
-  // after that is "wedged", stopping beats jittering between two props
-  for (int pass = 0; pass < 2; pass++) {
-
-    // push check
-    bool pushed = false;
-
-    pushed |= settleAgainst(groundCollider);
-    for (const auto& prop : props) pushed |= settleAgainst(prop.collider);
-
-
-    // Stack other dynamic bodies
-    // Only the moving one is settled - the one it landed on stays put and settles on its own turn
-    for (const auto& other : boxes) {
-      if (other.collider) pushed |= settleAgainst(*other.collider);
-    }
-
-    // Exit early if no collision
-    if (!pushed) break;
-  }
-
-  if (!body) return;
-
-  // A body resting on a surface penetrates it by exactly zero, so the passes
-  // above find nothing and would never report it as grounded. Probe a thin slab
-  // just past its underside instead (+Y, since -Y is up) - that is what tells
-  // the man he is standing on something and may jump
-  ColliderComponent::Aabb feet = collider->worldBox();
-  feet.min.y = feet.max.y;
-  feet.max.y += groundProbeDepth;
-
-  auto standingOn = [&](const ColliderComponent& solid) {
-    return solid.enabled && &solid != collider && feet.overlaps(solid.worldBox());
-  };
-
-  bool supported = standingOn(groundCollider);
-  if (!supported) {
-    for (const auto& prop : props) {
-      if (standingOn(prop.collider)) { supported = true; break; }
-    }
-  }
-  if (!supported) {
-    for (const auto& other : boxes) {
-      if (other.collider && standingOn(*other.collider)) { supported = true; break; }
-    }
-  }
-
-  if (supported) body->setGrounded(glm::vec3(0.f, -1.f, 0.f));
+  // Move and get pushed out: the man and the falling boxes
+  collisions.addDynamic(man, manCollider, manBody);
+  for (FallingBox& box : boxes) collisions.addDynamic(box.object, box.collider, box.body);
 }
 
 // --- Fireball impacts --------------------------------------------------------
@@ -405,10 +349,9 @@ void SkinnedDemoScene::update(float dt) {
   // --- Falling boxes: gravity and their colliders ride on the same tick -------
   for (FallingBox& box : boxes) box.object.updateComponents(dt);
 
-  // Everything has moved and every collider has followed; shove each body back
-  // out of what it moved into before camera and draws read them
-  settleBody(man, manCollider, manBody);
-  for (FallingBox& box : boxes) settleBody(box.object, box.collider, box.body);
+  // Everything has moved and every collider has followed
+  // Shove each body back out of what it moved into before camera and draws read them
+  collisions.settleAll();
 
   // --- Orbit-follow camera: spherical offset around the man, looking at him ---
   TransformComponent* manXform = man.getComponent<TransformComponent>();
@@ -461,9 +404,10 @@ void SkinnedDemoScene::update(float dt) {
   }
 
   // --- A couple of point lights so the grey mesh is clearly shaded -----------
-  // WARNING: the point light system asserts on more than MAX_LIGHTS. The budget
-  // is spent in the order below, so the two scene lights and the lights already
-  // stuck to objects survive and it is the newest fireball trails that go without
+  // Only MAX_LIGHTS fit in the UBO, and the budget is spent in the order below
+  // The two scene lights and the lights stuck to objects go in first, so it is the
+  // newest fireball trails that go without
+  // Going over is no longer fatal - the point light system now drops the furthest ones
   lightItems.clear();
   auto addLight = [&](glm::vec3 pos, glm::vec3 color, float intensity) {
     if (lightItems.size() >= MAX_LIGHTS) return;

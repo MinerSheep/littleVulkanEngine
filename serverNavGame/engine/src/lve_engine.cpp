@@ -48,8 +48,9 @@ void LveEngine::init() {
           // .addBinding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
           .build();
 
-  // this is currently taking 2 uniform buffers, I only have one...
-  globalDescriptorSets.reserve(globalUniformBufferSize);
+  // resize, not reserve: the loop below writes globalDescriptorSets[i], and reserve
+  // leaves size() at 0, so every one of those writes would be out of bounds
+  globalDescriptorSets.resize(globalUniformBufferSize);
   for (int i = 0; i < globalUniformBufferSize; i++) {
     auto bufferInfo = uboBuffers[i]->descriptorInfo();
 

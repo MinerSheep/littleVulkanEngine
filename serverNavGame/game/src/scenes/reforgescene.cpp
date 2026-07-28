@@ -3,6 +3,9 @@
 #include <scenes/reforgescene.hpp>
 #include <lve_frame_info.hpp>
 
+#include "ui_object.hpp"        // RectTransformComponent
+#include "light_component.hpp"  // PointLightComponent
+
 #include <lve_model.hpp>
 #include <iostream>
 #include <random>

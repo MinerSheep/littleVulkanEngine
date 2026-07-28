@@ -49,7 +49,10 @@ void PointLightSystem::update(FrameInfo& frameInfo, GlobalUbo& ubo) {
     
   int lightIndex = 0;
   for (const auto& light : frameInfo.lightItems) {
-    assert(lightIndex < MAX_LIGHTS && "Point lights exceed maximum specified");
+    // Out of light slots, so the rest of the scene goes dark instead of crashing
+    // The sort above put the nearest lights first, so the ones dropped here are
+    // the furthest away and the least missed
+    if (lightIndex >= MAX_LIGHTS) break;
 
     // copy light to the ubo
     ubo.pointLights[lightIndex].position = glm::vec4(light.position, 1.0f);

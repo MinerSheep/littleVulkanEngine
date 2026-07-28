@@ -8,6 +8,7 @@
 #include "player_ability_component.hpp"
 #include "collider_component.hpp"
 #include "rigidbody_component.hpp"
+#include "collision_system.hpp"
 
 #include <glm/gtc/constants.hpp>
 #include <cstddef>
@@ -100,10 +101,9 @@ class SkinnedDemoScene : public lve::LveScene {
   ColliderComponent groundCollider{};
   float groundThickness = 1.f;
 
-  // How far past a body's underside to look for a surface holding it up. Small
-  // enough not to catch a floor it is genuinely falling toward, big enough to
-  // survive a body settling a hair off the ground
-  float groundProbeDepth = 0.03f;
+  // Does the actual pushing-out, so this scene does not have to
+  // Everything solid is handed to it once by registerColliders
+  CollisionSystem collisions;
 
 
 
@@ -170,10 +170,10 @@ class SkinnedDemoScene : public lve::LveScene {
   void fitPropColliders();
   void refreshPropColliders();
 
-  // Push one body back out of everything solid it has moved into 
-  // and tell its rigidbody about each shove so the velocity that 
-  // drove it there gets cancelled or bounced
-  void settleBody(GameObject& obj, ColliderComponent* collider, RigidbodyComponent* body);
+  // Hand every collider in the scene to the collision system
+  // Runs last in loadModels, once props and boxes have stopped being added, because
+  // the system keeps pointers into those vectors
+  void registerColliders();
 
 
 
