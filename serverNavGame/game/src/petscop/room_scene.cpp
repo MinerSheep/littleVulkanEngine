@@ -32,6 +32,7 @@ void RoomScene::loadModels() {
   // Forward is set once per room from where the camera sits, so WASD stays
   // camera relative even though the camera never moves
   playerMover = player.addComponent<KeyboardMovementComponent>();
+  playerMover->setAnimations(playerSkin, 3, 0);
 
   // Gravity, added after movement so the two never argue over a frame
   playerBody = player.addComponent<RigidbodyComponent>();

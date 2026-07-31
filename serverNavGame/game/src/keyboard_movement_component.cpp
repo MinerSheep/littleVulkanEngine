@@ -1,9 +1,20 @@
 #include "keyboard_movement_component.hpp"
 
 #include "lve_engine.hpp"
+#include "skinned_model_component.hpp"
 
 #include <cmath>
 #include <limits>
+
+namespace {
+// Put the character on one of its clips
+// Quiet no-op with no skinned model, or when that clip was never hooked up
+// setClipIndex ignores a clip that is already playing, so this is safe every frame
+void playClip(SkinnedModelComponent* skin, int clipIndex) {
+  if (!skin || clipIndex < 0) return;
+  skin->setClipIndex(clipIndex);
+}
+}  // namespace
 
 void KeyboardMovementComponent::update(float dt, GameObject& obj) {
   // The window lives on the engine singleton, the same source the scenes read
@@ -23,7 +34,14 @@ void KeyboardMovementComponent::update(float dt, GameObject& obj) {
   if (glfwGetKey(window, keys.moveLeft) == GLFW_PRESS) moveDir -= rightDir;
 
   // Can't normalize a zero vector: bail if no move key is held
-  if (glm::dot(moveDir, moveDir) < std::numeric_limits<float>::epsilon()) return;
+  // Standing still, so drop back to the idle clip
+  if (glm::dot(moveDir, moveDir) < std::numeric_limits<float>::epsilon()) {
+    playClip(animator, idleClipIndex);
+    return;
+  }
+
+  // Walking, so play the walk clip
+  playClip(animator, moveClipIndex);
 
   moveDir = glm::normalize(moveDir);
   t->translation += moveSpeed * dt * moveDir;

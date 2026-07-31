@@ -3,6 +3,9 @@
 #include "lve_game_object.hpp"  // Component, GameObject, TransformComponent
 #include "lve_window.hpp"       // GLFW key codes + GLFWwindow
 
+// Only a pointer is kept, so the skinned model header stays in the .cpp
+struct SkinnedModelComponent;
+
 // Walks its owning GameObject around the XZ plane with WASD, relative to a forward
 // direction the owner supplies each frame (forwardYaw from Camera). 
 
@@ -26,6 +29,23 @@ struct KeyboardMovementComponent : public Component {
 
   // Turn the body to face the movement direction while walking
   bool faceMoveDir = true;
+
+  // Optional walk/idle swap
+  // Hand it the character's skinned model plus which clip is the walk and which is
+  // the stand-still, and it plays the right one as the keys go down and come up
+  // Left unset, this component only moves the body and never touches the animation
+  SkinnedModelComponent* animator = nullptr;
+  int moveClipIndex = -1;
+  int idleClipIndex = -1;
+
+  // Turn the walk/idle swap on
+  // The two numbers are positions in the model's own clip list, the same order
+  // SkinnedModelComponent::setClipIndex takes
+  void setAnimations(SkinnedModelComponent* skin, int moveClip, int idleClip) {
+    animator = skin;
+    moveClipIndex = moveClip;
+    idleClipIndex = idleClip;
+  }
 
   void update(float dt, GameObject& obj) override;
 };
