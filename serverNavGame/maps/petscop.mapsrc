@@ -1,0 +1,46 @@
+# The map: rooms, and the doors between them
+#
+# Rooms are boxes. Give a size and a height and the build tool fills in the floor
+# and the walls, leaving a gap wherever there is a door.
+#
+# Remember -Y is up. The floor is at y = 0.5 and a room of height 3 reaches up to
+# y = -2.5, so lights and cameras want negative y to be above the floor.
+#
+# Compile it with:
+#   python3 tools/build_map.py maps/petscop.mapsrc -o maps/petscop.map
+
+map petscop
+start foyer
+
+
+# The room you wake up in. Wide and short, one way on and a side room
+room foyer
+  size 12 8
+  height 3
+  light  0.0 -2.2  0.0   1.00 0.95 0.85   9
+  light -4.0 -1.6  2.0   0.35 0.45 0.80   5
+  door hallway  north   0
+  door closet   east   -1.5
+  props rooms/foyer_props.layout
+
+
+# A long corridor running away from the foyer. The far door leads nowhere yet
+room hall
+  size 6 14
+  height 3
+  light 0.0 -2.4 -4.0   1.00 0.90 0.75   8
+  light 0.0 -2.4  4.0   0.80 0.85 1.00   8
+  door back    south   0
+  door deeper  north   0
+
+
+# A dead end off the side of the foyer, low ceiling
+room closet
+  size 6 6
+  height 2.6
+  light 0.0 -1.8 0.0   1.00 0.60 0.30   7
+  door out  west  0
+
+
+link foyer.hallway  hall.back
+link foyer.closet   closet.out

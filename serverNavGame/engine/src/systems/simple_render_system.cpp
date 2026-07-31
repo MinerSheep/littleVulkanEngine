@@ -185,6 +185,11 @@ void SimpleRenderSystem::createPipeline(VkRenderPass renderPass) {
   uiConfig.depthStencilInfo.depthTestEnable = VK_FALSE;
   uiConfig.depthStencilInfo.depthWriteEnable = VK_FALSE;
 
+  // Blend on alpha, so a UI quad can be see-through. UIRenderItem carries an alpha
+  // and the shader reads it, but with blending off it painted solid no matter what
+  // it was set to. A fade to black is one black quad over the whole screen
+  LvePipeline::enableAlphaBlending(uiConfig);
+
   UIPipeline = std::make_unique<LvePipeline>(
       lveDevice,
       exeDir + "/../shaders/ui_shader.vert.spv",

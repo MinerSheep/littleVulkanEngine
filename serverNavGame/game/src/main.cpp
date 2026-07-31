@@ -5,6 +5,7 @@
 #include "scenes/servernavscene.hpp"
 #include "scenes/reforgescene.hpp"
 #include "scenes/skinneddemoscene.hpp"
+#include "petscop/room_scene.hpp"
 #include "servernav_sim.hpp"
 #include "fetch_weather.hpp"
 
@@ -39,27 +40,33 @@ int main() {
     engine.init();
     try {
     
-        static ServerNavScene snscene;
-        snscene.loadModels();
-        snscene.setupLights();
+        // static ServerNavScene snscene;
+        // snscene.loadModels();
+        // snscene.setupLights();
 
-        static ReforgeScene rscene;
-        rscene.loadModels();
-        rscene.setupLights();
+        // static ReforgeScene rscene;
+        // rscene.loadModels();
+        // rscene.setupLights();
 
-        static SkinnedDemoScene sdscene;
-        sdscene.loadModels();
-        sdscene.setupLights();
+        // static SkinnedDemoScene sdscene;
+        // sdscene.loadModels();
+        // sdscene.setupLights();
 
-        // A layout editor used to spawn/move/save quads; engine specific
+        // // A layout editor used to spawn/move/save quads; engine specific
         static lve::LveSceneEditor editorScene;
         editorScene.loadModels();
         editorScene.setupLights();
 
+        // Rooms joined by doors, built from maps/petscop.map
+        // The map is compiled from maps/petscop.mapsrc by tools/build_map.py
+        static RoomScene roomScene;
+        roomScene.loadModels();
+        roomScene.setupLights();
+
         auto currentTime = std::chrono::high_resolution_clock::now();
 
         GLFWwindow* window = engine.getGLFWWindow();
-        engine.activeScene = &sdscene;
+        engine.activeScene = &roomScene;
 
         // --- Event wiring --------------------------------------------------
         // The dispatcher is the single hop between "something happened" and the
@@ -74,10 +81,8 @@ int main() {
 
         // swaps the active engine.activeScene
         events.subscribe([&](const lve::Event& e) {
-            if (e.i == GLFW_KEY_1) engine.activeScene = &snscene;
-            else if (e.i == GLFW_KEY_2) engine.activeScene = &rscene;
-            else if (e.i == GLFW_KEY_3) engine.activeScene = &sdscene;
-            else if (e.i == GLFW_KEY_0) engine.activeScene = &editorScene;
+            if (e.i == GLFW_KEY_0) engine.activeScene = &editorScene;
+            else if (e.i == GLFW_KEY_1) engine.activeScene = &roomScene;
         }, lve::EventType::KeyPressed);
 
         // Keys we lift into events, main reads GLFW
@@ -138,9 +143,11 @@ int main() {
             engine.render();
         }
 
-        snscene.cleanup();
-        rscene.cleanup();
-        sdscene.cleanup();
+        roomScene.cleanup();
+        editorScene.cleanup();
+        // snscene.cleanup();
+        // rscene.cleanup();
+        // sdscene.cleanup();
         // app.run();
     } catch (const std::exception &e) {
         engine.cleanup();

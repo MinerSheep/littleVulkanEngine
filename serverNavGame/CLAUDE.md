@@ -87,21 +87,28 @@ The game/engine boundary is **`engine/include/lve_scene.hpp`** + **`engine/inclu
   render systems, and writes `scene.ubo` into the per-frame UBO buffer.
 - `RenderItem` / `UIRenderItem` / `LightRenderItem` reference `LveModel*` (non-owning).
 
-## ⚠️ Critical build gotcha: the ENGINE has no header-dependency tracking (ODR/layout crashes)
+## Build: both Makefiles track header dependencies (was a critical gotcha)
 
-`game/Makefile` is **fixed** — it has `-MMD -MP` and `-include $(DEPS)`, so editing a header rebuilds
-every game `.o` that includes it.
+Both `game/Makefile` and `engine/Makefile` now have `-MMD -MP` and `-include $(DEPS)`, so editing a
+header rebuilds every `.o` that includes it. **Editing an engine header no longer needs a manual
+clean rebuild.**
 
-`engine/Makefile` is **not**. Its only rule is `$(TARGET): $(SOURCES)` (the `$(HEADERS)` prerequisite
-is still commented out), and it archives with `ar rcs $(TARGET) *.o`, which globs whatever `.o` files
-happen to be sitting there.
+`engine/Makefile` used to be the odd one out, and it caused real memory corruption. Its only rule was
+`$(TARGET): $(SOURCES)` with the `$(HEADERS)` prerequisite commented out — and that prerequisite
+would not have helped anyway, because it globbed `find src -name "*.hpp"` while the engine keeps its
+headers in `include/`, so it always expanded to nothing. It also compiled every source into one flat
+pile in `engine/` and archived with `ar rcs $(TARGET) *.o`, which swept up orphaned `.o` files left
+behind by renamed or deleted sources.
 
-So **editing an engine header rebuilds nothing.** Some `.o` files stay compiled against the old header
-while others get rebuilt against the new one, producing translation units that **disagree on struct
-layout** (an ODR / ABI mismatch). Symptoms are memory corruption that has nothing to do with the code
-you're looking at.
+So editing an engine header rebuilt nothing, and the engine kept using the old struct layouts while
+the game (which did track headers) rebuilt against the new ones. The two halves then **disagreed on
+struct layout** (an ODR / ABI mismatch), and the symptom was memory corruption nowhere near the code
+you were looking at.
 
-**Worked example (the July 2026 `gameObjects` FPE):** `lve_scene.hpp` gained a
+It now builds one `.o` per source into `engine/obj/`, keeping the `src/` subdirectory structure so
+two sources may share a basename, and archives an explicit file list rather than a glob.
+
+**Worked example of what this used to cause (the July 2026 `gameObjects` FPE):** `lve_scene.hpp` gained a
 `std::vector<UIRenderItem> UIrenderItems` member, which grew `sizeof(lve::LveScene)`. Because
 `LevelScene::gameObjects` sits right after the `LveScene` base subobject, its offset shifted. With a
 stale object file linked in, `gameObjects` was read from the wrong bytes → `bucket_count() == 0` →
@@ -110,20 +117,36 @@ The bug is *not* in `loadModels`; the map is corrupt the moment `LevelScene` is 
 `std::cout << gameObjects.bucket_count()` printing `0` is the tell — a freshly default-constructed
 libstdc++ `unordered_map` always reports `1`, never `0`.
 
-**Fix (port what `game/Makefile` already does over to `engine/Makefile`):**
+Legacy `engine/*.o` files from the old flat build are still committed to the repo. They are no longer
+read by anything — `ar` now takes an explicit list from `engine/obj/` — so they can be
+`git rm --cached`'d whenever you get round to gitignoring build outputs.
 
-```make
-CXXFLAGS += -MMD -MP
-DEPS = $(OBJECTS:.o=.d)
--include $(DEPS)
-```
+## The room map (`game/src/petscop`)
 
-Until that's in, after **any engine header change** do a full clean rebuild of **both** engine and
-game so every TU shares one layout:
+A map is several rooms and the doors between them. One room is live at a time; walking into a doorway
+fades out, swaps the room, and fades back in.
 
-```sh
-cd engine && make clean && make && cd ../game && make clean && make
-```
+- **`maps/*.mapsrc`** — hand-written. Rooms are declared as boxes (`size 12 8`, `height 3`,
+  `door front north 0`) and joined with `link foyer.front hall.back`.
+- **`tools/build_map.py`** — compiles that into `maps/*.map`, filling in the floor and the wall
+  pieces around each doorway, resolving links, and baking each door's arrival spawn point. It
+  validates at build time (every link names real doors, every preset has a `models/<name>.obj`) and
+  exits non-zero on failure, so a broken map never reaches the game. Re-run it after editing a
+  `.mapsrc` or a props layout.
+- **`rooms/*.layout`** — optional per-room decoration, in the same format `LveSceneEditor` saves.
+  The generator handles floors and walls; the editor still handles props.
+- **`RoomScene`** plays the compiled map. It fits the existing `LveScene` contract with no engine
+  header change.
+
+Two things in `RoomScene` are load-bearing and easy to break:
+
+1. **`enterRoom` is the only place the room is rebuilt**, and it runs only at the bottom of the fade —
+   after `settleAll()` has returned, never mid-frame. It calls `collisions.clear()` *first*, because
+   `CollisionSystem` holds raw pointers into `props`, then refills and registers last.
+2. **The door you arrive through starts disarmed** and re-arms once you step clear of it. Without
+   that you bounce straight back through the door you just came out of.
+
+Door triggers are never registered with `CollisionSystem` — you are meant to walk through them.
 
 ## Other known issues / footguns
 
