@@ -98,7 +98,10 @@ class Room:
         self.lights = []         # (pos, colour, intensity)
         self.doors = []
         self.prop_files = []
-        self.objects = []        # (preset, translation, rotation, scale)
+        # (preset, translation, rotation, scale, face)
+        # face is the outward normal for a wall, and all zeroes for anything the
+        # game should never hide, like the floor or a prop
+        self.objects = []
 
     def door_index(self, ident):
         for i, d in enumerate(self.doors):
@@ -311,11 +314,13 @@ def build_room(room):
     ceiling_y = GROUND_Y - room.height  # -Y is up, so the top of the room is the smaller number
 
     # Floor, sitting so that you walk on exactly GROUND_Y
+    # No face, because the floor must never be hidden
     room.objects.append((
         FLOOR_PRESET,
         (0.0, GROUND_Y + FLOOR_HALF_THICK, 0.0),
         (0.0, 0.0, 0.0),
         (half_w, FLOOR_HALF_THICK, half_d),
+        (0.0, 0.0, 0.0),
     ))
 
     for wall, info in WALLS.items():
@@ -323,6 +328,10 @@ def build_room(room):
         along_half = half_w if along == "x" else half_d
         fixed = info["sign"] * (half_d if along == "x" else half_w)
         doors = [d for d in room.doors if d.wall == wall]
+
+        # Which way this wall faces out of the room. The game hides a wall whose
+        # outside is turned toward the camera, because it stands in the way
+        outward = tuple(-c for c in info["inward"])
 
         for door in doors:
             lo = door.offset - door.width * 0.5
@@ -344,7 +353,7 @@ def build_room(room):
                 (lo + hi) * 0.5, fixed,
                 (hi - lo) * 0.5, wall_half,
                 GROUND_Y - room.height * 0.5, room.height * 0.5)
-            room.objects.append((WALL_PRESET, translation, (0.0, 0.0, 0.0), scale))
+            room.objects.append((WALL_PRESET, translation, (0.0, 0.0, 0.0), scale, outward))
 
         for door in doors:
             # The bit of wall above the opening
@@ -355,7 +364,8 @@ def build_room(room):
                     door.offset, fixed,
                     door.width * 0.5, wall_half,
                     ceiling_y + lintel_half, lintel_half)
-                room.objects.append((WALL_PRESET, translation, (0.0, 0.0, 0.0), scale))
+                # Part of the wall, so it goes when the wall goes
+                room.objects.append((WALL_PRESET, translation, (0.0, 0.0, 0.0), scale, outward))
 
             # The trigger, reaching further through the wall than the wall is thick
             depth_half = max(wall_half, MIN_TRIGGER_DEPTH * 0.5)
@@ -459,9 +469,15 @@ def emit(name, start_index, rooms, presets, out_path):
         lines.append("cam {}  {}".format(vec(eye), vec(look)))
         for position, colour, intensity in room.lights:
             lines.append("light {}  {}  {}".format(vec(position), vec(colour), f3(intensity)))
-        for preset, translation, rotation, scale in room.objects:
-            lines.append("obj {}  {}  {}  {}".format(
-                presets.index(preset), vec(translation), vec(rotation), vec(scale)))
+        for preset, translation, rotation, scale, face in room.objects:
+            body = "{}  {}  {}  {}".format(
+                presets.index(preset), vec(translation), vec(rotation), vec(scale))
+            if face == (0.0, 0.0, 0.0):
+                lines.append("obj {}".format(body))
+            else:
+                # A wall knows which way it faces, so the game can drop it when it
+                # stands between the camera and the room
+                lines.append("wall {}  face {}".format(body, vec(face)))
         for door in room.doors:
             lines.append("door {}  {}  {}  {}  to {} {}  spawn {} {}".format(
                 door.ident,
@@ -487,7 +503,8 @@ def build(src_path, out_path, models_dir):
         build_room(room)
         for rel, where in room.prop_files:
             for preset, translation, rotation, scale in parse_layout(rel, where):
-                room.objects.append((preset, translation, rotation, scale))
+                # No face: a prop is never hidden, only walls are
+                room.objects.append((preset, translation, rotation, scale, (0.0, 0.0, 0.0)))
 
     resolve_links(rooms, by_ident, links, room_index)
 
@@ -503,7 +520,7 @@ def build(src_path, out_path, models_dir):
 
     presets = []
     for room in rooms:
-        for preset, _, _, _ in room.objects:
+        for preset, _, _, _, _ in room.objects:
             if preset not in presets:
                 presets.append(preset)
     check_presets(presets, models_dir)

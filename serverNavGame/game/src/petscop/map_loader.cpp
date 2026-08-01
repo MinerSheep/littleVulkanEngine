@@ -90,13 +90,22 @@ bool loadMap(const std::string& path, GameMap& out, std::string& error) {
         return fail("light needs a position, a colour and an intensity");
       out.rooms[room].lights.push_back(light);
 
-    } else if (key == "obj") {
+    } else if (key == "obj" || key == "wall") {
+      // Same thing standing in the room either way, but a wall also says which
+      // way it faces so it can be dropped when it is in front of the camera
       MapObject object;
       if (!(ss >> object.preset) || !readVec3(ss, object.translation) ||
           !readVec3(ss, object.rotation) || !readVec3(ss, object.scale))
-        return fail("obj reads: obj <preset> tx ty tz  rx ry rz  sx sy sz");
+        return fail(key + " reads: " + key + " <preset> tx ty tz  rx ry rz  sx sy sz" +
+                    (key == "wall" ? "  face <nx ny nz>" : ""));
       if (object.preset < 0 || object.preset >= static_cast<int>(out.presets.size()))
-        return fail("obj names preset " + std::to_string(object.preset) + ", which is not declared");
+        return fail(key + " names preset " + std::to_string(object.preset) +
+                    ", which is not declared");
+      if (key == "wall") {
+        std::string keyword;  // "face", there to keep the file readable
+        if (!(ss >> keyword) || !readVec3(ss, object.face))
+          return fail("wall is missing its 'face'");
+      }
       out.rooms[room].objects.push_back(object);
 
     } else if (key == "door") {

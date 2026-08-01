@@ -66,6 +66,14 @@ class RoomScene : public lve::LveScene {
     glm::vec3 rotation{0.f};
     glm::vec3 scale{1.f};
     ColliderComponent collider{};
+
+    // Which way a wall faces out of the room, all zeroes for anything else
+    glm::vec3 face{0.f};
+
+    // 0 hides it, 1 draws it
+    // A number rather than a flag, so a see-through wall can be dropped in later
+    // without touching the map or anything else in here
+    float visibility = 1.f;
   };
   std::vector<Prop> props;
 
@@ -115,6 +123,16 @@ class RoomScene : public lve::LveScene {
   // Same translate, rotate, scale order the editor saves in, so a box lands
   // exactly where its mesh is drawn
   static glm::mat4 placement(const glm::vec3& t, const glm::vec3& r, const glm::vec3& s);
+
+  // Works out which walls are standing between the camera and the room
+  // Only stops them being drawn, their boxes stay registered, so you still can
+  // not walk out through a wall you cannot see
+  void updateWallVisibility();
+
+  // A wall is hidden when its outside is turned toward the camera
+  // Zero would be the plain "more than 90 degrees away" test; going above it also
+  // drops walls seen nearly edge on, which is what opens up a narrow room
+  float hideThreshold = 0.25f;
 
   float groundY = 0.5f;  // the floor the map is built on
 };

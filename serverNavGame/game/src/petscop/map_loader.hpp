@@ -18,6 +18,11 @@ struct MapObject {
   glm::vec3 translation{0.f};
   glm::vec3 rotation{0.f};  // euler radians
   glm::vec3 scale{1.f};
+
+  // Which way a wall faces out of the room, so the scene can drop a wall that
+  // stands between the camera and the room
+  // All zeroes for anything that is not a wall, and those are never hidden
+  glm::vec3 face{0.f};
 };
 
 // A way out of a room

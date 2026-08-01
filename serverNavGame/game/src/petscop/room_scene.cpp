@@ -82,6 +82,7 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
     prop.translation = object.translation;
     prop.rotation = object.rotation;
     prop.scale = object.scale;
+    prop.face = object.face;
     props.push_back(prop);
   }
 
@@ -145,6 +146,40 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
   currentRoom = roomIndex;
   std::cout << "[petscop] entered " << room.name << ": " << props.size() << " prop(s), "
             << doors.size() << " door(s)" << std::endl;
+}
+
+void RoomScene::updateWallVisibility() {
+  const glm::vec3 look = cameraLook - cameraEye;
+  if (glm::length(look) < 1e-4f) return;
+
+  // The question is really which side of the room the camera is standing on, so
+  // ask it on the ground plane. The camera tilts down to see the floor, and that
+  // tilt otherwise eats into every wall's score until a steep enough camera
+  // starts dropping the far wall as well
+  glm::vec2 forwardFlat(look.x, look.z);
+  const bool flatUsable = glm::length(forwardFlat) > 1e-4f;
+  if (flatUsable) forwardFlat = glm::normalize(forwardFlat);
+  const glm::vec3 forward = glm::normalize(look);
+
+  for (Prop& prop : props) {
+    // Only walls say which way they face, so everything else always draws
+    if (prop.face == glm::vec3(0.f)) {
+      prop.visibility = 1.f;
+      continue;
+    }
+
+    glm::vec2 outwardFlat(prop.face.x, prop.face.z);
+    float facing;
+    if (flatUsable && glm::length(outwardFlat) > 1e-4f) {
+      facing = glm::dot(glm::normalize(outwardFlat), forwardFlat);
+    } else {
+      // A floor or a ceiling has no sideways direction, so ask in full 3D
+      facing = glm::dot(glm::normalize(prop.face), forward);
+    }
+
+    float ghostAlpha = 0.25f;
+    prop.visibility = facing < hideThreshold ? ghostAlpha : 1.f;
+  }
 }
 
 void RoomScene::update(float dt) {
@@ -221,12 +256,21 @@ void RoomScene::update(float dt) {
   skinnedRenderItems.clear();
   collectSkinned(player, skinnedRenderItems);
 
+  // Done every frame rather than on the way into the room, so that a camera that
+  // moves one day needs nothing changed here
+  updateWallVisibility();
+
   renderItems.clear();
   for (const Prop& prop : props) {
     if (!prop.model) continue;
+
+    // A wall standing between the camera and the room is not drawn
+    // It still collides, its box was registered on the way in
+    if (prop.visibility <= 0.f) continue;
+
     const glm::mat4 mat = placement(prop.translation, prop.rotation, prop.scale);
     const glm::mat4 normal = glm::mat4(glm::transpose(glm::inverse(glm::mat3(mat))));
-    renderItems.push_back({mat, normal, prop.model});
+    renderItems.push_back({mat, normal, prop.model, prop.visibility});
   }
 
   // Only what this room asked for. Anything past the budget is dropped rather
