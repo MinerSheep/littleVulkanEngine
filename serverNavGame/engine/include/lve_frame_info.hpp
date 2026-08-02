@@ -35,6 +35,9 @@ namespace lve {
     glm::mat4 modelMatrix;
     glm::mat4 normalMatrix;
     LveModel* model;
+
+    // this needs to be initialized otherwise its corrupt data
+    float alpha = 1.f;
   };
   struct UIRenderItem {
     glm::mat2 transform;

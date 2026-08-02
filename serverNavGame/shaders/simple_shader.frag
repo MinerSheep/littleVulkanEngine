@@ -23,7 +23,8 @@ layout(set = 0, binding = 0) uniform GlobalUbo {
 
 layout(push_constant) uniform Push {
   mat4 modelMatrix;
-  mat4 normalMatrix; // keep as mat4 for alignment requirements, but truncate to mat3
+  // We are full on 128 bytes, this is a mat3 normal, the [3][3] is used to represent the alpha
+  mat4 normalMatrix;
 } push;
 
 void main() {
@@ -61,5 +62,9 @@ void main() {
     specularLight += intensity * blinnTerm;
   }
 
-  outColor = vec4(diffuseLight * fragColor + specularLight * fragColor, 1.0);
+  // How solid this object is. The blend is src.a * src + (1 - src.a) * dst, so the
+  // colour stays as it is lit and only the last channel decides how much shows
+  float alpha = push.normalMatrix[3][3];
+
+  outColor = vec4(diffuseLight * fragColor + specularLight * fragColor, alpha);
 }

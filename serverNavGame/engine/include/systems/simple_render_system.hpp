@@ -36,6 +36,11 @@ class SimpleRenderSystem {
       UIPipeline;  // {lveDevice, "shaders/simple_shader.vert.spv",
                     // "shaders/simple_shader.frag.spv",
                     // LvePipeline::defaultPipelineConfigInfo(WIDTH, HEIGHT)};
+
+  // Same shaders as lvePipeline, but it blends and leaves the depth buffer alone
+  // Anything with an alpha below 1 is drawn with this one, after the solid pass
+  std::unique_ptr<LvePipeline> transparentPipeline;
+
   VkPipelineLayout pipelineLayout;
 };
 }  // namespace lve

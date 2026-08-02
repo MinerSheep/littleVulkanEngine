@@ -29,7 +29,8 @@ layout(set = 0, binding = 0) uniform GlobalUbo {
 
 layout(push_constant) uniform Push {
   mat4 modelMatrix;
-  mat4 normalMatrix; // keep as mat4 for alignment requirements, but truncate to mat3
+  // We are full on 128 bytes, this is a mat3 normal, the [3][3] is used to represent the alpha
+  mat4 normalMatrix;
 } push;
 
 void main() {

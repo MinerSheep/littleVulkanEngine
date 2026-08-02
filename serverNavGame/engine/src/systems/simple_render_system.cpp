@@ -18,11 +18,16 @@ namespace lve {
 // Push constants have alignment requirements.  Every entry is aligned to 16 bytes
 // / marks 16 bytes
 // Incorrect: x y r g / b - - -      Correct: x y - - / r g b -
+
+// 128 max bytes, the normalMatrix is a mat3 but it passes in alpha as [3][3]
 struct SimplePushConstantData {
   glm::mat4 modelMatrix{1.f};  // IDENTITY matrix
   // alignas(16) glm::vec3 color;  // bad because 12 bytes upscales to 16 bytes
-  glm::mat4 normalMatrix{1.f};
+  glm::mat4 normalMatrix{1.f};  // [3][3] carries the alpha
 };
+
+static_assert(sizeof(SimplePushConstantData) <= 128,
+              "push constants must fit in the 128 bytes Vulkan guarantees");
 
 struct UIPushConstantData {
   glm::mat2 transform{1.f};
@@ -47,10 +52,9 @@ SimpleRenderSystem::~SimpleRenderSystem() {
 
 void SimpleRenderSystem::render(
     FrameInfo& frameInfo) {
-  lvePipeline->bind(frameInfo.commandBuffer);
-
   // Every set overwritten must overwrite every set that comes after it
   // Bind it once, now ALL gameobjects can use it without need for rebinding
+  // Both pipelines share this layout, so swapping pipeline keeps the binding
   vkCmdBindDescriptorSets(
       frameInfo.commandBuffer,
       VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -61,12 +65,15 @@ void SimpleRenderSystem::render(
       0, // dynamic offsets
       nullptr);
 
-  for (const auto& item : frameInfo.renderItems) {
+  auto drawItem = [&](const RenderItem& item) {
     SimplePushConstantData push{};
 
     // We are now calculating on the GPU, not the CPU
     push.modelMatrix = item.modelMatrix;
     push.normalMatrix = item.normalMatrix;
+
+    // Alpha travels in the spare corner, see the struct above
+    push.normalMatrix[3][3] = item.alpha;
 
     // RECORD our push constant data
     vkCmdPushConstants(
@@ -78,6 +85,21 @@ void SimpleRenderSystem::render(
         &push);
     item.model->bind(frameInfo.commandBuffer);
     item.model->draw(frameInfo.commandBuffer);
+  };
+
+  // Solids, transparent objects will blend with these
+  lvePipeline->bind(frameInfo.commandBuffer);
+  for (const auto& item : frameInfo.renderItems) {
+    if (item.alpha >= 1.f) drawItem(item);
+  }
+
+  // Transparent, blends and doesn't write depth
+  //
+  // Small issue is that depth ordering doesn't happen
+  // So farther away transparent objects should be drawn first
+  transparentPipeline->bind(frameInfo.commandBuffer);
+  for (const auto& item : frameInfo.renderItems) {
+    if (item.alpha < 1.f) drawItem(item);
   }
 }
 
@@ -172,6 +194,26 @@ void SimpleRenderSystem::createPipeline(VkRenderPass renderPass) {
       exeDir + "/../shaders/simple_shader.vert.spv",
       exeDir + "/../shaders/simple_shader.frag.spv",
       pipelineConfig);
+
+  // See-through geometry: the same shaders, but it blends and leaves the depth
+  // buffer alone
+  //
+  // Depth writing has to be off. A ghosted wall stands nearer the camera than
+  // everything else in the room, so if it wrote depth it would reject the floor
+  // and the props behind it and you would see the background through the room
+  // Depth TESTING stays on, so a see-through thing still hides behind solid ones
+  PipelineConfigInfo transparentConfig{};
+  LvePipeline::defaultPipelineConfigInfo(transparentConfig);
+  transparentConfig.renderPass = renderPass;
+  transparentConfig.pipelineLayout = pipelineLayout;
+  transparentConfig.depthStencilInfo.depthWriteEnable = VK_FALSE;
+  LvePipeline::enableAlphaBlending(transparentConfig);
+
+  transparentPipeline = std::make_unique<LvePipeline>(
+      lveDevice,
+      exeDir + "/../shaders/simple_shader.vert.spv",
+      exeDir + "/../shaders/simple_shader.frag.spv",
+      transparentConfig);
 
   // UI is a 2D overlay drawn after the 3D pass. Draw it in submission order
   // (painter's algorithm) rather than depth-testing: every UI quad sits at z=0, so

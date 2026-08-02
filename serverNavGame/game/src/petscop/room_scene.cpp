@@ -264,8 +264,10 @@ void RoomScene::update(float dt) {
   for (const Prop& prop : props) {
     if (!prop.model) continue;
 
-    // A wall standing between the camera and the room is not drawn
-    // It still collides, its box was registered on the way in
+    // A wall standing between the camera and the room comes back ghosted rather
+    // than solid, see updateWallVisibility. Either way it still collides, its box
+    // was registered on the way in
+    // Set a wall's visibility to 0 and it drops out of the draw entirely
     if (prop.visibility <= 0.f) continue;
 
     const glm::mat4 mat = placement(prop.translation, prop.rotation, prop.scale);
