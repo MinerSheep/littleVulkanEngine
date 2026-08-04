@@ -22,6 +22,11 @@ void KeyboardMovementComponent::update(float dt, GameObject& obj) {
   TransformComponent* t = obj.getComponent<TransformComponent>();
   if (!t) return;
 
+  if (!enabled) {
+    playClip(animator, idleClipIndex);
+    return;
+  }
+
   // Move basis: forward is forwardYaw about the vertical axis (the scene aims it
   // down the camera), right is its perpendicular on the XZ plane
   const glm::vec3 forwardDir{std::sin(forwardYaw), 0.f, std::cos(forwardYaw)};  // forward ^

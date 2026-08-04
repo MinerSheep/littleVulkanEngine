@@ -22,6 +22,8 @@ struct KeyboardMovementComponent : public Component {
   KeyMappings keys{};
   float moveSpeed{3.f};
 
+  bool enabled = true;
+
   // Yaw (radians about the vertical axis) that "forward" points along. Set this
   // each frame before updateComponents; the scene feeds it the camera's yaw so
   // movement follows where the camera looks

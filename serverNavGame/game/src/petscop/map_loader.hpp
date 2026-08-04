@@ -23,6 +23,8 @@ struct MapObject {
   // stands between the camera and the room
   // All zeroes for anything that is not a wall, and those are never hidden
   glm::vec3 face{0.f};
+
+  std::string dialog;
 };
 
 // A way out of a room

@@ -98,7 +98,8 @@ class Room:
         self.lights = []         # (pos, colour, intensity)
         self.doors = []
         self.prop_files = []
-        # (preset, translation, rotation, scale, face)
+        self.interactions = []
+        # (preset, translation, rotation, scale, face, dialog)
         # face is the outward normal for a wall, and all zeroes for anything the
         # game should never hide, like the floor or a prop
         self.objects = []
@@ -240,6 +241,28 @@ def parse_mapsrc(path):
                 fail(where, "props needs a file path")
             room.prop_files.append((rest[0], where))
 
+        elif key == "interact":
+            if room is None:
+                fail(where, "interact outside a room")
+            if "#" in text:
+                fail(where, "an interact line cannot use #, not even as a trailing comment: "
+                            "the game reads # as a comment and would cut the text short")
+            words = [w.lower() for w in rest]
+            if "say" not in words:
+                fail(where, "interact reads: interact <preset>  tx ty tz  rx ry rz  sx sy sz  "
+                            "say <words>")
+            s = words.index("say")
+            if s != 10:
+                fail(where, "interact needs a preset and 9 numbers before its 'say', got {}"
+                            .format(s))
+            preset = rest[0]
+            values = parse_floats(where, rest[1:10], 9, "interact")
+            dialog = " ".join(rest[s + 1:]).strip()
+            if not dialog:
+                fail(where, "interact has nothing to say")
+            room.interactions.append(
+                (preset, tuple(values[0:3]), tuple(values[3:6]), tuple(values[6:9]), dialog))
+
         else:
             fail(where, "unknown directive {}".format(parts[0]))
 
@@ -321,6 +344,7 @@ def build_room(room):
         (0.0, 0.0, 0.0),
         (half_w, FLOOR_HALF_THICK, half_d),
         (0.0, 0.0, 0.0),
+        "",
     ))
 
     for wall, info in WALLS.items():
@@ -353,7 +377,7 @@ def build_room(room):
                 (lo + hi) * 0.5, fixed,
                 (hi - lo) * 0.5, wall_half,
                 GROUND_Y - room.height * 0.5, room.height * 0.5)
-            room.objects.append((WALL_PRESET, translation, (0.0, 0.0, 0.0), scale, outward))
+            room.objects.append((WALL_PRESET, translation, (0.0, 0.0, 0.0), scale, outward, ""))
 
         for door in doors:
             # The bit of wall above the opening
@@ -365,7 +389,7 @@ def build_room(room):
                     door.width * 0.5, wall_half,
                     ceiling_y + lintel_half, lintel_half)
                 # Part of the wall, so it goes when the wall goes
-                room.objects.append((WALL_PRESET, translation, (0.0, 0.0, 0.0), scale, outward))
+                room.objects.append((WALL_PRESET, translation, (0.0, 0.0, 0.0), scale, outward, ""))
 
             # The trigger, reaching further through the wall than the wall is thick
             depth_half = max(wall_half, MIN_TRIGGER_DEPTH * 0.5)
@@ -469,10 +493,12 @@ def emit(name, start_index, rooms, presets, out_path):
         lines.append("cam {}  {}".format(vec(eye), vec(look)))
         for position, colour, intensity in room.lights:
             lines.append("light {}  {}  {}".format(vec(position), vec(colour), f3(intensity)))
-        for preset, translation, rotation, scale, face in room.objects:
+        for preset, translation, rotation, scale, face, dialog in room.objects:
             body = "{}  {}  {}  {}".format(
                 presets.index(preset), vec(translation), vec(rotation), vec(scale))
-            if face == (0.0, 0.0, 0.0):
+            if dialog:
+                lines.append("interact {}  say {}".format(body, dialog))
+            elif face == (0.0, 0.0, 0.0):
                 lines.append("obj {}".format(body))
             else:
                 # A wall knows which way it faces, so the game can drop it when it
@@ -504,7 +530,9 @@ def build(src_path, out_path, models_dir):
         for rel, where in room.prop_files:
             for preset, translation, rotation, scale in parse_layout(rel, where):
                 # No face: a prop is never hidden, only walls are
-                room.objects.append((preset, translation, rotation, scale, (0.0, 0.0, 0.0)))
+                room.objects.append((preset, translation, rotation, scale, (0.0, 0.0, 0.0), ""))
+        for preset, translation, rotation, scale, dialog in room.interactions:
+            room.objects.append((preset, translation, rotation, scale, (0.0, 0.0, 0.0), dialog))
 
     resolve_links(rooms, by_ident, links, room_index)
 
@@ -520,7 +548,7 @@ def build(src_path, out_path, models_dir):
 
     presets = []
     for room in rooms:
-        for preset, _, _, _, _ in room.objects:
+        for preset, _, _, _, _, _ in room.objects:
             if preset not in presets:
                 presets.append(preset)
     check_presets(presets, models_dir)

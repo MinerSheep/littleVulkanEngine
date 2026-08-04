@@ -11,6 +11,20 @@ bool readVec3(std::istringstream& ss, glm::vec3& out) {
   return static_cast<bool>(ss >> out.x >> out.y >> out.z);
 }
 
+std::string readRest(std::istringstream& ss) 
+{
+  std::string rest;
+  std::getline(ss, rest);
+
+  const std::size_t first = rest.find_first_not_of(" \t\r");
+  if (first == std::string::npos) return std::string();
+
+  const std::size_t last = rest.find_last_not_of(" \t\r");
+
+  // get substring substr
+  return rest.substr(first, last - first + 1);
+}
+
 }  // namespace
 
 bool loadMap(const std::string& path, GameMap& out, std::string& error) {
@@ -90,14 +104,15 @@ bool loadMap(const std::string& path, GameMap& out, std::string& error) {
         return fail("light needs a position, a colour and an intensity");
       out.rooms[room].lights.push_back(light);
 
-    } else if (key == "obj" || key == "wall") {
+    } else if (key == "obj" || key == "wall" || key == "interact") {
       // Same thing standing in the room either way, but a wall also says which
       // way it faces so it can be dropped when it is in front of the camera
       MapObject object;
       if (!(ss >> object.preset) || !readVec3(ss, object.translation) ||
           !readVec3(ss, object.rotation) || !readVec3(ss, object.scale))
         return fail(key + " reads: " + key + " <preset> tx ty tz  rx ry rz  sx sy sz" +
-                    (key == "wall" ? "  face <nx ny nz>" : ""));
+                    (key == "wall" ? "  face <nx ny nz>" : "") +
+                    (key == "interact" ? "  say <words>" : ""));
       if (object.preset < 0 || object.preset >= static_cast<int>(out.presets.size()))
         return fail(key + " names preset " + std::to_string(object.preset) +
                     ", which is not declared");
@@ -106,6 +121,18 @@ bool loadMap(const std::string& path, GameMap& out, std::string& error) {
         if (!(ss >> keyword) || !readVec3(ss, object.face))
           return fail("wall is missing its 'face'");
       }
+
+      // for interaction props, this is the prompt
+      if (key == "interact") 
+      {
+        // looks for 'say' to trigger prompt
+        std::string keyword;
+        if (!(ss >> keyword) || keyword != "say") return fail("interact is missing its 'say'");
+
+        object.dialog = readRest(ss);
+        if (object.dialog.empty()) return fail("interact has nothing to say");
+      }
+
       out.rooms[room].objects.push_back(object);
 
     } else if (key == "door") {

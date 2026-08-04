@@ -10,6 +10,15 @@
 #include <iostream>
 #include <stdexcept>
 
+namespace {
+
+float boxGap(const ColliderComponent::Aabb& a, const ColliderComponent::Aabb& b) {
+  const glm::vec3 gap = glm::max(glm::max(a.min - b.max, b.min - a.max), glm::vec3(0.f));
+  return glm::length(gap);
+}
+
+}  // namespace
+
 void RoomScene::loadModels() {
   std::string error;
   if (!petscop::loadMap(mapPath, map, error)) throw std::runtime_error("[petscop] " + error);
@@ -72,6 +81,10 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
   props.clear();
   doors.clear();
 
+  dialog.close();
+  nearProp = -1;
+  if (playerMover) playerMover->enabled = true;
+
   // Sized up front, so filling them never moves what is already in
   props.reserve(room.objects.size());
   doors.reserve(room.doors.size());
@@ -83,6 +96,7 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
     prop.rotation = object.rotation;
     prop.scale = object.scale;
     prop.face = object.face;
+    prop.dialog = object.dialog;
     props.push_back(prop);
   }
 
@@ -182,7 +196,66 @@ void RoomScene::updateWallVisibility() {
   }
 }
 
+// Updates the prompt interaction with interactable props
+void RoomScene::updateInteraction() 
+{
+  GLFWwindow* window = lve::LveEngine::instance().getGLFWWindow();
+
+  const bool actionDown = glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS;
+  const bool actionPressed = actionDown && !actionPrevDown;
+  actionPrevDown = actionDown;
+
+  nearProp = -1;
+  if (playerCollider && !dialog.isOpen()) 
+  {
+    const ColliderComponent::Aabb& me = playerCollider->worldBox();
+
+    float best = interactRange;
+
+    for (std::size_t i = 0; i < props.size(); i++) {
+      if (!props[i].interactable()) continue;
+
+      const float gap = boxGap(me, props[i].collider.worldBox());
+
+      if (gap > best) continue;
+
+      best = gap;
+      nearProp = static_cast<int>(i);
+    }
+  }
+
+  // if the dialog is open & we press, continue, if not & we press, open it
+  if (dialog.isOpen()) {
+    if (actionPressed) dialog.advance();
+  } else if (actionPressed && nearProp >= 0) {
+    dialog.open(props[nearProp].dialog);
+    nearProp = -1;
+  }
+
+  if (playerMover) playerMover->enabled = !dialog.isOpen();
+}
+
+// Floating box to signify when you got close to an object you can interact with
+void RoomScene::emitHoverBox() {
+  if (!textRenderer) return;
+  if (nearProp < 0 || nearProp >= static_cast<int>(props.size())) return;
+
+  const ColliderComponent::Aabb& box = props[nearProp].collider.worldBox();
+  
+  const float topY = glm::max(box.min.y, groundY - hoverMaxHeight);
+  const float bob = hoverBob * std::sin(clock * hoverBobSpeed);
+  const glm::vec3 world{box.center().x, topY - hoverLift - bob, box.center().z};
+
+  const glm::vec4 clip = camera.getProjection() * camera.getView() * glm::vec4(world, 1.f);
+  if (clip.w <= 1e-4f) return;
+
+  petscop::emitHoverPrompt(UIrenderItems, *textRenderer, glm::vec2(clip.x / clip.w, clip.y / clip.w),
+                           "E", hoverDotHeight, 1.f);
+}
+
 void RoomScene::update(float dt) {
+  clock += dt;
+
   if (phase == Phase::Playing) {
     GLFWwindow* window = lve::LveEngine::instance().getGLFWWindow();
 
@@ -202,7 +275,9 @@ void RoomScene::update(float dt) {
     // He has moved and his box has followed, so shove him back out of the walls
     collisions.settleAll();
 
-    if (playerCollider) {
+    updateInteraction();
+
+    if (playerCollider && !dialog.isOpen()) {
       const ColliderComponent::Aabb& box = playerCollider->worldBox();
 
       // The door he walked out of goes live again once he is clear of it
@@ -300,6 +375,10 @@ void RoomScene::update(float dt) {
       textRenderer->emit(UIrenderItems, map.rooms[currentRoom].name, glm::vec2(-0.95f, -0.93f),
                          0.035f, glm::vec3(0.85f));
     }
+    if (phase == Phase::Playing) {
+      emitHoverBox();
+      dialog.emit(UIrenderItems, *textRenderer);
+    }
     if (fade > 0.f) {
       // One quad over the whole screen. The unit quad runs 0 to 1, so doubling it
       // and shifting back by one covers -1 to 1 both ways
@@ -320,4 +399,6 @@ void RoomScene::cleanup() {
   collisions.clear();
   props.clear();
   doors.clear();
+  dialog.close();
+  nearProp = -1;
 }

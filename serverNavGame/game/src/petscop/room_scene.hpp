@@ -12,6 +12,7 @@
 #include "rigidbody_component.hpp"
 #include "skinned_model_component.hpp"
 
+#include "petscop/dialog_box.hpp"
 #include "petscop/map_loader.hpp"
 #include "petscop/model_cache.hpp"
 
@@ -74,6 +75,10 @@ class RoomScene : public lve::LveScene {
     // A number rather than a flag, so a see-through wall can be dropped in later
     // without touching the map or anything else in here
     float visibility = 1.f;
+
+    std::string dialog;
+
+    bool interactable() const { return !dialog.empty(); }
   };
   std::vector<Prop> props;
 
@@ -115,10 +120,29 @@ class RoomScene : public lve::LveScene {
   int pendingRoom = -1;
   int pendingDoor = -1;
 
+  // Dialog box
+  petscop::DialogBox dialog;
+  int nearProp = -1;
+  float interactRange = 1.2f;
+  bool actionPrevDown = false;
+  float clock = 0.f;
+
+  float hoverLift = 0.45f;
+  float hoverMaxHeight = 2.0f;
+  float hoverBob = 0.07f;
+  float hoverBobSpeed = 2.6f;
+  float hoverDotHeight = 0.018f;
+  //
+
   // Throws out the old room and stands the character up in the new one
   // arriveDoor is which door of the new room he steps out of, or -1 to start in
   // the middle of it
   void enterRoom(int roomIndex, int arriveDoor);
+
+  // Certain props can press E to talk to
+  void updateInteraction();
+
+  void emitHoverBox();
 
   // Same translate, rotate, scale order the editor saves in, so a box lands
   // exactly where its mesh is drawn

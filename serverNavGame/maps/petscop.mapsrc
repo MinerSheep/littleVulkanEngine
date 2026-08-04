@@ -22,6 +22,7 @@ room foyer
   door hallway  north   0
   door closet   east   -1.5
   props rooms/foyer_props.layout
+  interact tree  -3.0 0.5 2.0  0 0 0  0.30 0.30 0.30  say THE TREE IS TALLER THAN THE ROOM SHOULD ALLOW.|NOBODY REMEMBERS PLANTING IT.
 
 
 # A long corridor running away from the foyer. The far door leads nowhere yet
@@ -40,6 +41,7 @@ room closet
   height 2.6
   light 0.0 -1.8 0.0   1.00 0.60 0.30   7
   door out  west  0
+  interact rock  0.0 0.17 0.0  0 0.6 0  0.60 0.60 0.60  say A ROCK, WORN SMOOTH ON ONE SIDE.|SOMEONE HAS BEEN TURNING IT OVER.
 
 
 link foyer.hallway  hall.back
