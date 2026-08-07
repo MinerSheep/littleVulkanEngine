@@ -12,6 +12,32 @@
 // Nothing here does any geometry, it only reads numbers off the page
 namespace petscop {
 
+
+// --------- ACTIONS ---------------------------
+// Certain map objects are interactable, here's what they can do
+enum class ActionKind {
+  Say,
+  Move,
+  Rotate,
+  Scale,
+  Show,
+  Hide,
+  Sound,
+};
+
+struct MapAction {
+  ActionKind kind = ActionKind::Say;
+
+  std::string target;    // gameobject target
+  std::string text;      // - say -
+  glm::vec3 amount{0.f}; // magnitude
+  float seconds = 0.f;   // duration
+  bool toggle = false;
+};
+// ----------------------------------------------
+
+
+
 // One thing standing in a room
 struct MapObject {
   int preset = 0;  // which mesh, an index into GameMap::presets
@@ -24,7 +50,8 @@ struct MapObject {
   // All zeroes for anything that is not a wall, and those are never hidden
   glm::vec3 face{0.f};
 
-  std::string dialog;
+  std::string name;
+  std::vector<MapAction> actions;
 };
 
 // A way out of a room

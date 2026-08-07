@@ -57,6 +57,19 @@ class RoomScene : public lve::LveScene {
   float jumpSpeed = 4.5f;  // upward, so it goes in as -Y
   bool jumpPrevDown = false;
 
+  struct Motion {
+    glm::vec3 fromTranslation{0.f};
+    glm::vec3 fromRotation{0.f};
+    glm::vec3 fromScale{1.f};
+    glm::vec3 toTranslation{0.f};
+    glm::vec3 toRotation{0.f};
+    glm::vec3 toScale{1.f};
+
+    float elapsed = 0.f;
+    float seconds = 0.f;
+    bool active = false;
+  };
+
   // Something solid standing in the room
   //
   // The box is held here by value, which is why the collision system must not be
@@ -76,15 +89,22 @@ class RoomScene : public lve::LveScene {
     // without touching the map or anything else in here
     float visibility = 1.f;
 
-    std::string dialog;
+    glm::vec3 restTranslation{0.f};
+    glm::vec3 restRotation{0.f};
+    glm::vec3 restScale{1.f};
 
-    bool interactable() const { return !dialog.empty(); }
+    std::string name;
+    std::vector<petscop::MapAction> actions;
+    std::vector<char> flipped;
+
+    Motion motion;
+    bool disappeared = false;  // disappeared object cannot interact
+
+    bool interactable() const { return !actions.empty(); }
   };
   std::vector<Prop> props;
 
-  // A doorway
-  //
-  // Its box is never given to the collision system, you are meant to walk through it
+  // A box with no collision sent to collision system
   struct Door {
     glm::vec3 translation{0.f};
     glm::vec3 rotation{0.f};
@@ -127,6 +147,15 @@ class RoomScene : public lve::LveScene {
   bool actionPrevDown = false;
   float clock = 0.f;
 
+  // Script keeps track of actions running in the scene and what step its on
+  struct Script {
+    bool running = false;
+    int prop = -1;
+    std::size_t next = 0;
+  };
+
+  Script script;
+
   float hoverLift = 0.45f;
   float hoverMaxHeight = 2.0f;
   float hoverBob = 0.07f;
@@ -141,6 +170,22 @@ class RoomScene : public lve::LveScene {
 
   // Certain props can press E to talk to
   void updateInteraction();
+
+  int findProp(const std::string& name) const;
+
+  void runScript();
+
+  bool applyAction(const petscop::MapAction& action, int owner, bool backwards);
+
+  void startMotion(Prop& prop,
+                   const glm::vec3& translation,
+                   const glm::vec3& rotation,
+                   const glm::vec3& scale,
+                   float seconds);
+
+  void tickMotions(float dt);
+
+  void refreshProp(Prop& prop);
 
   void emitHoverBox();
 

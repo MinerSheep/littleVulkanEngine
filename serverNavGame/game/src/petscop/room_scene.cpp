@@ -1,5 +1,6 @@
 #include "petscop/room_scene.hpp"
 
+#include <lve_audio.hpp>
 #include <lve_engine.hpp>
 #include <lve_skinned_model.hpp>
 
@@ -12,6 +13,7 @@
 
 namespace {
 
+// comment
 float boxGap(const ColliderComponent::Aabb& a, const ColliderComponent::Aabb& b) {
   const glm::vec3 gap = glm::max(glm::max(a.min - b.max, b.min - a.max), glm::vec3(0.f));
   return glm::length(gap);
@@ -21,10 +23,11 @@ float boxGap(const ColliderComponent::Aabb& a, const ColliderComponent::Aabb& b)
 
 void RoomScene::loadModels() {
   std::string error;
-  if (!petscop::loadMap(mapPath, map, error)) throw std::runtime_error("[petscop] " + error);
+  if (!petscop::loadMap(mapPath, map, error)) 
+    throw std::runtime_error("[petscop] " + error);
 
-  // Every mesh the map mentions, loaded once and kept for good
-  // After this a door costs no disk reads and no uploads, just a swap of vectors
+  // Every mesh in the map is loaded and stored permanently
+  // A door is preloaded, and swapped in place of every door
   models.preload(map.presets);
 
   textRenderer = std::make_unique<lve::LveTextRenderer>(lve::LveEngine::instance().getDevice());
@@ -74,15 +77,17 @@ glm::mat4 RoomScene::placement(const glm::vec3& t, const glm::vec3& r, const glm
 void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
   const petscop::MapRoom& room = map.rooms[roomIndex];
 
-  // Let go of every box FIRST
-  // The collision system keeps raw pointers into props, so it has to be emptied
-  // before anything in props is destroyed
+  // Clear collisions FIRST, they carry raw pointers
   collisions.clear();
+
+  // then clear boxes
   props.clear();
   doors.clear();
 
   dialog.close();
+
   nearProp = -1;
+  script = Script{};
   if (playerMover) playerMover->enabled = true;
 
   // Sized up front, so filling them never moves what is already in
@@ -96,7 +101,15 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
     prop.rotation = object.rotation;
     prop.scale = object.scale;
     prop.face = object.face;
-    prop.dialog = object.dialog;
+
+    // Objects expanded to have actions
+    // Therefore we now hold default states
+    prop.restTranslation = object.translation;
+    prop.restRotation = object.rotation;
+    prop.restScale = object.scale;
+    prop.name = object.name;
+    prop.actions = object.actions;
+    prop.flipped.assign(object.actions.size(), 0);
     props.push_back(prop);
   }
 
@@ -115,8 +128,9 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
   // Boxes, now that nothing more is going to be added
   for (Prop& prop : props) {
     if (prop.model) prop.collider.fitToModel(*prop.model);
-    prop.collider.refresh(placement(prop.translation, prop.rotation, prop.scale));
+    refreshProp(prop);
   }
+
   for (Door& door : doors) {
     // A doorway has no mesh, so its box is just the opening. The map stores the
     // opening as a half size, the same way a cube's scale is its half size
@@ -196,8 +210,146 @@ void RoomScene::updateWallVisibility() {
   }
 }
 
+void RoomScene::refreshProp(Prop& prop) {
+  prop.collider.refresh(placement(prop.translation, prop.rotation, prop.scale));
+}
+
+int RoomScene::findProp(const std::string& name) const {
+  if (name.empty()) return -1;
+  for (std::size_t i = 0; i < props.size(); i++) {
+    if (props[i].name == name) return static_cast<int>(i);
+  }
+  return -1;
+}
+
+void RoomScene::startMotion(Prop& prop,
+                            const glm::vec3& translation,
+                            const glm::vec3& rotation,
+                            const glm::vec3& scale,
+                            float seconds) {
+  if (seconds <= 0.f) {
+    prop.translation = translation;
+    prop.rotation = rotation;
+    prop.scale = scale;
+    prop.motion.active = false;
+    refreshProp(prop);
+    return;
+  }
+
+  prop.motion.fromTranslation = prop.translation;
+  prop.motion.fromRotation = prop.rotation;
+  prop.motion.fromScale = prop.scale;
+  prop.motion.toTranslation = translation;
+  prop.motion.toRotation = rotation;
+  prop.motion.toScale = scale;
+  prop.motion.elapsed = 0.f;
+  prop.motion.seconds = seconds;
+  prop.motion.active = true;
+}
+
+void RoomScene::tickMotions(float dt) {
+  for (Prop& prop : props) {
+    if (!prop.motion.active) continue;
+
+    prop.motion.elapsed += dt;
+
+    float amount = prop.motion.elapsed / prop.motion.seconds;
+    if (amount >= 1.f) {
+      amount = 1.f;
+      prop.motion.active = false;
+    }
+
+    const float eased = amount * amount * (3.f - 2.f * amount);
+    prop.translation = glm::mix(prop.motion.fromTranslation, prop.motion.toTranslation, eased);
+    prop.rotation = glm::mix(prop.motion.fromRotation, prop.motion.toRotation, eased);
+    prop.scale = glm::mix(prop.motion.fromScale, prop.motion.toScale, eased);
+    refreshProp(prop);
+  }
+}
+
+bool RoomScene::applyAction(const petscop::MapAction& action, int owner, bool backwards) {
+
+  // DIALOGUE
+  if (action.kind == petscop::ActionKind::Say) {
+    dialog.open(action.text);
+    return dialog.isOpen();
+  }
+
+  // SFX
+  if (action.kind == petscop::ActionKind::Sound) {
+    lve::LveAudio::instance().play(action.text);
+    return false;
+  }
+
+  const int index = action.target.empty() ? owner : findProp(action.target);
+  if (index < 0 || index >= static_cast<int>(props.size())) return false;
+
+  Prop& prop = props[index];
+
+  // APPEAR
+  if (action.kind == petscop::ActionKind::Show) {
+    prop.disappeared = false;
+    prop.collider.enabled = true;
+    return false;
+  }
+
+  // DISAPPEAR
+  if (action.kind == petscop::ActionKind::Hide) {
+    prop.disappeared = true;
+    prop.collider.enabled = false;
+    return false;
+  }
+
+  glm::vec3 translation = prop.motion.active ? prop.motion.toTranslation : prop.translation;
+  glm::vec3 rotation = prop.motion.active ? prop.motion.toRotation : prop.rotation;
+  glm::vec3 scale = prop.motion.active ? prop.motion.toScale : prop.scale;
+
+  if (action.toggle) {
+    translation = prop.restTranslation;
+    rotation = prop.restRotation;
+    scale = prop.restScale;
+  }
+
+  if (!action.toggle || !backwards) {
+    if (action.kind == petscop::ActionKind::Move) translation += action.amount;
+    else if (action.kind == petscop::ActionKind::Rotate) rotation += action.amount;
+    else scale *= action.amount;
+  }
+
+  startMotion(prop, translation, rotation, scale, action.seconds);
+  return false;
+}
+
+void RoomScene::runScript() {
+  while (script.running) {
+    // check the prop index is within bounds
+    if (script.prop < 0 || script.prop >= static_cast<int>(props.size())) 
+      break;
+
+    Prop& owner = props[script.prop];
+    if (script.next >= owner.actions.size()) 
+      break;
+
+    const std::size_t step = script.next++;
+    const petscop::MapAction action = owner.actions[step];
+
+
+    // BACKWARDS is a check for an object returning to its rest state
+    bool backwards = false;
+    if (action.toggle && step < owner.flipped.size()) {
+      backwards = owner.flipped[step] != 0;
+      owner.flipped[step] = backwards ? 0 : 1;
+    }
+
+    if (applyAction(action, script.prop, backwards)) 
+      return;
+  }
+
+  script = Script{};
+}
+
 // Updates the prompt interaction with interactable props
-void RoomScene::updateInteraction() 
+void RoomScene::updateInteraction()
 {
   GLFWwindow* window = lve::LveEngine::instance().getGLFWWindow();
 
@@ -206,7 +358,25 @@ void RoomScene::updateInteraction()
   actionPrevDown = actionDown;
 
   nearProp = -1;
-  if (playerCollider && !dialog.isOpen()) 
+
+  // while a script is running, ALL interactions are blocked
+  if (script.running) {
+    if (dialog.isOpen()) {
+      if (actionPressed) dialog.advance();
+
+      if (dialog.isOpen()) {
+        if (playerMover) playerMover->enabled = false;
+        return;
+      }
+    }
+
+    runScript();
+
+    if (playerMover) playerMover->enabled = !dialog.isOpen();
+    return;
+  }
+
+  if (playerCollider)
   {
     const ColliderComponent::Aabb& me = playerCollider->worldBox();
 
@@ -214,6 +384,7 @@ void RoomScene::updateInteraction()
 
     for (std::size_t i = 0; i < props.size(); i++) {
       if (!props[i].interactable()) continue;
+      if (props[i].disappeared) continue;
 
       const float gap = boxGap(me, props[i].collider.worldBox());
 
@@ -224,12 +395,12 @@ void RoomScene::updateInteraction()
     }
   }
 
-  // if the dialog is open & we press, continue, if not & we press, open it
-  if (dialog.isOpen()) {
-    if (actionPressed) dialog.advance();
-  } else if (actionPressed && nearProp >= 0) {
-    dialog.open(props[nearProp].dialog);
+  if (actionPressed && nearProp >= 0) {
+    script.running = true;
+    script.prop = nearProp;
+    script.next = 0;
     nearProp = -1;
+    runScript();
   }
 
   if (playerMover) playerMover->enabled = !dialog.isOpen();
@@ -269,6 +440,8 @@ void RoomScene::update(float dt) {
       playerBody->grounded = false;
     }
     jumpPrevDown = jumpDown;
+
+    tickMotions(dt);
 
     player.updateComponents(dt);
 
@@ -338,6 +511,7 @@ void RoomScene::update(float dt) {
   renderItems.clear();
   for (const Prop& prop : props) {
     if (!prop.model) continue;
+    if (prop.disappeared) continue;
 
     // A wall standing between the camera and the room comes back ghosted rather
     // than solid, see updateWallVisibility. Either way it still collides, its box
@@ -401,4 +575,5 @@ void RoomScene::cleanup() {
   doors.clear();
   dialog.close();
   nearProp = -1;
+  script = Script{};
 }

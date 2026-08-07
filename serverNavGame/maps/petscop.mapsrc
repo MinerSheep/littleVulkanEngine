@@ -8,6 +8,32 @@
 #
 # Compile it with:
 #   python3 tools/build_map.py maps/petscop.mapsrc -o maps/petscop.map
+#
+# Things you can stand in a room:
+#   prop     <mesh>  tx ty tz  rx ry rz  sx sy sz  name <id>
+#   interact <mesh>  tx ty tz  rx ry rz  sx sy sz  [name <id>]
+#
+# An interact is a prop you can press E on. What that does is the 'do' lines
+# under it, which run top to bottom. A 'do say' waits for you to read it, the
+# rest happen straight away:
+#
+#   do say    <words, | starts a new page>
+#   do sound  <clip, from sounds/>
+#   do move   <prop|self>  dx dy dz     over <seconds>  [toggle]
+#   do rotate <prop|self>  rx ry rz     over <seconds>  [toggle]
+#   do scale  <prop|self>  fx fy fz     over <seconds>  [toggle]
+#   do show   <prop|self>
+#   do hide   <prop|self>
+#
+# The prop being acted on does NOT have to be the one you pressed E on -- name
+# something with 'name' and any action in the same room can point at it.
+#
+# Watch the units. Placement rx ry rz is in RADIANS, matching what the editor
+# saves, but 'do rotate' is in DEGREES because nobody wants to type 1.5708 for a
+# quarter turn. 'do scale' is a multiplier off the size the prop was built at.
+#
+# 'toggle' means the next press puts it back exactly where the map stood it.
+# Without it each press goes a further step in the same direction.
 
 map petscop
 start foyer
@@ -23,6 +49,18 @@ room foyer
   door closet   east   -1.5
   props rooms/foyer_props.layout
   interact tree  -3.0 0.5 2.0  0 0 0  0.30 0.30 0.30  say THE TREE IS TALLER THAN THE ROOM SHOULD ALLOW.|NOBODY REMEMBERS PLANTING IT.
+
+  # A slab dropped across the closet doorway, and the lever on the far side of
+  # the room that lifts it. Pressing E on the lever moves something you are not
+  # standing next to, which is the whole point of naming things
+  prop cube  5.300 -0.650 -1.500   0 0 0   0.250 1.150 0.900  name gate
+
+  interact cube  1.400 0.100 -1.500   0 0 0   0.150 0.400 0.150  name lever
+    do say A LEVER, SET INTO THE FLOOR.|IT HAS BEEN PULLED BEFORE.
+    do sound lever
+    do rotate self  -32 0 0  over 0.25  toggle
+    do move gate  0 -2.600 0  over 1.10  toggle
+    do say SOMETHING SHIFTS BY THE EAST WALL.
 
 
 # A long corridor running away from the foyer. The far door leads nowhere yet
@@ -41,7 +79,11 @@ room closet
   height 2.6
   light 0.0 -1.8 0.0   1.00 0.60 0.30   7
   door out  west  0
-  interact rock  0.0 0.17 0.0  0 0.6 0  0.60 0.60 0.60  say A ROCK, WORN SMOOTH ON ONE SIDE.|SOMEONE HAS BEEN TURNING IT OVER.
+  # No toggle on the turn, so every press moves it another quarter turn on
+  interact rock  0.0 0.17 0.0  0 0.6 0  0.60 0.60 0.60  name rock
+    do say A ROCK, WORN SMOOTH ON ONE SIDE.|SOMEONE HAS BEEN TURNING IT OVER.
+    do sound stone
+    do rotate rock  0 90 0  over 0.45
 
 
 link foyer.hallway  hall.back

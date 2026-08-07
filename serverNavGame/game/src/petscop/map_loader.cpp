@@ -25,6 +25,22 @@ std::string readRest(std::istringstream& ss)
   return rest.substr(first, last - first + 1);
 }
 
+bool readActionKind(const std::string& word, ActionKind& out) {
+  if (word == "say") out = ActionKind::Say;
+  else if (word == "move") out = ActionKind::Move;
+  else if (word == "rotate") out = ActionKind::Rotate;
+  else if (word == "scale") out = ActionKind::Scale;
+  else if (word == "show") out = ActionKind::Show;
+  else if (word == "hide") out = ActionKind::Hide;
+  else if (word == "sound") out = ActionKind::Sound;
+  else return false;
+  return true;
+}
+
+bool movesSomething(ActionKind kind) {
+  return kind == ActionKind::Move || kind == ActionKind::Rotate || kind == ActionKind::Scale;
+}
+
 }  // namespace
 
 bool loadMap(const std::string& path, GameMap& out, std::string& error) {
@@ -39,6 +55,7 @@ bool loadMap(const std::string& path, GameMap& out, std::string& error) {
 
   int lineNumber = 0;
   int room = -1;  // an index, not a pointer, so growing rooms can never strand it
+  int lastObject = -1;
   std::string line;
 
   auto fail = [&](const std::string& why) {
@@ -84,9 +101,11 @@ bool loadMap(const std::string& path, GameMap& out, std::string& error) {
       out.rooms.push_back(MapRoom{});
       out.rooms.back().name = name;
       room = index;
+      lastObject = -1;
 
     } else if (key == "endroom") {
       room = -1;
+      lastObject = -1;
 
     } else if (room < 0) {
       return fail(key + " outside a room");
@@ -111,8 +130,8 @@ bool loadMap(const std::string& path, GameMap& out, std::string& error) {
       if (!(ss >> object.preset) || !readVec3(ss, object.translation) ||
           !readVec3(ss, object.rotation) || !readVec3(ss, object.scale))
         return fail(key + " reads: " + key + " <preset> tx ty tz  rx ry rz  sx sy sz" +
-                    (key == "wall" ? "  face <nx ny nz>" : "") +
-                    (key == "interact" ? "  say <words>" : ""));
+                    (key == "wall" ? "  face <nx ny nz>" : "") + "  [name <id>]" +
+                    (key == "interact" ? "  [say <words>]" : ""));
       if (object.preset < 0 || object.preset >= static_cast<int>(out.presets.size()))
         return fail(key + " names preset " + std::to_string(object.preset) +
                     ", which is not declared");
@@ -122,18 +141,59 @@ bool loadMap(const std::string& path, GameMap& out, std::string& error) {
           return fail("wall is missing its 'face'");
       }
 
-      // for interaction props, this is the prompt
-      if (key == "interact") 
-      {
-        // looks for 'say' to trigger prompt
-        std::string keyword;
-        if (!(ss >> keyword) || keyword != "say") return fail("interact is missing its 'say'");
-
-        object.dialog = readRest(ss);
-        if (object.dialog.empty()) return fail("interact has nothing to say");
+      std::string keyword;
+      while (ss >> keyword) {
+        if (keyword == "name") {
+          if (!(ss >> object.name)) return fail("name needs a word after it");
+        } else if (keyword == "say") {
+          MapAction action;
+          action.kind = ActionKind::Say;
+          action.text = readRest(ss);
+          if (action.text.empty()) return fail("say has nothing to say");
+          object.actions.push_back(action);
+          break;
+        } else {
+          return fail("unexpected '" + keyword + "' after " + key);
+        }
       }
 
       out.rooms[room].objects.push_back(object);
+      lastObject = static_cast<int>(out.rooms[room].objects.size()) - 1;
+
+    } else if (key == "do") {
+      if (lastObject < 0) return fail("do comes after the thing it belongs to, and there is none yet");
+
+      std::string word;
+      if (!(ss >> word)) return fail("do reads: do <say|move|rotate|scale|show|hide|sound> ...");
+
+      MapAction action;
+      if (!readActionKind(word, action.kind)) return fail("do does not know how to '" + word + "'");
+
+      if (action.kind == ActionKind::Say) {
+        action.text = readRest(ss);
+        if (action.text.empty()) return fail("do say has nothing to say");
+
+      } else if (action.kind == ActionKind::Sound) {
+        if (!(ss >> action.text)) return fail("do sound needs a clip name");
+
+      } else {
+        if (!(ss >> action.target)) return fail("do " + word + " needs something to act on");
+        if (action.target == "self") action.target.clear();
+
+        if (movesSomething(action.kind)) {
+          std::string keyword;
+          if (!readVec3(ss, action.amount)) return fail("do " + word + " needs three numbers");
+          if (!(ss >> keyword) || keyword != "over" || !(ss >> action.seconds))
+            return fail("do " + word + " is missing its 'over <seconds>'");
+          if (action.seconds < 0.f) return fail("do " + word + " cannot take negative time");
+          if (ss >> keyword) {
+            if (keyword != "toggle") return fail("unexpected '" + keyword + "' after do " + word);
+            action.toggle = true;
+          }
+        }
+      }
+
+      out.rooms[room].objects[lastObject].actions.push_back(action);
 
     } else if (key == "door") {
       MapDoor door;
@@ -178,6 +238,27 @@ bool loadMap(const std::string& path, GameMap& out, std::string& error) {
                 std::to_string(door.toDoor) + " of " + out.rooms[door.toRoom].name +
                 ", which does not exist";
         return false;
+      }
+    }
+  }
+
+  for (const MapRoom& current : out.rooms) {
+    for (const MapObject& object : current.objects) {
+      for (const MapAction& action : object.actions) {
+        if (action.target.empty()) continue;
+
+        bool found = false;
+        for (const MapObject& other : current.objects) {
+          if (other.name == action.target) {
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          error = path + ": in room " + current.name + ", an action points at '" + action.target +
+                  "', and nothing in that room is called that";
+          return false;
+        }
       }
     }
   }

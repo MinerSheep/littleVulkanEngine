@@ -87,6 +87,38 @@ class Door:
         self.spawn_yaw = 0.0
 
 
+class Action:
+    """One step of what pressing E on a prop does"""
+
+    def __init__(self, kind, target="", text="", amount=(0.0, 0.0, 0.0), seconds=0.0,
+                 toggle=False, line=""):
+        self.kind = kind
+        self.target = target
+        self.text = text
+        self.amount = amount
+        self.seconds = seconds
+        self.toggle = toggle
+        self.line = line
+
+
+class Obj:
+    """One thing standing in a room
+
+    face is the outward normal for a wall, and all zeroes for anything the game
+    should never hide, like the floor or a prop. name is what an action calls it,
+    and is empty for the generated floor and walls that nothing points at
+    """
+
+    def __init__(self, preset, translation, rotation, scale, face=(0.0, 0.0, 0.0), name=""):
+        self.preset = preset
+        self.translation = translation
+        self.rotation = rotation
+        self.scale = scale
+        self.face = face
+        self.name = name
+        self.actions = []
+
+
 class Room:
     def __init__(self, ident, line):
         self.ident = ident
@@ -98,10 +130,8 @@ class Room:
         self.lights = []         # (pos, colour, intensity)
         self.doors = []
         self.prop_files = []
-        self.interactions = []
-        # (preset, translation, rotation, scale, face, dialog)
-        # face is the outward normal for a wall, and all zeroes for anything the
-        # game should never hide, like the floor or a prop
+        self.placed = []
+        self.last = None
         self.objects = []
 
     def door_index(self, ident):
@@ -121,6 +151,66 @@ def parse_floats(where, parts, count, what):
         except ValueError:
             fail(where, "{} is not a number in {}".format(p, what))
     return out
+
+
+def parse_action(where, text, rest):
+    """Reads one 'do ...' line
+
+    Angles are written in degrees here because that is what a person wants to
+    type, and go out to the .map in radians like every other rotation the game
+    reads. Scale is a multiplier, so 2 2 2 means twice the size it was built at
+    """
+    kind = rest[0].lower()
+
+    if kind == "say":
+        if "#" in text:
+            fail(where, "a do say line cannot use #, not even as a trailing comment: "
+                        "the game reads # as a comment and would cut the text short")
+        words = " ".join(rest[1:]).strip()
+        if not words:
+            fail(where, "do say has nothing to say")
+        return Action("say", text=words, line=where)
+
+    if kind == "sound":
+        if len(rest) != 2:
+            fail(where, "do sound reads: do sound <clip>")
+        return Action("sound", text=rest[1], line=where)
+
+    if kind in ("show", "hide"):
+        if len(rest) != 2:
+            fail(where, "do {0} reads: do {0} <prop|self>".format(kind))
+        return Action(kind, target=rest[1], line=where)
+
+    if kind not in ("move", "rotate", "scale"):
+        fail(where, "do does not know how to {}".format(rest[0]))
+
+    usage = ("do {0} reads: do {0} <prop|self>  x y z  over <seconds>  [toggle]".format(kind))
+    words = [w.lower() for w in rest]
+    if "over" not in words:
+        fail(where, usage)
+    o = words.index("over")
+    if o != 5:
+        fail(where, "do {} needs a target and three numbers before its 'over'".format(kind))
+
+    amount = parse_floats(where, rest[2:5], 3, "do " + kind)
+    seconds = parse_floats(where, rest[o + 1:o + 2], 1, "do {} over".format(kind))[0]
+    if seconds < 0:
+        fail(where, "do {} cannot take negative time".format(kind))
+
+    toggle = False
+    extra = rest[o + 2:]
+    if extra:
+        if len(extra) != 1 or extra[0].lower() != "toggle":
+            fail(where, "unexpected {} after {}".format(" ".join(extra), usage))
+        toggle = True
+
+    if kind == "rotate":
+        amount = [math.radians(v) for v in amount]
+    if kind == "scale" and any(v == 0.0 for v in amount):
+        fail(where, "do scale by zero would flatten the prop, use hide instead")
+
+    return Action(kind, target=rest[1], amount=tuple(amount), seconds=seconds, toggle=toggle,
+                  line=where)
 
 
 def parse_mapsrc(path):
@@ -241,27 +331,47 @@ def parse_mapsrc(path):
                 fail(where, "props needs a file path")
             room.prop_files.append((rest[0], where))
 
-        elif key == "interact":
+        elif key in ("prop", "interact"):
             if room is None:
-                fail(where, "interact outside a room")
+                fail(where, "{} outside a room".format(key))
             if "#" in text:
-                fail(where, "an interact line cannot use #, not even as a trailing comment: "
-                            "the game reads # as a comment and would cut the text short")
-            words = [w.lower() for w in rest]
-            if "say" not in words:
-                fail(where, "interact reads: interact <preset>  tx ty tz  rx ry rz  sx sy sz  "
-                            "say <words>")
-            s = words.index("say")
-            if s != 10:
-                fail(where, "interact needs a preset and 9 numbers before its 'say', got {}"
-                            .format(s))
-            preset = rest[0]
-            values = parse_floats(where, rest[1:10], 9, "interact")
-            dialog = " ".join(rest[s + 1:]).strip()
-            if not dialog:
-                fail(where, "interact has nothing to say")
-            room.interactions.append(
-                (preset, tuple(values[0:3]), tuple(values[3:6]), tuple(values[6:9]), dialog))
+                fail(where, "a {} line cannot use #, not even as a trailing comment: "
+                            "the game reads # as a comment and would cut the text short".format(key))
+            if len(rest) < 10:
+                fail(where, "{} reads: {} <preset>  tx ty tz  rx ry rz  sx sy sz  "
+                            "[name <id>]  [say <words>]".format(key, key))
+            values = parse_floats(where, rest[1:10], 9, key)
+            obj = Obj(rest[0], tuple(values[0:3]), tuple(values[3:6]), tuple(values[6:9]))
+
+            tail = rest[10:]
+            i = 0
+            while i < len(tail):
+                word = tail[i].lower()
+                if word == "name":
+                    if i + 1 >= len(tail):
+                        fail(where, "name needs a word after it")
+                    obj.name = tail[i + 1]
+                    i += 2
+                elif word == "say":
+                    words = " ".join(tail[i + 1:]).strip()
+                    if not words:
+                        fail(where, "say has nothing to say")
+                    obj.actions.append(Action("say", text=words, line=where))
+                    i = len(tail)
+                else:
+                    fail(where, "unexpected {} after {}".format(tail[i], key))
+
+            room.placed.append(obj)
+            room.last = obj
+
+        elif key == "do":
+            if room is None:
+                fail(where, "do outside a room")
+            if room.last is None:
+                fail(where, "do comes after the prop it belongs to, and there is none yet")
+            if not rest:
+                fail(where, "do reads: do <say|move|rotate|scale|show|hide|sound> ...")
+            room.last.actions.append(parse_action(where, text, rest))
 
         else:
             fail(where, "unknown directive {}".format(parts[0]))
@@ -338,13 +448,11 @@ def build_room(room):
 
     # Floor, sitting so that you walk on exactly GROUND_Y
     # No face, because the floor must never be hidden
-    room.objects.append((
+    room.objects.append(Obj(
         FLOOR_PRESET,
         (0.0, GROUND_Y + FLOOR_HALF_THICK, 0.0),
         (0.0, 0.0, 0.0),
         (half_w, FLOOR_HALF_THICK, half_d),
-        (0.0, 0.0, 0.0),
-        "",
     ))
 
     for wall, info in WALLS.items():
@@ -377,7 +485,7 @@ def build_room(room):
                 (lo + hi) * 0.5, fixed,
                 (hi - lo) * 0.5, wall_half,
                 GROUND_Y - room.height * 0.5, room.height * 0.5)
-            room.objects.append((WALL_PRESET, translation, (0.0, 0.0, 0.0), scale, outward, ""))
+            room.objects.append(Obj(WALL_PRESET, translation, (0.0, 0.0, 0.0), scale, outward))
 
         for door in doors:
             # The bit of wall above the opening
@@ -389,7 +497,7 @@ def build_room(room):
                     door.width * 0.5, wall_half,
                     ceiling_y + lintel_half, lintel_half)
                 # Part of the wall, so it goes when the wall goes
-                room.objects.append((WALL_PRESET, translation, (0.0, 0.0, 0.0), scale, outward, ""))
+                room.objects.append(Obj(WALL_PRESET, translation, (0.0, 0.0, 0.0), scale, outward))
 
             # The trigger, reaching further through the wall than the wall is thick
             depth_half = max(wall_half, MIN_TRIGGER_DEPTH * 0.5)
@@ -454,6 +562,45 @@ def resolve_links(rooms, by_ident, links, room_index):
         room_b.doors[door_b].to_door = door_a
 
 
+def check_actions(rooms):
+    """Every action has to point at something that is actually in the same room"""
+    for room in rooms:
+        names = set()
+        for obj in room.objects:
+            if not obj.name:
+                continue
+            if obj.name in names:
+                fail(room.line, "room {} has two things called {}".format(room.ident, obj.name))
+            names.add(obj.name)
+
+        for obj in room.objects:
+            for action in obj.actions:
+                if action.target in ("", "self"):
+                    continue
+                if action.target not in names:
+                    known = ", ".join(sorted(names)) or "nothing is named"
+                    fail(action.line or room.line,
+                         "do {} points at {}, which is not in room {} (it has: {})"
+                         .format(action.kind, action.target, room.ident, known))
+
+
+def check_sounds(rooms, sounds_dir):
+    """A missing clip is only a warning, the game just stays quiet"""
+    wanted = set()
+    for room in rooms:
+        for obj in room.objects:
+            for action in obj.actions:
+                if action.kind == "sound":
+                    wanted.add(action.text)
+
+    for name in sorted(wanted):
+        found = any(os.path.isfile(os.path.join(sounds_dir, name + ext))
+                    for ext in (".wav", ".ogg", ".mp3", ".flac"))
+        if not found:
+            print("[build_map] warning: no clip on disk for sound '{}', looked in {}"
+                  .format(name, sounds_dir), file=sys.stderr)
+
+
 def check_presets(presets, models_dir):
     missing = []
     for name in presets:
@@ -475,6 +622,22 @@ def vec(values):
     return " ".join(f3(v) for v in values)
 
 
+def emit_action(action):
+    """Writes one action out as the 'do ...' line the game reads"""
+    if action.kind in ("say", "sound"):
+        return "do {} {}".format(action.kind, action.text)
+
+    target = action.target or "self"
+    if action.kind in ("show", "hide"):
+        return "do {} {}".format(action.kind, target)
+
+    line = "do {} {}  {}  over {}".format(
+        action.kind, target, vec(action.amount), f3(action.seconds))
+    if action.toggle:
+        line += "  toggle"
+    return line
+
+
 def emit(name, start_index, rooms, presets, out_path):
     lines = []
     lines.append("# generated by tools/build_map.py -- do not edit, edit the .mapsrc instead")
@@ -493,17 +656,22 @@ def emit(name, start_index, rooms, presets, out_path):
         lines.append("cam {}  {}".format(vec(eye), vec(look)))
         for position, colour, intensity in room.lights:
             lines.append("light {}  {}  {}".format(vec(position), vec(colour), f3(intensity)))
-        for preset, translation, rotation, scale, face, dialog in room.objects:
+        for obj in room.objects:
             body = "{}  {}  {}  {}".format(
-                presets.index(preset), vec(translation), vec(rotation), vec(scale))
-            if dialog:
-                lines.append("interact {}  say {}".format(body, dialog))
-            elif face == (0.0, 0.0, 0.0):
-                lines.append("obj {}".format(body))
-            else:
+                presets.index(obj.preset), vec(obj.translation), vec(obj.rotation), vec(obj.scale))
+            if obj.face != (0.0, 0.0, 0.0):
                 # A wall knows which way it faces, so the game can drop it when it
                 # stands between the camera and the room
-                lines.append("wall {}  face {}".format(body, vec(face)))
+                head = "wall {}  face {}".format(body, vec(obj.face))
+            elif obj.actions:
+                head = "interact {}".format(body)
+            else:
+                head = "obj {}".format(body)
+            if obj.name:
+                head += "  name {}".format(obj.name)
+            lines.append(head)
+            for action in obj.actions:
+                lines.append(emit_action(action))
         for door in room.doors:
             lines.append("door {}  {}  {}  {}  to {} {}  spawn {} {}".format(
                 door.ident,
@@ -521,7 +689,7 @@ def emit(name, start_index, rooms, presets, out_path):
         handle.write(text)
 
 
-def build(src_path, out_path, models_dir):
+def build(src_path, out_path, models_dir, sounds_dir):
     name, start, rooms, by_ident, links = parse_mapsrc(src_path)
     room_index = {room.ident: i for i, room in enumerate(rooms)}
 
@@ -530,9 +698,11 @@ def build(src_path, out_path, models_dir):
         for rel, where in room.prop_files:
             for preset, translation, rotation, scale in parse_layout(rel, where):
                 # No face: a prop is never hidden, only walls are
-                room.objects.append((preset, translation, rotation, scale, (0.0, 0.0, 0.0), ""))
-        for preset, translation, rotation, scale, dialog in room.interactions:
-            room.objects.append((preset, translation, rotation, scale, (0.0, 0.0, 0.0), dialog))
+                room.objects.append(Obj(preset, translation, rotation, scale))
+        room.objects.extend(room.placed)
+
+    check_actions(rooms)
+    check_sounds(rooms, sounds_dir)
 
     resolve_links(rooms, by_ident, links, room_index)
 
@@ -548,9 +718,9 @@ def build(src_path, out_path, models_dir):
 
     presets = []
     for room in rooms:
-        for preset, _, _, _, _, _ in room.objects:
-            if preset not in presets:
-                presets.append(preset)
+        for obj in room.objects:
+            if obj.preset not in presets:
+                presets.append(obj.preset)
     check_presets(presets, models_dir)
 
     emit(name, room_index[start], rooms, presets, out_path)
@@ -570,11 +740,13 @@ def main():
     parser.add_argument("-o", "--out", help="where to write the .map (default: alongside the source)")
     parser.add_argument("--models-dir", default="models",
                         help="where the preset meshes live (default: models)")
+    parser.add_argument("--sounds-dir", default="sounds",
+                        help="where the sound clips live (default: sounds)")
     args = parser.parse_args()
 
     out = args.out or os.path.splitext(args.source)[0] + ".map"
     try:
-        build(args.source, out, args.models_dir)
+        build(args.source, out, args.models_dir, args.sounds_dir)
     except MapError as exc:
         print("[build_map] error: {}".format(exc), file=sys.stderr)
         return 1

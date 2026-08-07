@@ -12,16 +12,12 @@ namespace petscop {
 
 // Keeps one copy of every mesh a map uses
 //
-// A preset name is the mesh's file name without the extension, so "cube" means
-// models/cube.obj. Asking for the same name twice gives back the same mesh
+// A preset name is the mesh's file name without the extension
 //
-// The cache outlives the room you are standing in, so walking through a door
-// loads nothing and throws nothing away
-//
-// Meshes are handed out as raw pointers and stay good for as long as the cache
-// does. Adding a new one never moves the ones already in
+// The cache outlives the current room, it is easily reloaded in another room
 class ModelCache {
  public:
+
   // Load everything a map mentions up front, so no door ever waits on the disk
   void preload(const std::vector<std::string>& presets) {
     for (const std::string& name : presets) get(name);
@@ -30,7 +26,8 @@ class ModelCache {
   // The mesh for a preset, or null if it would not load
   lve::LveModel* get(const std::string& name) {
     auto it = models.find(name);
-    if (it != models.end()) return it->second.get();
+    if (it != models.end()) 
+      return it->second.get();
 
     const std::string path = "models/" + name + ".obj";
     try {
