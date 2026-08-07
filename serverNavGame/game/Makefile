@@ -5,7 +5,8 @@ include ../engine/.env
 CXX = g++
 CXXFLAGS = -std=c++17 -Isrc -I../engine/include -I$(VULKAN_SDK_PATH)/include -g3 -O0 -fno-omit-frame-pointer -fsanitize=address -MMD -MP
 LDFLAGS = -L../engine -lvulkan_engine \
-          -L$(VULKAN_SDK_PATH)/lib `pkg-config --static --libs glfw3` -lvulkan
+          -L$(VULKAN_SDK_PATH)/lib `pkg-config --static --libs glfw3` -lvulkan \
+          -lpthread -ldl -lm
 
 CFLAGS += `pkg-config --cflags libcurl`
 LDFLAGS += `pkg-config --libs libcurl`

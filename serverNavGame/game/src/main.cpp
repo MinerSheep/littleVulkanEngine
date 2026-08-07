@@ -1,3 +1,4 @@
+#include <lve_audio.hpp>
 #include <lve_engine.hpp>
 #include <lve_event_dispatcher.hpp>
 #include <lve_scene_editor.hpp>
@@ -38,6 +39,11 @@ int main() {
     // ServerNav navGame;
 
     engine.init();
+
+    lve::LveAudio& audio = lve::LveAudio::instance();
+    audio.init();
+    audio.loadFolder("sounds");
+
     try {
     
         // static ServerNavScene snscene;
