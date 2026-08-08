@@ -1,25 +1,13 @@
 #include "petscop/room_scene.hpp"
 
-#include <lve_audio.hpp>
 #include <lve_engine.hpp>
 #include <lve_skinned_model.hpp>
 
 #include <glm/gtc/constants.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
-
-namespace {
-
-// comment
-float boxGap(const ColliderComponent::Aabb& a, const ColliderComponent::Aabb& b) {
-  const glm::vec3 gap = glm::max(glm::max(a.min - b.max, b.min - a.max), glm::vec3(0.f));
-  return glm::length(gap);
-}
-
-}  // namespace
 
 void RoomScene::loadModels() {
   std::string error;
@@ -41,17 +29,16 @@ void RoomScene::loadModels() {
   playerSkin = player.addComponent<SkinnedModelComponent>();
   playerSkin->setModel(lve::LveSkinnedModel::createModelFromFile("models/statue.glb"));
 
-  // Forward is set once per room from where the camera sits, so WASD stays
-  // camera relative even though the camera never moves
+  // Forward is set once per room from where the camera sits
   playerMover = player.addComponent<KeyboardMovementComponent>();
   playerMover->setAnimations(playerSkin, 3, 0);
 
-  // Gravity, added after movement so the two never argue over a frame
+  // Gravity, add after movement
   playerBody = player.addComponent<RigidbodyComponent>();
   playerBody->freezePositionX = true;  // the mover writes X and Z itself
   playerBody->freezePositionZ = true;
 
-  // Box last, so it ticks after the move and ends the frame where he really is
+  // Box last, it ticks after the move and ends the frame where the player really is
   playerCollider = player.addComponent<ColliderComponent>();
   playerCollider->isStatic = false;
   if (playerSkin->model) {
@@ -60,18 +47,13 @@ void RoomScene::loadModels() {
     playerCollider->localHalfExtent.z = glm::min(playerCollider->localHalfExtent.z, playerRadius);
   }
 
+  // The props vector never moves, only what is inside it, so this is bound once
+  interactions.bind(&props, &dialog);
+
   std::cout << "[petscop] loaded map '" << map.name << "': " << map.rooms.size() << " room(s), "
             << map.presets.size() << " mesh(es)" << std::endl;
 
   enterRoom(map.startRoom, -1);
-}
-
-glm::mat4 RoomScene::placement(const glm::vec3& t, const glm::vec3& r, const glm::vec3& s) {
-  glm::mat4 mat = glm::translate(glm::mat4(1.f), t);
-  mat = glm::rotate(mat, r.y, glm::vec3(0.f, 1.f, 0.f));
-  mat = glm::rotate(mat, r.x, glm::vec3(1.f, 0.f, 0.f));
-  mat = glm::rotate(mat, r.z, glm::vec3(0.f, 0.f, 1.f));
-  return glm::scale(mat, s);
 }
 
 void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
@@ -84,13 +66,9 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
   props.clear();
   doors.clear();
 
-  dialog.close();
-
-  nearProp = -1;
-  script = Script{};
+  interactions.reset();
   if (playerMover) playerMover->enabled = true;
 
-  // Sized up front, so filling them never moves what is already in
   props.reserve(room.objects.size());
   doors.reserve(room.doors.size());
 
@@ -128,14 +106,13 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
   // Boxes, now that nothing more is going to be added
   for (Prop& prop : props) {
     if (prop.model) prop.collider.fitToModel(*prop.model);
-    refreshProp(prop);
+    prop.refreshBox();
   }
 
   for (Door& door : doors) {
-    // A doorway has no mesh, so its box is just the opening. The map stores the
-    // opening as a half size, the same way a cube's scale is its half size
+    // A doorway has no mesh, just a box opening at half size
     door.trigger.setLocalBox(glm::vec3(0.f), glm::vec3(1.f));
-    door.trigger.refresh(placement(door.translation, door.rotation, door.scale));
+    door.trigger.refresh(petscop::placement(door.translation, door.rotation, door.scale));
   }
 
   // Stand him at the door he came through, or in the middle for the first room
@@ -154,8 +131,6 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
   }
   if (playerCollider) playerCollider->refresh(xform->mat4());
 
-  // The camera holds still in a room, so forward is worked out once here rather
-  // than every frame. W walks away from the camera
   cameraEye = room.cameraEye;
   cameraLook = room.cameraLook;
   const glm::vec3 look = cameraLook - cameraEye;
@@ -180,17 +155,17 @@ void RoomScene::updateWallVisibility() {
   const glm::vec3 look = cameraLook - cameraEye;
   if (glm::length(look) < 1e-4f) return;
 
-  // The question is really which side of the room the camera is standing on, so
-  // ask it on the ground plane. The camera tilts down to see the floor, and that
-  // tilt otherwise eats into every wall's score until a steep enough camera
-  // starts dropping the far wall as well
+  // The camera tilts down to see the floor from the ground
+  // Not really sure how this works
   glm::vec2 forwardFlat(look.x, look.z);
+
   const bool flatUsable = glm::length(forwardFlat) > 1e-4f;
   if (flatUsable) forwardFlat = glm::normalize(forwardFlat);
+
   const glm::vec3 forward = glm::normalize(look);
 
   for (Prop& prop : props) {
-    // Only walls say which way they face, so everything else always draws
+    // Walls have a face and will hit this if check
     if (prop.face == glm::vec3(0.f)) {
       prop.visibility = 1.f;
       continue;
@@ -201,7 +176,7 @@ void RoomScene::updateWallVisibility() {
     if (flatUsable && glm::length(outwardFlat) > 1e-4f) {
       facing = glm::dot(glm::normalize(outwardFlat), forwardFlat);
     } else {
-      // A floor or a ceiling has no sideways direction, so ask in full 3D
+      // A floor or a ceiling has no sideways direction, we check in 3d
       facing = glm::dot(glm::normalize(prop.face), forward);
     }
 
@@ -210,205 +185,11 @@ void RoomScene::updateWallVisibility() {
   }
 }
 
-void RoomScene::refreshProp(Prop& prop) {
-  prop.collider.refresh(placement(prop.translation, prop.rotation, prop.scale));
-}
-
-int RoomScene::findProp(const std::string& name) const {
-  if (name.empty()) return -1;
-  for (std::size_t i = 0; i < props.size(); i++) {
-    if (props[i].name == name) return static_cast<int>(i);
-  }
-  return -1;
-}
-
-void RoomScene::startMotion(Prop& prop,
-                            const glm::vec3& translation,
-                            const glm::vec3& rotation,
-                            const glm::vec3& scale,
-                            float seconds) {
-  if (seconds <= 0.f) {
-    prop.translation = translation;
-    prop.rotation = rotation;
-    prop.scale = scale;
-    prop.motion.active = false;
-    refreshProp(prop);
-    return;
-  }
-
-  prop.motion.fromTranslation = prop.translation;
-  prop.motion.fromRotation = prop.rotation;
-  prop.motion.fromScale = prop.scale;
-  prop.motion.toTranslation = translation;
-  prop.motion.toRotation = rotation;
-  prop.motion.toScale = scale;
-  prop.motion.elapsed = 0.f;
-  prop.motion.seconds = seconds;
-  prop.motion.active = true;
-}
-
-void RoomScene::tickMotions(float dt) {
-  for (Prop& prop : props) {
-    if (!prop.motion.active) continue;
-
-    prop.motion.elapsed += dt;
-
-    float amount = prop.motion.elapsed / prop.motion.seconds;
-    if (amount >= 1.f) {
-      amount = 1.f;
-      prop.motion.active = false;
-    }
-
-    const float eased = amount * amount * (3.f - 2.f * amount);
-    prop.translation = glm::mix(prop.motion.fromTranslation, prop.motion.toTranslation, eased);
-    prop.rotation = glm::mix(prop.motion.fromRotation, prop.motion.toRotation, eased);
-    prop.scale = glm::mix(prop.motion.fromScale, prop.motion.toScale, eased);
-    refreshProp(prop);
-  }
-}
-
-bool RoomScene::applyAction(const petscop::MapAction& action, int owner, bool backwards) {
-
-  // DIALOGUE
-  if (action.kind == petscop::ActionKind::Say) {
-    dialog.open(action.text);
-    return dialog.isOpen();
-  }
-
-  // SFX
-  if (action.kind == petscop::ActionKind::Sound) {
-    lve::LveAudio::instance().play(action.text);
-    return false;
-  }
-
-  const int index = action.target.empty() ? owner : findProp(action.target);
-  if (index < 0 || index >= static_cast<int>(props.size())) return false;
-
-  Prop& prop = props[index];
-
-  // APPEAR
-  if (action.kind == petscop::ActionKind::Show) {
-    prop.disappeared = false;
-    prop.collider.enabled = true;
-    return false;
-  }
-
-  // DISAPPEAR
-  if (action.kind == petscop::ActionKind::Hide) {
-    prop.disappeared = true;
-    prop.collider.enabled = false;
-    return false;
-  }
-
-  glm::vec3 translation = prop.motion.active ? prop.motion.toTranslation : prop.translation;
-  glm::vec3 rotation = prop.motion.active ? prop.motion.toRotation : prop.rotation;
-  glm::vec3 scale = prop.motion.active ? prop.motion.toScale : prop.scale;
-
-  if (action.toggle) {
-    translation = prop.restTranslation;
-    rotation = prop.restRotation;
-    scale = prop.restScale;
-  }
-
-  if (!action.toggle || !backwards) {
-    if (action.kind == petscop::ActionKind::Move) translation += action.amount;
-    else if (action.kind == petscop::ActionKind::Rotate) rotation += action.amount;
-    else scale *= action.amount;
-  }
-
-  startMotion(prop, translation, rotation, scale, action.seconds);
-  return false;
-}
-
-void RoomScene::runScript() {
-  while (script.running) {
-    // check the prop index is within bounds
-    if (script.prop < 0 || script.prop >= static_cast<int>(props.size())) 
-      break;
-
-    Prop& owner = props[script.prop];
-    if (script.next >= owner.actions.size()) 
-      break;
-
-    const std::size_t step = script.next++;
-    const petscop::MapAction action = owner.actions[step];
-
-
-    // BACKWARDS is a check for an object returning to its rest state
-    bool backwards = false;
-    if (action.toggle && step < owner.flipped.size()) {
-      backwards = owner.flipped[step] != 0;
-      owner.flipped[step] = backwards ? 0 : 1;
-    }
-
-    if (applyAction(action, script.prop, backwards)) 
-      return;
-  }
-
-  script = Script{};
-}
-
-// Updates the prompt interaction with interactable props
-void RoomScene::updateInteraction()
-{
-  GLFWwindow* window = lve::LveEngine::instance().getGLFWWindow();
-
-  const bool actionDown = glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS;
-  const bool actionPressed = actionDown && !actionPrevDown;
-  actionPrevDown = actionDown;
-
-  nearProp = -1;
-
-  // while a script is running, ALL interactions are blocked
-  if (script.running) {
-    if (dialog.isOpen()) {
-      if (actionPressed) dialog.advance();
-
-      if (dialog.isOpen()) {
-        if (playerMover) playerMover->enabled = false;
-        return;
-      }
-    }
-
-    runScript();
-
-    if (playerMover) playerMover->enabled = !dialog.isOpen();
-    return;
-  }
-
-  if (playerCollider)
-  {
-    const ColliderComponent::Aabb& me = playerCollider->worldBox();
-
-    float best = interactRange;
-
-    for (std::size_t i = 0; i < props.size(); i++) {
-      if (!props[i].interactable()) continue;
-      if (props[i].disappeared) continue;
-
-      const float gap = boxGap(me, props[i].collider.worldBox());
-
-      if (gap > best) continue;
-
-      best = gap;
-      nearProp = static_cast<int>(i);
-    }
-  }
-
-  if (actionPressed && nearProp >= 0) {
-    script.running = true;
-    script.prop = nearProp;
-    script.next = 0;
-    nearProp = -1;
-    runScript();
-  }
-
-  if (playerMover) playerMover->enabled = !dialog.isOpen();
-}
-
 // Floating box to signify when you got close to an object you can interact with
 void RoomScene::emitHoverBox() {
   if (!textRenderer) return;
+
+  const int nearProp = interactions.nearProp();
   if (nearProp < 0 || nearProp >= static_cast<int>(props.size())) return;
 
   const ColliderComponent::Aabb& box = props[nearProp].collider.worldBox();
@@ -424,31 +205,57 @@ void RoomScene::emitHoverBox() {
                            "E", hoverDotHeight, 1.f);
 }
 
+// The room floats over a backdrop that never stops moving
+void RoomScene::emitBackground() {
+  backgroundItems.clear();
+  if (!bgEnabled || !textRenderer) return;
+
+  // The unit quad runs 0 to 1
+  // doubling it and shifting it covers the whole screen, the same way the fade quad does
+  backgroundItems.push_back(
+      {glm::mat2(2.f, 0.f, 0.f, 2.f), glm::vec2(-1.f), bgWash, 1.f, textRenderer->quad()});
+
+  // How much screen one bar owns, and how far along its slot it has slid
+  // fmod wraps the slide inside a single slot, so when it snaps back to zero
+  // bar i lands exactly where bar i-1 was and the march has no seam
+  const float slot = 2.f / static_cast<float>(bgBars);
+  const float slide = std::fmod(clock * bgSpeed, slot);
+
+  // A mat2 is column major: the first pair is where the quad's x goes, the
+  // second is where its y goes
+  const glm::mat2 lean{slot * bgBarFill, 0.f, bgSlant, 2.f};
+
+  // Bars have to start off screen or the leading corner shows bare wash
+  const int lead = 1 + static_cast<int>(std::ceil(std::fabs(bgSlant) / slot));
+
+  for (int i = -lead; i <= bgBars + 1; i++) {
+    const float x = -1.f + slide + static_cast<float>(i) * slot;
+    backgroundItems.push_back({lean, glm::vec2(x, -1.f), bgBar, 1.f, textRenderer->quad()});
+  }
+}
+
 void RoomScene::update(float dt) {
   clock += dt;
 
   if (phase == Phase::Playing) {
     GLFWwindow* window = lve::LveEngine::instance().getGLFWWindow();
 
-    // Space jumps, one per press and only with his feet on something. It goes in
-    // as a velocity change so height does not depend on his mass, and it is
-    // negative because -Y is up. Must land before the components tick
     const bool jumpDown = glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
     if (jumpDown && !jumpPrevDown && playerBody && playerBody->grounded) {
-      playerBody->addForce(glm::vec3(0.f, -jumpSpeed, 0.f),
-                           RigidbodyComponent::ForceMode::VelocityChange);
+
+      playerBody->addForce(glm::vec3(0.f, -jumpSpeed, 0.f), RigidbodyComponent::ForceMode::VelocityChange);
       playerBody->grounded = false;
     }
     jumpPrevDown = jumpDown;
 
-    tickMotions(dt);
+    petscop::tickMotions(props, dt);
 
     player.updateComponents(dt);
 
     // He has moved and his box has followed, so shove him back out of the walls
     collisions.settleAll();
 
-    updateInteraction();
+    interactions.update(playerCollider, playerMover);
 
     if (playerCollider && !dialog.isOpen()) {
       const ColliderComponent::Aabb& box = playerCollider->worldBox();
@@ -473,14 +280,13 @@ void RoomScene::update(float dt) {
     }
 
   } else if (phase == Phase::FadingOut) {
-    // He is frozen here on purpose, otherwise he keeps walking out through the
-    // doorway while the screen is black
+    // player is frozen here
     fade += dt / fadeSeconds;
     if (fade >= 1.f) {
       fade = 1.f;
 
       // The one place the room is ever rebuilt. Everything that reads props and
-      // doors has finished for the frame, so their boxes are safe to throw away
+      // doors has finished for the frame
       enterRoom(pendingRoom, pendingDoor);
       pendingRoom = -1;
       pendingDoor = -1;
@@ -504,8 +310,6 @@ void RoomScene::update(float dt) {
   skinnedRenderItems.clear();
   collectSkinned(player, skinnedRenderItems);
 
-  // Done every frame rather than on the way into the room, so that a camera that
-  // moves one day needs nothing changed here
   updateWallVisibility();
 
   renderItems.clear();
@@ -514,12 +318,10 @@ void RoomScene::update(float dt) {
     if (prop.disappeared) continue;
 
     // A wall standing between the camera and the room comes back ghosted rather
-    // than solid, see updateWallVisibility. Either way it still collides, its box
-    // was registered on the way in
-    // Set a wall's visibility to 0 and it drops out of the draw entirely
+    // than solid, but this is a double check
     if (prop.visibility <= 0.f) continue;
 
-    const glm::mat4 mat = placement(prop.translation, prop.rotation, prop.scale);
+    const glm::mat4 mat = prop.matrix();
     const glm::mat4 normal = glm::mat4(glm::transpose(glm::inverse(glm::mat3(mat))));
     renderItems.push_back({mat, normal, prop.model, prop.visibility});
   }
@@ -542,6 +344,9 @@ void RoomScene::update(float dt) {
     }
   }
 
+  // --- the backdrop, under everything the room draws --------------------------
+  emitBackground();
+
   // --- overlay: the room's name, then the fade over the top of it -------------
   UIrenderItems.clear();
   if (textRenderer) {
@@ -554,8 +359,7 @@ void RoomScene::update(float dt) {
       dialog.emit(UIrenderItems, *textRenderer);
     }
     if (fade > 0.f) {
-      // One quad over the whole screen. The unit quad runs 0 to 1, so doubling it
-      // and shifting back by one covers -1 to 1 both ways
+      // One quad over the whole screen
       // Pushed last, because UI draws in the order it is handed over
       UIrenderItems.push_back({glm::mat2(2.f, 0.f, 0.f, 2.f), glm::vec2(-1.f), glm::vec3(0.f), fade,
                                textRenderer->quad()});
@@ -573,7 +377,6 @@ void RoomScene::cleanup() {
   collisions.clear();
   props.clear();
   doors.clear();
-  dialog.close();
-  nearProp = -1;
-  script = Script{};
+  interactions.reset();
+  backgroundItems.clear();
 }

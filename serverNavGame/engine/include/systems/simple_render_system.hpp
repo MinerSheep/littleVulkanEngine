@@ -20,7 +20,9 @@ class SimpleRenderSystem {
   SimpleRenderSystem& operator=(const SimpleRenderSystem&) = delete;
 
   void render(FrameInfo& frameInfo);
-  void renderUI(FrameInfo& frameInfo);
+
+  // Called twice a frame: the background first, then the UI overlay
+  void renderUI(FrameInfo& frameInfo, const std::vector<UIRenderItem>& items);
 
  private:
   void createPipelineLayout(VkDescriptorSetLayout globalSetLayout);

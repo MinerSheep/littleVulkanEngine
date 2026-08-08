@@ -109,7 +109,8 @@ void LveEngine::render() {
         scene.renderItems,
         scene.UIrenderItems,
         scene.lightItems,
-        scene.skinnedRenderItems};
+        scene.skinnedRenderItems,
+        scene.backgroundItems};
 
     // update
     pointLightSystem->update(frameInfo, scene.ubo);
@@ -121,10 +122,15 @@ void LveEngine::render() {
     // effects
     lveRenderer.beginSwapChainRenderPass(commandBuffer);
 
+    // Background first
+    simpleRenderSystem->renderUI(frameInfo, frameInfo.backgroundItems);
+
     simpleRenderSystem->render(frameInfo);
     skinnedRenderSystem->render(frameInfo);
     pointLightSystem->render(frameInfo);
-    simpleRenderSystem->renderUI(frameInfo);
+
+    // UI overlay
+    simpleRenderSystem->renderUI(frameInfo, frameInfo.UIrenderItems);
 
     lveRenderer.endSwapChainRenderPass(commandBuffer);
     lveRenderer.endFrame();

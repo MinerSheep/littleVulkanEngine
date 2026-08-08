@@ -25,6 +25,34 @@ the API contract is.
 // onImpact makes fireball disappear and leaves a light behind
 ```
 
+## File size — keep files short
+
+**Prefer files under 100 lines.** A file that has grown past that is usually doing more than one
+job, and the job that got added last is normally the one that wants its own file.
+
+**If an implementation could sensibly be split into another file, ask before writing it.** Do not
+split unprompted, and do not pile onto a long file without mentioning it either. Say which pieces
+would move, roughly how many lines each new file would be, and what the original drops to — then
+let the choice be made. The answer is often "yes, but not that far", so offer a couple of
+granularities rather than one.
+
+New game files go beside the ones they belong with (`game/src/petscop/` for the room map), not in
+a new folder.
+
+Worked example — `room_scene.cpp` reached 619 lines carrying three separate jobs, and split into:
+
+| file | lines | job |
+|---|---|---|
+| `petscop/prop.hpp` / `.cpp` | 85 / 76 | what a prop *is*, and how it moves itself |
+| `petscop/interactions.hpp` / `.cpp` | 57 / 162 | reading E and running a prop's actions |
+| `petscop/room_scene.cpp` | 405 | standing a room up, and the per-frame draw lists |
+
+The seam that made it work was **data away from behaviour**: `Prop` owns its own `Motion` and knows
+how to `refreshBox()`, so `InteractionRunner` only has to decide *where* things go, never how they
+get there. `InteractionRunner` holds a `std::vector<Prop>*`, not pointers into it, so a room swap
+that refills the vector cannot strand it — unlike `CollisionSystem`, which does hold element
+pointers and must be cleared first.
+
 ## Toolchain / environment
 
 - **Built and run under WSL2 (Ubuntu), GCC 9** (`/usr/include/c++/9`). Source lives on the Windows

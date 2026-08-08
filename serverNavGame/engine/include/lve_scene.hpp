@@ -26,5 +26,9 @@ namespace lve
         std::vector<UIRenderItem> UIrenderItems;
         std::vector<LightRenderItem> lightItems;
         std::vector<SkinnedRenderItem> skinnedRenderItems;
+
+        // Flat quads painted first, so the scene is drawn on top of them
+        // Use for a stylish background rather than pitch black
+        std::vector<UIRenderItem> backgroundItems;
     };
 } // namespace lve

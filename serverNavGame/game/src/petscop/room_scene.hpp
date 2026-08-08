@@ -12,9 +12,12 @@
 #include "rigidbody_component.hpp"
 #include "skinned_model_component.hpp"
 
-#include "petscop/dialog_box.hpp"
 #include "petscop/map_loader.hpp"
 #include "petscop/model_cache.hpp"
+
+#include "petscop/dialog_box.hpp"
+#include "petscop/prop.hpp"
+#include "petscop/interactions.hpp"
 
 #include <cstddef>
 #include <memory>
@@ -23,12 +26,7 @@
 
 // Walks a character through a map of rooms
 //
-// One room is standing at a time. Walk into a doorway and the screen fades out,
-// the room is swapped for whatever that door leads to, and it fades back in with
-// the character just inside the door on the far side
-//
-// WASD walks, space jumps. The camera holds still for the whole room and cuts to
-// a new spot on the way in, so W always walks away from the camera
+// WASD walk, space jump
 class RoomScene : public lve::LveScene {
  public:
   void loadModels() override;
@@ -40,7 +38,7 @@ class RoomScene : public lve::LveScene {
   std::string mapPath = "maps/petscop.map";
 
   petscop::GameMap map;
-  petscop::ModelCache models;  // outlives every room, so a door loads nothing
+  petscop::ModelCache models;  // is saved between rooms
   int currentRoom = -1;
 
   // The character, put together the same way the skinned demo puts its man together
@@ -57,51 +55,8 @@ class RoomScene : public lve::LveScene {
   float jumpSpeed = 4.5f;  // upward, so it goes in as -Y
   bool jumpPrevDown = false;
 
-  struct Motion {
-    glm::vec3 fromTranslation{0.f};
-    glm::vec3 fromRotation{0.f};
-    glm::vec3 fromScale{1.f};
-    glm::vec3 toTranslation{0.f};
-    glm::vec3 toRotation{0.f};
-    glm::vec3 toScale{1.f};
-
-    float elapsed = 0.f;
-    float seconds = 0.f;
-    bool active = false;
-  };
-
-  // Something solid standing in the room
-  //
-  // The box is held here by value, which is why the collision system must not be
-  // handed a pointer to it until props has stopped growing
-  struct Prop {
-    lve::LveModel* model = nullptr;
-    glm::vec3 translation{0.f};
-    glm::vec3 rotation{0.f};
-    glm::vec3 scale{1.f};
-    ColliderComponent collider{};
-
-    // Which way a wall faces out of the room, all zeroes for anything else
-    glm::vec3 face{0.f};
-
-    // 0 hides it, 1 draws it
-    // A number rather than a flag, so a see-through wall can be dropped in later
-    // without touching the map or anything else in here
-    float visibility = 1.f;
-
-    glm::vec3 restTranslation{0.f};
-    glm::vec3 restRotation{0.f};
-    glm::vec3 restScale{1.f};
-
-    std::string name;
-    std::vector<petscop::MapAction> actions;
-    std::vector<char> flipped;
-
-    Motion motion;
-    bool disappeared = false;  // disappeared object cannot interact
-
-    bool interactable() const { return !actions.empty(); }
-  };
+  // Prop and its Motion can be found in petscop/prop.hpp
+  using Prop = petscop::Prop;
   std::vector<Prop> props;
 
   // A box with no collision sent to collision system
@@ -130,9 +85,7 @@ class RoomScene : public lve::LveScene {
 
   std::unique_ptr<lve::LveTextRenderer> textRenderer;  // room name, and the fade quad
 
-  // Walking into a door does not swap the room there and then
-  // It starts a fade, and the swap happens at the bottom of it, when nothing else
-  // is reading the world
+  // Walking into a door does a fade and swaps the room
   enum class Phase { Playing, FadingOut, FadingIn };
   Phase phase = Phase::Playing;
   float fade = 0.f;  // 0 clear, 1 black
@@ -140,21 +93,11 @@ class RoomScene : public lve::LveScene {
   int pendingRoom = -1;
   int pendingDoor = -1;
 
-  // Dialog box
+  // Dialog box, and the thing that reads E and runs a prop's list of actions
+  // Script and Actions are in petscop/interactions.hpp
   petscop::DialogBox dialog;
-  int nearProp = -1;
-  float interactRange = 1.2f;
-  bool actionPrevDown = false;
+  petscop::InteractionRunner interactions;
   float clock = 0.f;
-
-  // Script keeps track of actions running in the scene and what step its on
-  struct Script {
-    bool running = false;
-    int prop = -1;
-    std::size_t next = 0;
-  };
-
-  Script script;
 
   float hoverLift = 0.45f;
   float hoverMaxHeight = 2.0f;
@@ -163,39 +106,27 @@ class RoomScene : public lve::LveScene {
   float hoverDotHeight = 0.018f;
   //
 
-  // Throws out the old room and stands the character up in the new one
-  // arriveDoor is which door of the new room he steps out of, or -1 to start in
-  // the middle of it
-  void enterRoom(int roomIndex, int arriveDoor);
+  // The backdrop the room floats over
+  bool bgEnabled = true;
+  int bgBars = 14;         // bars across the screen
+  float bgBarFill = 0.45f; // how much of a bar's slot is inked
+  float bgSpeed = 0.18f;   // screens travelled per second
 
-  // Certain props can press E to talk to
-  void updateInteraction();
+  // How far the far edge of a bar leans across
+  float bgSlant = 0.8f;  // bar angles
+  glm::vec3 bgWash{0.02f, 0.02f, 0.05f};
+  glm::vec3 bgBar{0.07f, 0.05f, 0.10f};
 
-  int findProp(const std::string& name) const;
-
-  void runScript();
-
-  bool applyAction(const petscop::MapAction& action, int owner, bool backwards);
-
-  void startMotion(Prop& prop,
-                   const glm::vec3& translation,
-                   const glm::vec3& rotation,
-                   const glm::vec3& scale,
-                   float seconds);
-
-  void tickMotions(float dt);
-
-  void refreshProp(Prop& prop);
+  // Throws out the old room and starts the character up in the new one
+  // arriveDoor is which door of the new room he steps out of
+  void enterRoom(int roomIndex, int arriveDoor = -1);
 
   void emitHoverBox();
 
-  // Same translate, rotate, scale order the editor saves in, so a box lands
-  // exactly where its mesh is drawn
-  static glm::mat4 placement(const glm::vec3& t, const glm::vec3& r, const glm::vec3& s);
+  // Fills backgroundItems with the moving backdrop behind the room
+  void emitBackground();
 
-  // Works out which walls are standing between the camera and the room
-  // Only stops them being drawn, their boxes stay registered, so you still can
-  // not walk out through a wall you cannot see
+  // Blocks walls that cover the camera
   void updateWallVisibility();
 
   // A wall is hidden when its outside is turned toward the camera

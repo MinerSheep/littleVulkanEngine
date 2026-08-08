@@ -70,5 +70,8 @@ struct FrameInfo {
   std::vector<UIRenderItem> UIrenderItems;
   std::vector<LightRenderItem> lightItems;
   std::vector<SkinnedRenderItem> skinnedRenderItems;
+
+  // The backdrop, drawn first
+  std::vector<UIRenderItem> backgroundItems;
 };
 }  // namespace lve

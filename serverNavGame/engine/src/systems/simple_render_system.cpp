@@ -104,8 +104,13 @@ void SimpleRenderSystem::render(
 }
 
 void SimpleRenderSystem::renderUI(
-    FrameInfo& frameInfo)
+    FrameInfo& frameInfo,
+    const std::vector<UIRenderItem>& items)
 {
+  // Nothing to draw means no pipeline swap and no descriptor bind
+  // This is what keeps the background free for every scene that does not want one
+  if (items.empty()) return;
+
   UIPipeline->bind(frameInfo.commandBuffer);
 
   // Every set overwritten must overwrite every set that comes after it
@@ -120,7 +125,7 @@ void SimpleRenderSystem::renderUI(
       0, // dynamic offsets
       nullptr);
 
-  for (const auto& item : frameInfo.UIrenderItems) {
+  for (const auto& item : items) {
       UIPushConstantData push{};
 
       // We are now calculating on the GPU, not the CPU
