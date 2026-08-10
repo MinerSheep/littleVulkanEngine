@@ -2,15 +2,18 @@
 
 #include "collider_component.hpp"
 #include "keyboard_movement_component.hpp"
+#include "petscop/game_state.hpp"
 
 #include <lve_audio.hpp>
 #include <lve_engine.hpp>
 
 namespace petscop {
 
-void InteractionRunner::bind(std::vector<Prop>* propList, DialogBox* dialogBox) {
+void InteractionRunner::bind(std::vector<Prop>* propList, DialogBox* dialogBox,
+                             GameState* gameState) {
   props = propList;
   dialog = dialogBox;
+  state = gameState;
 }
 
 void InteractionRunner::reset() {
@@ -30,6 +33,19 @@ bool InteractionRunner::applyAction(const MapAction& action, int owner, bool bac
   // SFX
   if (action.kind == ActionKind::Sound) {
     lve::LveAudio::instance().play(action.text);
+    return false;
+  }
+
+  // POCKET
+  if (action.kind == ActionKind::Give || action.kind == ActionKind::Take) {
+    const int move = action.kind == ActionKind::Give ? action.count : -action.count;
+    if (state) state->addItem(action.text, move);
+    return false;
+  }
+
+  // MEMORY
+  if (action.kind == ActionKind::Flag || action.kind == ActionKind::Unflag) {
+    if (state) state->setFlag(action.text, action.kind == ActionKind::Flag);
     return false;
   }
 
@@ -75,6 +91,16 @@ bool InteractionRunner::applyAction(const MapAction& action, int owner, bool bac
   return false;
 }
 
+// A prop whose lines are all gated off draws no floating E
+bool InteractionRunner::hasSomethingToDo(const Prop& prop) const {
+  if (!state) return prop.interactable();
+
+  for (const MapAction& action : prop.actions) {
+    if (state->allows(action)) return true;
+  }
+  return false;
+}
+
 void InteractionRunner::runScript() {
   while (script.running) {
     // check the prop index is within bounds
@@ -85,6 +111,9 @@ void InteractionRunner::runScript() {
 
     const std::size_t step = script.next++;
     const MapAction action = owner.actions[step];
+
+    // A 'when' the save does not satisfy skips the line, toggle and all
+    if (state && !state->allows(action)) continue;
 
     // BACKWARDS is a check for an object returning to its rest state
     bool backwards = false;
@@ -137,6 +166,7 @@ void InteractionRunner::update(ColliderComponent* playerCollider,
       const Prop& prop = (*props)[i];
       if (!prop.interactable()) continue;
       if (prop.disappeared) continue;
+      if (!hasSomethingToDo(prop)) continue;
 
       const float gap = boxGap(me, prop.collider.worldBox());
 

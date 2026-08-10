@@ -43,6 +43,9 @@ struct Prop {
   // Which way a wall faces out of the room, all zeroes for anything else
   glm::vec3 face{0.f};
 
+  // Grass and the like never get a box, you walk straight through them
+  bool solid = true;
+
   // 0 hides it, 1 draws it
   float visibility = 1.f;
 

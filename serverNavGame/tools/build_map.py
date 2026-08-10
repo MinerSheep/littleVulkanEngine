@@ -95,14 +95,18 @@ class Action:
     """One step of what pressing E on a prop does"""
 
     def __init__(self, kind, target="", text="", amount=(0.0, 0.0, 0.0), seconds=0.0,
-                 toggle=False, line=""):
+                 toggle=False, count=1, line=""):
         self.kind = kind
         self.target = target
         self.text = text
         self.amount = amount
         self.seconds = seconds
         self.toggle = toggle
+        self.count = count
         self.line = line
+        # What the save has to say before this line runs, set by the 'when' above it
+        self.when = "always"
+        self.when_name = ""
 
 
 class Obj:
@@ -113,13 +117,15 @@ class Obj:
     and is empty for the generated floor and walls that nothing points at
     """
 
-    def __init__(self, preset, translation, rotation, scale, face=(0.0, 0.0, 0.0), name=""):
+    def __init__(self, preset, translation, rotation, scale, face=(0.0, 0.0, 0.0), name="",
+                 solid=True):
         self.preset = preset
         self.translation = translation
         self.rotation = rotation
         self.scale = scale
         self.face = face
         self.name = name
+        self.solid = solid
         self.actions = []
 
 
@@ -139,6 +145,7 @@ class Room:
         self.placed = []
         self.last = None
         self.objects = []
+        self.when = ("always", "")  # the latch every 'do' under it inherits
 
     def door_index(self, ident):
         for i, d in enumerate(self.doors):
@@ -157,6 +164,24 @@ def parse_floats(where, parts, count, what):
         except ValueError:
             fail(where, "{} is not a number in {}".format(p, what))
     return out
+
+
+def parse_when(where, rest):
+    """Reads a 'when ...' latch, which gates every 'do' line under it"""
+    if not rest:
+        fail(where, "when reads: when <always|flag|noflag|item|noitem> <name>")
+
+    kind = rest[0].lower()
+    if kind == "always":
+        if len(rest) != 1:
+            fail(where, "when always takes nothing after it")
+        return ("always", "")
+
+    if kind not in ("flag", "noflag", "item", "noitem"):
+        fail(where, "when does not know about {}".format(rest[0]))
+    if len(rest) != 2:
+        fail(where, "when {0} reads: when {0} <name>".format(kind))
+    return (kind, rest[1])
 
 
 def parse_action(where, text, rest):
@@ -186,6 +211,21 @@ def parse_action(where, text, rest):
         if len(rest) != 2:
             fail(where, "do {0} reads: do {0} <prop|self>".format(kind))
         return Action(kind, target=rest[1], line=where)
+
+    if kind in ("flag", "unflag"):
+        if len(rest) != 2:
+            fail(where, "do {0} reads: do {0} <name>".format(kind))
+        return Action(kind, text=rest[1], line=where)
+
+    if kind in ("give", "take"):
+        if len(rest) not in (2, 3):
+            fail(where, "do {0} reads: do {0} <item> [count]".format(kind))
+        count = 1
+        if len(rest) == 3:
+            count = int(parse_floats(where, rest[2:3], 1, "do " + kind)[0])
+        if count < 1:
+            fail(where, "do {} needs a count of one or more".format(kind))
+        return Action(kind, text=rest[1], count=count, line=where)
 
     if kind not in ("move", "rotate", "scale"):
         fail(where, "do does not know how to {}".format(rest[0]))
@@ -349,7 +389,12 @@ def parse_mapsrc(path):
                 fail(where, "props outside a room")
             if not rest:
                 fail(where, "props needs a file path")
-            room.prop_files.append((rest[0], where))
+            solid = True
+            if len(rest) > 1:
+                if len(rest) != 2 or rest[1].lower() != "pass":
+                    fail(where, "props reads: props <file> [pass]")
+                solid = False
+            room.prop_files.append((rest[0], solid, where))
 
         elif key in ("prop", "interact"):
             if room is None:
@@ -383,6 +428,14 @@ def parse_mapsrc(path):
 
             room.placed.append(obj)
             room.last = obj
+            room.when = ("always", "")
+
+        elif key == "when":
+            if room is None:
+                fail(where, "when outside a room")
+            if room.last is None:
+                fail(where, "when comes after the prop it belongs to, and there is none yet")
+            room.when = parse_when(where, rest)
 
         elif key == "do":
             if room is None:
@@ -390,8 +443,11 @@ def parse_mapsrc(path):
             if room.last is None:
                 fail(where, "do comes after the prop it belongs to, and there is none yet")
             if not rest:
-                fail(where, "do reads: do <say|move|rotate|scale|show|hide|sound> ...")
-            room.last.actions.append(parse_action(where, text, rest))
+                fail(where, "do reads: "
+                            "do <say|move|rotate|scale|show|hide|sound|give|take|flag|unflag> ...")
+            action = parse_action(where, text, rest)
+            action.when, action.when_name = room.when
+            room.last.actions.append(action)
 
         else:
             fail(where, "unknown directive {}".format(parts[0]))
@@ -633,6 +689,29 @@ def check_actions(rooms):
                          .format(action.kind, action.target, room.ident, known))
 
 
+def check_state(rooms):
+    """A 'when' that asks about something nothing ever sets is nearly always a typo"""
+    flags = set()
+    items = set()
+    asked = set()
+
+    for room in rooms:
+        for obj in room.objects:
+            for action in obj.actions:
+                if action.kind in ("flag", "unflag"):
+                    flags.add(action.text)
+                elif action.kind in ("give", "take"):
+                    items.add(action.text)
+                if action.when != "always":
+                    asked.add((room.ident, action.when, action.when_name))
+
+    for ident, when, name in sorted(asked):
+        known = flags if when in ("flag", "noflag") else items
+        if name not in known:
+            print("[build_map] warning: room {} asks 'when {} {}', and no map line ever sets it"
+                  .format(ident, when, name), file=sys.stderr)
+
+
 def check_sounds(rooms, sounds_dir):
     """A missing clip is only a warning, the game just stays quiet"""
     wanted = set()
@@ -676,6 +755,12 @@ def emit_action(action):
     if action.kind in ("say", "sound"):
         return "do {} {}".format(action.kind, action.text)
 
+    if action.kind in ("flag", "unflag"):
+        return "do {} {}".format(action.kind, action.text)
+
+    if action.kind in ("give", "take"):
+        return "do {} {} {}".format(action.kind, action.text, action.count)
+
     target = action.target or "self"
     if action.kind in ("show", "hide"):
         return "do {} {}".format(action.kind, target)
@@ -716,10 +801,18 @@ def emit(name, start_index, rooms, presets, out_path):
                 head = "interact {}".format(body)
             else:
                 head = "obj {}".format(body)
+            if not obj.solid:
+                head += "  pass"
             if obj.name:
                 head += "  name {}".format(obj.name)
             lines.append(head)
+
+            # One 'when' line whenever the latch changes, not one per action
+            latch = ("always", "")
             for action in obj.actions:
+                if (action.when, action.when_name) != latch:
+                    latch = (action.when, action.when_name)
+                    lines.append("when {} {}".format(*latch).rstrip())
                 lines.append(emit_action(action))
         for door in room.doors:
             lines.append("door {}  {}  {}  {}  to {} {}  spawn {} {}".format(
@@ -744,13 +837,14 @@ def build(src_path, out_path, models_dir, sounds_dir):
 
     for room in rooms:
         build_room(room)
-        for rel, where in room.prop_files:
+        for rel, solid, where in room.prop_files:
             for preset, translation, rotation, scale in parse_layout(rel, where):
                 # No face: a prop is never hidden, only walls are
-                room.objects.append(Obj(preset, translation, rotation, scale))
+                room.objects.append(Obj(preset, translation, rotation, scale, solid=solid))
         room.objects.extend(room.placed)
 
     check_actions(rooms)
+    check_state(rooms)
     check_sounds(rooms, sounds_dir)
 
     resolve_links(rooms, by_ident, links, room_index)

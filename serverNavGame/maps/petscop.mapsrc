@@ -24,6 +24,27 @@
 #   do scale  <prop|self>  fx fy fz     over <seconds>  [toggle]
 #   do show   <prop|self>
 #   do hide   <prop|self>
+#   do give   <item> [count]     put an item in your pocket
+#   do take   <item> [count]     take one back out
+#   do flag   <name>             remember that something happened
+#   do unflag <name>
+#
+# Items and flags live in saves/petscop.save and outlast the run. A 'when' line
+# gates every 'do' under it, up to the next 'when' or the next prop:
+#
+#   when flag <name>     when noflag <name>
+#   when item <name>     when noitem <name>
+#   when always          back to ungated
+#
+#   interact cube  0 0 0  0 0 0  1 1 1  name chest
+#     when noflag chest_open
+#     do say THE LID GIVES.
+#     do give red_key
+#     do flag chest_open
+#     when flag chest_open
+#     do say IT IS EMPTY NOW.
+#
+# A prop whose lines are all gated off draws no floating E.
 #
 # The prop being acted on does NOT have to be the one you pressed E on -- name
 # something with 'name' and any action in the same room can point at it.
@@ -117,14 +138,22 @@ room hall_west
   door inside north  0
 
 
-# Outdoors. No walls, only the frame of the door you came out of
+# Outdoors. No walls, only the frame of the door you came out of, up in the
+# far corner where the back of the house is
 room yard
   size 30 12
   height 3
   open
   light -8.0 -2.6  0.0   0.55 0.65 0.85   14
   light  8.0 -2.6  0.0   0.50 0.60 0.80   14
-  door back north 0
+  door back north 11
+  props rooms/yard_grass.layout pass
+
+  prop tree  -11.000 0.500  2.500   0 0.400 0   0.400 0.400 0.400
+  prop tree   -4.000 0.500 -3.000   0 2.100 0   0.330 0.330 0.330
+  prop tree    5.500 0.500  1.000   0 1.200 0   0.360 0.360 0.360
+  prop rock  -13.000 0.168 -4.000   0 0.900 0   0.600 0.600 0.600
+  prop rock    2.000 0.279 -4.500   0 2.400 0   0.400 0.400 0.400
 
 
 # A washroom off the main hall
@@ -174,6 +203,14 @@ room field
   door greenhouse south  0
   door shed       west   0
   door stairs     east   0
+  props rooms/field_grass.layout pass
+
+  prop tree  -7.000 0.500  3.000   0 0.700 0   0.450 0.450 0.450
+  prop tree   6.500 0.500  3.500   0 2.800 0   0.420 0.420 0.420
+  prop tree  -2.000 0.500  4.000   0 1.500 0   0.350 0.350 0.350
+  prop tree   9.000 0.500 -3.500   0 0.200 0   0.300 0.300 0.300
+  prop rock   3.000 0.113 -1.000   0 1.800 0   0.700 0.700 0.700
+  prop rock  -4.500 0.223 -3.000   0 0.300 0   0.500 0.500 0.500
 
 
 # A small outbuilding on the west edge of the field

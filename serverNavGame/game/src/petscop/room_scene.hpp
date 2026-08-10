@@ -16,8 +16,10 @@
 #include "petscop/model_cache.hpp"
 
 #include "petscop/dialog_box.hpp"
+#include "petscop/game_state.hpp"
 #include "petscop/prop.hpp"
 #include "petscop/interactions.hpp"
+#include "petscop/save_file.hpp"
 
 #include <cstddef>
 #include <memory>
@@ -40,6 +42,10 @@ class RoomScene : public lve::LveScene {
   petscop::GameMap map;
   petscop::ModelCache models;  // is saved between rooms
   int currentRoom = -1;
+
+  // Items, flags, and how each room was left. Delete the file to start over
+  petscop::GameState state;
+  std::string savePath = "saves/petscop.save";
 
   // The character, put together the same way the skinned demo puts its man together
   // The component pointers are kept so update does not have to look them up
@@ -120,6 +126,9 @@ class RoomScene : public lve::LveScene {
   // Throws out the old room and starts the character up in the new one
   // arriveDoor is which door of the new room he steps out of
   void enterRoom(int roomIndex, int arriveDoor = -1);
+
+  // The room the save left him in, or the map's own start
+  int startingRoom() const;
 
   void emitHoverBox();
 

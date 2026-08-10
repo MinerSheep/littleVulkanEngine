@@ -18,6 +18,11 @@ void RoomScene::loadModels() {
   // A door is preloaded, and swapped in place of every door
   models.preload(map.presets);
 
+  // No file yet is a new game, not a fault
+  if (petscop::readSave(savePath, state))
+    std::cout << "[petscop] loaded save '" << savePath << "': " << state.items.size()
+              << " item(s), " << state.flags.size() << " flag(s)" << std::endl;
+
   textRenderer = std::make_unique<lve::LveTextRenderer>(lve::LveEngine::instance().getDevice());
 
   // --- the character ---------------------------------------------------------
@@ -48,16 +53,26 @@ void RoomScene::loadModels() {
   }
 
   // The props vector never moves, only what is inside it, so this is bound once
-  interactions.bind(&props, &dialog);
+  interactions.bind(&props, &dialog, &state);
 
   std::cout << "[petscop] loaded map '" << map.name << "': " << map.rooms.size() << " room(s), "
             << map.presets.size() << " mesh(es)" << std::endl;
 
-  enterRoom(map.startRoom, -1);
+  enterRoom(startingRoom(), -1);
+}
+
+int RoomScene::startingRoom() const {
+  for (std::size_t i = 0; i < map.rooms.size(); i++) {
+    if (map.rooms[i].name == state.room) return static_cast<int>(i);
+  }
+  return map.startRoom;
 }
 
 void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
   const petscop::MapRoom& room = map.rooms[roomIndex];
+
+  // Write the old room down before any of it is thrown away
+  if (currentRoom >= 0) state.rememberRoom(map.rooms[currentRoom].name, props);
 
   // Clear collisions FIRST, they carry raw pointers
   collisions.clear();
@@ -79,6 +94,7 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
     prop.rotation = object.rotation;
     prop.scale = object.scale;
     prop.face = object.face;
+    prop.solid = object.solid;
 
     // Objects expanded to have actions
     // Therefore we now hold default states
@@ -109,6 +125,10 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
     prop.refreshBox();
   }
 
+  // The map only says where things started. Anything moved, opened or taken on an
+  // earlier visit is put back the way it was left
+  state.restoreRoom(room.name, props);
+
   for (Door& door : doors) {
     // A doorway has no mesh, just a box opening at half size
     door.trigger.setLocalBox(glm::vec3(0.f), glm::vec3(1.f));
@@ -138,7 +158,9 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
 
   // Register LAST, now that props and doors have stopped growing
   // Doorways are left out on purpose, they are meant to be walked through
-  for (const Prop& prop : props) collisions.addStatic(&prop.collider);
+  for (const Prop& prop : props) {
+    if (prop.solid) collisions.addStatic(&prop.collider);
+  }
   collisions.addDynamic(player, playerCollider, playerBody);
 
   // He comes out standing in a doorway, so that one waits until he steps off it
@@ -147,6 +169,11 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
   if (arrived) doors[arriveDoor].armed = false;
 
   currentRoom = roomIndex;
+
+  // Walking through a door is the autosave
+  state.room = room.name;
+  petscop::writeSave(savePath, state);
+
   std::cout << "[petscop] entered " << room.name << ": " << props.size() << " prop(s), "
             << doors.size() << " door(s)" << std::endl;
 }
@@ -373,6 +400,13 @@ void RoomScene::update(float dt) {
 }
 
 void RoomScene::cleanup() {
+  // Last chance to write down the room he was standing in
+  if (currentRoom >= 0) {
+    state.rememberRoom(map.rooms[currentRoom].name, props);
+    petscop::writeSave(savePath, state);
+    currentRoom = -1;
+  }
+
   // Drop the boxes before the vectors holding them go
   collisions.clear();
   props.clear();

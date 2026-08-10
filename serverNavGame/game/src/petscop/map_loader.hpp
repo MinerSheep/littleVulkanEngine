@@ -23,16 +23,34 @@ enum class ActionKind {
   Show,
   Hide,
   Sound,
+  Give,    // puts an item in your pocket
+  Take,    // takes one back out
+  Flag,    // remembers that something happened
+  Unflag,
+};
+
+// What has to be true of the save before an action runs
+enum class ActionWhen {
+  Always,
+  Flag,
+  NoFlag,
+  Item,
+  NoItem,
 };
 
 struct MapAction {
   ActionKind kind = ActionKind::Say;
 
   std::string target;    // gameobject target
-  std::string text;      // - say -
+  std::string text;      // - say -, and the item or flag a give or flag names
   glm::vec3 amount{0.f}; // magnitude
   float seconds = 0.f;   // duration
   bool toggle = false;
+
+  int count = 1;  // how many of an item a give or take moves
+
+  ActionWhen when = ActionWhen::Always;
+  std::string whenName;  // the flag or item the 'when' asks about
 };
 // ----------------------------------------------
 
@@ -49,6 +67,9 @@ struct MapObject {
   // stands between the camera and the room
   // All zeroes for anything that is not a wall, and those are never hidden
   glm::vec3 face{0.f};
+
+  // Scenery like grass has no box, you walk straight through it
+  bool solid = true;
 
   std::string name;
   std::vector<MapAction> actions;

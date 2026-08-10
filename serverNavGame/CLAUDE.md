@@ -9,14 +9,22 @@ is built as `libvulkan_engine.a` and the game consumes it.
 Write comments in plain, simple language — describe what the thing *does* in the game, not what
 the API contract is.
 
+- **Two lines maximum.** The only exception is a header block at the top of a file. A comment that
+  has grown past two lines is nearly always carrying justification — cut that part.
+- **Never explain "we do X so Y happens".** `so` is the tell; so are `because`, `which is why` and
+  `in order to`. Say what the code or the variable *does*. The reasoning is worth having, but it
+  belongs in the chat or the PR description where it can be argued with, not parked in a file
+  forever.
 - Use the game's own words (fireball, collider, light), not qualified C++ names
   (`PlayerAbilityComponent::onImpact`).
 - One idea per line. Two short lines beat one long sentence that wraps.
 - No clause-stacking ("which both consumes X and leaves Y") — just say the effect.
+- Third person describing the code reads best: `Reads where the prop is heading`, `Returns true
+  when the fireball hits a collider`.
 - No period at the end of a comment.
 
 ```cpp
-// bad
+// bad -- formal, and stacks clauses
 // Answers PlayerAbilityComponent::onImpact: true once a shot has hit something
 // solid, which both consumes the projectile and leaves its light behind
 
@@ -24,6 +32,18 @@ the API contract is.
 // Returns true when the fireball hits a collider
 // onImpact makes fireball disappear and leaves a light behind
 ```
+
+```cpp
+// bad -- three lines, and all of them are justification rather than description
+// Read where it is heading rather than where it is, so mashing E stacks up
+// whole steps instead of landing wherever it happened to be mid move
+
+// good
+// Reads where the prop is heading, not where it sits mid move
+```
+
+These govern comments you write or edit. Leave existing comments alone unless you are touching
+that code anyway.
 
 ## File size — keep files short
 

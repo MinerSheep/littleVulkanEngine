@@ -33,12 +33,36 @@ bool readActionKind(const std::string& word, ActionKind& out) {
   else if (word == "show") out = ActionKind::Show;
   else if (word == "hide") out = ActionKind::Hide;
   else if (word == "sound") out = ActionKind::Sound;
+  else if (word == "give") out = ActionKind::Give;
+  else if (word == "take") out = ActionKind::Take;
+  else if (word == "flag") out = ActionKind::Flag;
+  else if (word == "unflag") out = ActionKind::Unflag;
+  else return false;
+  return true;
+}
+
+bool readActionWhen(const std::string& word, ActionWhen& out) {
+  if (word == "always") out = ActionWhen::Always;
+  else if (word == "flag") out = ActionWhen::Flag;
+  else if (word == "noflag") out = ActionWhen::NoFlag;
+  else if (word == "item") out = ActionWhen::Item;
+  else if (word == "noitem") out = ActionWhen::NoItem;
   else return false;
   return true;
 }
 
 bool movesSomething(ActionKind kind) {
   return kind == ActionKind::Move || kind == ActionKind::Rotate || kind == ActionKind::Scale;
+}
+
+// Touches the save instead of a prop, and names what it touches rather than a target
+bool namesSomething(ActionKind kind) {
+  return kind == ActionKind::Give || kind == ActionKind::Take || kind == ActionKind::Flag ||
+         kind == ActionKind::Unflag;
+}
+
+bool carriesItems(ActionKind kind) {
+  return kind == ActionKind::Give || kind == ActionKind::Take;
 }
 
 }  // namespace
@@ -57,6 +81,10 @@ bool loadMap(const std::string& path, GameMap& out, std::string& error) {
   int room = -1;  // an index, not a pointer, so growing rooms can never strand it
   int lastObject = -1;
   std::string line;
+
+  // A 'when' line gates every 'do' under it, up to the next 'when' or the next prop
+  ActionWhen pendingWhen = ActionWhen::Always;
+  std::string pendingWhenName;
 
   auto fail = [&](const std::string& why) {
     error = path + ":" + std::to_string(lineNumber) + ": " + why;
@@ -102,10 +130,14 @@ bool loadMap(const std::string& path, GameMap& out, std::string& error) {
       out.rooms.back().name = name;
       room = index;
       lastObject = -1;
+      pendingWhen = ActionWhen::Always;
+      pendingWhenName.clear();
 
     } else if (key == "endroom") {
       room = -1;
       lastObject = -1;
+      pendingWhen = ActionWhen::Always;
+      pendingWhenName.clear();
 
     } else if (room < 0) {
       return fail(key + " outside a room");
@@ -145,6 +177,8 @@ bool loadMap(const std::string& path, GameMap& out, std::string& error) {
       while (ss >> keyword) {
         if (keyword == "name") {
           if (!(ss >> object.name)) return fail("name needs a word after it");
+        } else if (keyword == "pass") {
+          object.solid = false;
         } else if (keyword == "say") {
           MapAction action;
           action.kind = ActionKind::Say;
@@ -159,15 +193,29 @@ bool loadMap(const std::string& path, GameMap& out, std::string& error) {
 
       out.rooms[room].objects.push_back(object);
       lastObject = static_cast<int>(out.rooms[room].objects.size()) - 1;
+      pendingWhen = ActionWhen::Always;
+      pendingWhenName.clear();
+
+    } else if (key == "when") {
+      std::string word;
+      if (!(ss >> word)) return fail("when reads: when <always|flag|noflag|item|noitem> [name]");
+      if (!readActionWhen(word, pendingWhen)) return fail("when does not know about '" + word + "'");
+
+      pendingWhenName.clear();
+      if (pendingWhen != ActionWhen::Always && !(ss >> pendingWhenName))
+        return fail("when " + word + " needs a name after it");
 
     } else if (key == "do") {
       if (lastObject < 0) return fail("do comes after the thing it belongs to, and there is none yet");
 
       std::string word;
-      if (!(ss >> word)) return fail("do reads: do <say|move|rotate|scale|show|hide|sound> ...");
+      if (!(ss >> word))
+        return fail("do reads: do <say|move|rotate|scale|show|hide|sound|give|take|flag|unflag> ...");
 
       MapAction action;
       if (!readActionKind(word, action.kind)) return fail("do does not know how to '" + word + "'");
+      action.when = pendingWhen;
+      action.whenName = pendingWhenName;
 
       if (action.kind == ActionKind::Say) {
         action.text = readRest(ss);
@@ -175,6 +223,11 @@ bool loadMap(const std::string& path, GameMap& out, std::string& error) {
 
       } else if (action.kind == ActionKind::Sound) {
         if (!(ss >> action.text)) return fail("do sound needs a clip name");
+
+      } else if (namesSomething(action.kind)) {
+        if (!(ss >> action.text)) return fail("do " + word + " needs a name after it");
+        if (carriesItems(action.kind) && !(ss >> action.count)) action.count = 1;
+        if (action.count < 1) return fail("do " + word + " needs a count of one or more");
 
       } else {
         if (!(ss >> action.target)) return fail("do " + word + " needs something to act on");
