@@ -46,6 +46,10 @@ SPAWN_INSET = 1.5
 # Wall pieces thinner than this are dropped, they would just be z-fighting slivers
 MIN_SEGMENT = 0.05
 
+# How much wall an open room keeps either side of a doorway
+# Outdoors there is no wall to walk into, only the frame you step through
+JAMB_WIDTH = 0.7
+
 FLOOR_PRESET = "cube"
 WALL_PRESET = "cube"
 
@@ -126,6 +130,8 @@ class Room:
         self.width = None
         self.depth = None
         self.height = 3.0
+        self.wall_height = None  # walls run the full height unless told otherwise
+        self.open = False        # outdoors: door frames only, no walls between them
         self.cam = None          # (eye, look) once set
         self.lights = []         # (pos, colour, intensity)
         self.doors = []
@@ -277,6 +283,20 @@ def parse_mapsrc(path):
             room.height = parse_floats(where, rest, 1, "height")[0]
             if room.height <= 0:
                 fail(where, "height must be positive")
+
+        elif key == "wallheight":
+            if room is None:
+                fail(where, "wallheight outside a room")
+            room.wall_height = parse_floats(where, rest, 1, "wallheight")[0]
+            if room.wall_height <= 0:
+                fail(where, "wallheight must be positive")
+
+        elif key == "open":
+            if room is None:
+                fail(where, "open outside a room")
+            if rest:
+                fail(where, "open takes nothing after it")
+            room.open = True
 
         elif key == "cam":
             if room is None:
@@ -432,6 +452,25 @@ def subtract(span, holes):
     return [p for p in pieces if p[1] - p[0] > MIN_SEGMENT]
 
 
+def jambs(doors, along_half):
+    """The short posts either side of each doorway, for a wall that isn't there"""
+    spans = []
+    for door in doors:
+        lo = door.offset - door.width * 0.5
+        hi = door.offset + door.width * 0.5
+        spans.append((max(-along_half, lo - JAMB_WIDTH), lo))
+        spans.append((hi, min(along_half, hi + JAMB_WIDTH)))
+
+    # Two doors side by side share the post between them
+    merged = []
+    for lo, hi in sorted(spans):
+        if merged and lo <= merged[-1][1] + 1e-4:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], hi))
+        else:
+            merged.append((lo, hi))
+    return [p for p in merged if p[1] - p[0] > MIN_SEGMENT]
+
+
 def place(along, c_along, c_fixed, s_along, s_fixed, c_y, s_y):
     """Builds a translation and a scale from wall local numbers"""
     if along == "x":
@@ -444,7 +483,12 @@ def build_room(room):
     half_w = room.width * 0.5
     half_d = room.depth * 0.5
     wall_half = WALL_THICK * 0.5
-    ceiling_y = GROUND_Y - room.height  # -Y is up, so the top of the room is the smaller number
+
+    # A room can stand walls shorter than itself, like a terrace you see over
+    wall_h = room.height if room.wall_height is None else room.wall_height
+    if wall_h > room.height + 1e-4:
+        fail(room.line, "room {} has walls {:.2f} tall but is only {:.2f} tall"
+                        .format(room.ident, wall_h, room.height))
 
     # Floor, sitting so that you walk on exactly GROUND_Y
     # No face, because the floor must never be hidden
@@ -478,24 +522,29 @@ def build_room(room):
 
         holes = [(d.offset - d.width * 0.5, d.offset + d.width * 0.5) for d in doors]
 
+        if room.open:
+            pieces = jambs(doors, along_half)
+        else:
+            pieces = subtract((-along_half, along_half), holes)
+
         # Wall pieces either side of every doorway
-        for lo, hi in subtract((-along_half, along_half), holes):
+        for lo, hi in pieces:
             translation, scale = place(
                 along,
                 (lo + hi) * 0.5, fixed,
                 (hi - lo) * 0.5, wall_half,
-                GROUND_Y - room.height * 0.5, room.height * 0.5)
+                GROUND_Y - wall_h * 0.5, wall_h * 0.5)
             room.objects.append(Obj(WALL_PRESET, translation, (0.0, 0.0, 0.0), scale, outward))
 
         for door in doors:
             # The bit of wall above the opening
-            if room.height - door.height > MIN_SEGMENT:
-                lintel_half = (room.height - door.height) * 0.5
+            if wall_h - door.height > MIN_SEGMENT:
+                lintel_half = (wall_h - door.height) * 0.5
                 translation, scale = place(
                     along,
                     door.offset, fixed,
                     door.width * 0.5, wall_half,
-                    ceiling_y + lintel_half, lintel_half)
+                    GROUND_Y - wall_h + lintel_half, lintel_half)
                 # Part of the wall, so it goes when the wall goes
                 room.objects.append(Obj(WALL_PRESET, translation, (0.0, 0.0, 0.0), scale, outward))
 

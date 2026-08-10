@@ -34,6 +34,11 @@
 #
 # 'toggle' means the next press puts it back exactly where the map stood it.
 # Without it each press goes a further step in the same direction.
+#
+# Two things change what a room's walls look like:
+#
+#   open              outdoors -- keeps the frame around each doorway and nothing else
+#   wallheight <h>    walls shorter than the room, like a terrace you see over
 
 map petscop
 start foyer
@@ -63,7 +68,7 @@ room foyer
     do say SOMETHING SHIFTS BY THE EAST WALL.
 
 
-# A long corridor running away from the foyer. The far door leads nowhere yet
+# A long corridor running away from the foyer, up to the main hall
 room hall
   size 6 14
   height 3
@@ -86,5 +91,129 @@ room closet
     do rotate rock  0 90 0  over 0.45
 
 
+# The wide corridor the whole building hangs off. Everything upstairs of the
+# foyer is reached from here
+room hall_main
+  size 32 6
+  height 3
+  light -12.0 -2.4 0.0   1.00 0.90 0.75   9
+  light   0.0 -2.4 0.0   0.95 0.90 0.80   9
+  light  11.0 -2.4 0.0   0.80 0.85 1.00   9
+  door west_hall  south  -12
+  door lower      south    0
+  door greenhouse north  -12
+  door bathroom   north     0
+  door billiard   north     8
+  door ballroom   east      0
+
+
+# The corridor down to the back door, and out into the yard
+room hall_west
+  size 6 12
+  height 3
+  light 0.0 -2.4 -3.0   1.00 0.90 0.75   8
+  light 0.0 -2.4  3.0   0.90 0.90 0.85   8
+  door yard   south  0
+  door inside north  0
+
+
+# Outdoors. No walls, only the frame of the door you came out of
+room yard
+  size 30 12
+  height 3
+  open
+  light -8.0 -2.6  0.0   0.55 0.65 0.85   14
+  light  8.0 -2.6  0.0   0.50 0.60 0.80   14
+  door back north 0
+
+
+# A washroom off the main hall
+room bathroom
+  size 8 6
+  height 3
+  light 0.0 -2.2 0.0   0.85 0.95 1.00   7
+  door out south 0
+
+
+# Long room off the north side of the hall
+room billiard_room
+  size 8 13
+  height 3
+  light 0.0 -2.3 -3.0   1.00 0.85 0.60   8
+  light 0.0 -2.3  3.0   1.00 0.85 0.60   8
+  door out south 0
+
+
+# The big room at the east end of the hall
+room ballroom
+  size 14 12
+  height 4
+  light -4.0 -3.2  0.0   1.00 0.95 0.85   12
+  light  4.0 -3.2  0.0   0.95 0.90 1.00   12
+  door out west 0
+
+
+# Glass room between the hall and the field
+room greenhouse
+  size 12 6
+  height 3
+  light -3.0 -2.4 0.0   0.75 1.00 0.80   8
+  light  3.0 -2.4 0.0   0.75 1.00 0.80   8
+  door inside south 0
+  door field  north 0
+
+
+# Outdoors, and the widest place on the map. The stairs on the east side climb
+# to the terrace
+room field
+  size 24 12
+  height 3
+  open
+  light -7.0 -2.6 0.0   0.70 0.80 0.95   16
+  light  7.0 -2.6 0.0   0.65 0.75 0.90   16
+  door greenhouse south  0
+  door shed       west   0
+  door stairs     east   0
+
+
+# A small outbuilding on the west edge of the field
+room shed
+  size 7 7
+  height 2.6
+  light 0.0 -1.8 0.0   1.00 0.70 0.40   6
+  door out east 0
+
+
+# Walled only to the waist, so you can see the field from it
+room terrace
+  size 8 6
+  height 3
+  wallheight 1.4
+  light 0.0 -2.4 0.0   0.85 0.90 1.00   10
+  door stairs west  0
+  door doors  north 0
+
+
+# The way into the second building. It goes no further yet
+room building_two
+  size 9 5
+  height 3
+  light 0.0 -2.2 0.0   0.90 0.85 0.95   7
+  door outside south 0
+  door inside  north 0
+
+
 link foyer.hallway  hall.back
 link foyer.closet   closet.out
+
+link hall.deeper          hall_main.lower
+link hall_main.west_hall  hall_west.inside
+link hall_west.yard       yard.back
+link hall_main.bathroom   bathroom.out
+link hall_main.billiard   billiard_room.out
+link hall_main.ballroom   ballroom.out
+link hall_main.greenhouse greenhouse.inside
+link greenhouse.field     field.greenhouse
+link field.shed           shed.out
+link field.stairs         terrace.stairs
+link terrace.doors        building_two.outside
