@@ -23,7 +23,7 @@ constexpr ma_uint32 CLIP_FLAGS = MA_SOUND_FLAG_DECODE | MA_SOUND_FLAG_NO_SPATIAL
 const char* const EXTENSIONS[] = {".wav", ".ogg", ".mp3", ".flac"};
 
 // This is a necessary check before failing
-// Basically, miniaudio crashes if you try to use an audio after freeing that path
+// Basically, miniaudio crashes if you try to use an audio 
 bool fileExists(const std::string& path) {
   struct stat info;
   return stat(path.c_str(), &info) == 0 && S_ISREG(info.st_mode);

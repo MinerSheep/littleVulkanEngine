@@ -7,7 +7,7 @@
 
 // A map is a handful of rooms and the doors between them
 //
-// The file is written by tools/build_map.py, which has already worked out the
+// The file is written by **tools/build_map.py**, which has already worked out the
 // walls, which door leads where, and where you stand when you come through one.
 // Nothing here does any geometry, it only reads numbers off the page
 namespace petscop {

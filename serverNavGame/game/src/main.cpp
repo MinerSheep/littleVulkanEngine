@@ -46,9 +46,9 @@ int main() {
 
     try {
     
-        // static ServerNavScene snscene;
-        // snscene.loadModels();
-        // snscene.setupLights();
+        static ServerNavScene snscene;
+        snscene.loadModels();
+        snscene.setupLights();
 
         // static ReforgeScene rscene;
         // rscene.loadModels();
@@ -89,6 +89,7 @@ int main() {
         events.subscribe([&](const lve::Event& e) {
             if (e.i == GLFW_KEY_0) engine.activeScene = &editorScene;
             else if (e.i == GLFW_KEY_1) engine.activeScene = &roomScene;
+            else if (e.i == GLFW_KEY_2) engine.activeScene = &snscene;
         }, lve::EventType::KeyPressed);
 
         // Keys we lift into events, main reads GLFW
@@ -151,7 +152,7 @@ int main() {
 
         roomScene.cleanup();
         editorScene.cleanup();
-        // snscene.cleanup();
+        snscene.cleanup();
         // rscene.cleanup();
         // sdscene.cleanup();
         // app.run();
