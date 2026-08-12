@@ -55,6 +55,15 @@ void RoomScene::loadModels() {
   // The props vector never moves, only what is inside it, so this is bound once
   interactions.bind(&props, &dialog, &state);
 
+  // Same again for the spooky events, which read the map and the save as well
+  petscop::Stage stage;
+  stage.map = &map;
+  stage.state = &state;
+  stage.props = &props;
+  stage.models = &models;
+  stage.player = xform;
+  events.bind(stage);
+
   std::cout << "[petscop] loaded map '" << map.name << "': " << map.rooms.size() << " room(s), "
             << map.presets.size() << " mesh(es)" << std::endl;
 
@@ -69,7 +78,9 @@ int RoomScene::startingRoom() const {
 }
 
 void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
-  const petscop::MapRoom& room = map.rooms[roomIndex];
+  // An event gets first refusal on the room, and may hand back a changed copy
+  const petscop::MapRoom& room = events.dress(map.rooms[roomIndex], roomIndex);
+  liveRoom = &room;
 
   // Write the old room down before any of it is thrown away
   if (currentRoom >= 0) state.rememberRoom(map.rooms[currentRoom].name, props);
@@ -170,6 +181,9 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
 
   currentRoom = roomIndex;
 
+  // Last, so an event can put props right now that they are all standing
+  events.onEnterRoom(roomIndex);
+
   // Walking through a door is the autosave
   state.room = room.name;
   petscop::writeSave(savePath, state);
@@ -246,7 +260,7 @@ void RoomScene::emitBackground() {
   // fmod wraps the slide inside a single slot, so when it snaps back to zero
   // bar i lands exactly where bar i-1 was and the march has no seam
   const float slot = 2.f / static_cast<float>(bgBars);
-  const float slide = std::fmod(clock * bgSpeed, slot);
+  const float slide = std::fmod(bgPhase, slot);
 
   // A mat2 is column major: the first pair is where the quad's x goes, the
   // second is where its y goes
@@ -277,6 +291,7 @@ void RoomScene::update(float dt) {
 
     petscop::tickMotions(props, dt);
 
+    if (playerMover && events.takesControl()) playerMover->enabled = false;
     player.updateComponents(dt);
 
     // He has moved and his box has followed, so shove him back out of the walls
@@ -294,16 +309,27 @@ void RoomScene::update(float dt) {
 
       // Standing in a doorway starts the fade. The room is NOT swapped here:
       // props and doors are still being read further down this frame
-      for (std::size_t i = 0; i < doors.size(); i++) {
+      // An event can hold every door shut, and can send one somewhere else
+      for (std::size_t i = 0; i < doors.size() && !events.locksDoors(); i++) {
         const Door& door = doors[i];
         if (!door.armed || door.toRoom < 0) continue;
         if (!box.overlaps(door.trigger.worldBox())) continue;
 
         pendingRoom = door.toRoom;
         pendingDoor = door.toDoor;
+        events.reroute(pendingRoom, pendingDoor);
         phase = Phase::FadingOut;
         break;
       }
+    }
+
+    // An event may move him with no door involved at all
+    int warpRoom = -1;
+    int warpDoor = -1;
+    if (phase == Phase::Playing && events.takeWarp(warpRoom, warpDoor)) {
+      pendingRoom = warpRoom;
+      pendingDoor = warpDoor;
+      phase = Phase::FadingOut;
     }
 
   } else if (phase == Phase::FadingOut) {
@@ -320,13 +346,18 @@ void RoomScene::update(float dt) {
       phase = Phase::FadingIn;
     }
 
-  } else {
+  } else if (!events.holdsBlack()) {
+    // An event can keep the screen shut after the room has already been swapped
     fade -= dt / fadeSeconds;
     if (fade <= 0.f) {
       fade = 0.f;
       phase = Phase::Playing;
     }
   }
+
+  // Runs whatever the phase, so a held fade and a room swap both still tick
+  events.update(dt, phase == Phase::Playing,
+                phase == Phase::Playing ? interactions.startedProp() : -1);
 
   // --- camera: one pose for the whole room ------------------------------------
   camera.setViewTarget(cameraEye, cameraLook);
@@ -353,17 +384,31 @@ void RoomScene::update(float dt) {
     renderItems.push_back({mat, normal, prop.model, prop.visibility});
   }
 
+  // Anything an event conjured. These have no box and nothing walks into them
+  for (const Prop& extra : events.extras()) {
+    if (!extra.model) continue;
+
+    const glm::mat4 mat = extra.matrix();
+    const glm::mat4 normal = glm::mat4(glm::transpose(glm::inverse(glm::mat3(mat))));
+    renderItems.push_back({mat, normal, extra.model, 1.f});
+  }
+
   // Only what this room asked for. Anything past the budget is dropped rather
   // than fighting the ones already in
   lightItems.clear();
-  if (currentRoom >= 0) {
-    for (const petscop::MapLight& light : map.rooms[currentRoom].lights) {
+  if (liveRoom) {
+    for (std::size_t i = 0; i < liveRoom->lights.size(); i++) {
       if (lightItems.size() >= MAX_LIGHTS) break;
 
+      // An event can pull a room's lights down, or put one out for good
+      const float gain = events.lightGain(i);
+      if (gain <= 0.001f) continue;
+
+      const petscop::MapLight& light = liveRoom->lights[i];
       lve::LightRenderItem item;
       item.position = light.position;
       item.color = light.color;
-      item.intensity = light.intensity;
+      item.intensity = light.intensity * gain;
       item.radius = 0.1f;
       const glm::vec3 offset = camera.getPosition() - light.position;
       item.distanceToCamera = glm::dot(offset, offset);
@@ -372,6 +417,7 @@ void RoomScene::update(float dt) {
   }
 
   // --- the backdrop, under everything the room draws --------------------------
+  bgPhase += dt * events.backgroundSpeed(bgSpeed);
   emitBackground();
 
   // --- overlay: the room's name, then the fade over the top of it -------------
@@ -393,7 +439,7 @@ void RoomScene::update(float dt) {
     }
   }
 
-  ubo.ambientLightColor = {1.f, 1.f, 1.f, 0.15f};
+  ubo.ambientLightColor = events.ambient(glm::vec4(1.f, 1.f, 1.f, 0.15f));
   ubo.projection = camera.getProjection();
   ubo.view = camera.getView();
   ubo.inverseView = camera.getInverseView();
@@ -412,5 +458,7 @@ void RoomScene::cleanup() {
   props.clear();
   doors.clear();
   interactions.reset();
+  events.reset();
+  liveRoom = nullptr;
   backgroundItems.clear();
 }

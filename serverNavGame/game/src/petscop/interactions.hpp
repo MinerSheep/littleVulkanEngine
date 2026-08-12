@@ -34,6 +34,9 @@ class InteractionRunner {
   // Which prop the floating E is drawn over, or -1 for none
   int nearProp() const { return nearest; }
 
+  // Which prop a press just set going, or -1 when none did this frame
+  int startedProp() const { return started; }
+
   bool busy() const { return script.running; }
 
   float range = 1.2f;
@@ -54,6 +57,7 @@ class InteractionRunner {
 
   Script script;
   int nearest = -1;
+  int started = -1;
   bool actionPrevDown = false;
 };
 

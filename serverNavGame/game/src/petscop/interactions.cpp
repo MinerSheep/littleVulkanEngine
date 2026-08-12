@@ -19,6 +19,7 @@ void InteractionRunner::bind(std::vector<Prop>* propList, DialogBox* dialogBox,
 void InteractionRunner::reset() {
   script = Script{};
   nearest = -1;
+  started = -1;
   if (dialog) dialog->close();
 }
 
@@ -130,6 +131,7 @@ void InteractionRunner::runScript() {
 
 void InteractionRunner::update(ColliderComponent* playerCollider,
                                KeyboardMovementComponent* playerMover) {
+  started = -1;
   if (!props || !dialog) return;
 
   GLFWwindow* window = lve::LveEngine::instance().getGLFWWindow();
@@ -181,6 +183,7 @@ void InteractionRunner::update(ColliderComponent* playerCollider,
     script.running = true;
     script.prop = nearest;
     script.next = 0;
+    started = nearest;
     nearest = -1;
     runScript();
   }

@@ -16,6 +16,7 @@
 #include "petscop/model_cache.hpp"
 
 #include "petscop/dialog_box.hpp"
+#include "petscop/events.hpp"
 #include "petscop/game_state.hpp"
 #include "petscop/prop.hpp"
 #include "petscop/interactions.hpp"
@@ -42,6 +43,10 @@ class RoomScene : public lve::LveScene {
   petscop::GameMap map;
   petscop::ModelCache models;  // is saved between rooms
   int currentRoom = -1;
+
+  // The room as it was actually built, which an event may have changed
+  // Points either into map.rooms or at the director's own copy
+  const petscop::MapRoom* liveRoom = nullptr;
 
   // Items, flags, and how each room was left. Delete the file to start over
   petscop::GameState state;
@@ -105,6 +110,9 @@ class RoomScene : public lve::LveScene {
   petscop::InteractionRunner interactions;
   float clock = 0.f;
 
+  // Everything spooky the house does, in petscop/events.hpp
+  petscop::EventDirector events;
+
   float hoverLift = 0.45f;
   float hoverMaxHeight = 2.0f;
   float hoverBob = 0.07f;
@@ -117,6 +125,9 @@ class RoomScene : public lve::LveScene {
   int bgBars = 14;         // bars across the screen
   float bgBarFill = 0.45f; // how much of a bar's slot is inked
   float bgSpeed = 0.18f;   // screens travelled per second
+
+  // How far the bars have marched, kept separately from the clock
+  float bgPhase = 0.f;
 
   // How far the far edge of a bar leans across
   float bgSlant = 0.8f;  // bar angles

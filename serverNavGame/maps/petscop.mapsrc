@@ -74,7 +74,10 @@ room foyer
   door hallway  north   0
   door closet   east   -1.5
   props rooms/foyer_props.layout
-  interact tree  -3.0 0.5 2.0  0 0 0  0.30 0.30 0.30  say THE TREE IS TALLER THAN THE ROOM SHOULD ALLOW.|NOBODY REMEMBERS PLANTING IT.
+  interact tree  -3.0 0.5 2.0  0 0 0  0.30 0.30 0.30  name tree  say THE TREE IS TALLER THAN THE ROOM SHOULD ALLOW.|NOBODY REMEMBERS PLANTING IT.
+
+  # Bare floor under the tree. Kept hidden until the tree goes
+  interact cube  -3.000 0.470 2.000   0 0 0   0.900 0.030 0.900  name tree_hole  say SOMEBODY TOOK IT.
 
   # A slab dropped across the closet doorway, and the lever on the far side of
   # the room that lifts it. Pressing E on the lever moves something you are not
@@ -110,6 +113,11 @@ room closet
     do say A ROCK, WORN SMOOTH ON ONE SIDE.|SOMEONE HAS BEEN TURNING IT OVER.
     do sound stone
     do rotate rock  0 90 0  over 0.45
+
+  # Pinned to the north wall. Read the other way round it says NW FIELD
+  interact cube  0.000 -0.800 2.700   0 0 0   0.400 0.300 0.020   name note
+    do say A NOTE, PINNED FLAT TO THE WALL.|DLEIF WN
+    do flag read_note
 
 
 # The wide corridor the whole building hangs off. Everything upstairs of the
@@ -155,6 +163,20 @@ room yard
   prop rock  -13.000 0.168 -4.000   0 0.900 0   0.600 0.600 0.600
   prop rock    2.000 0.279 -4.500   0 2.400 0   0.400 0.400 0.400
 
+  # Two stones either side of a patch of turned earth. The spade is in the shed
+  prop rock  -7.000 0.279 2.000   0 0.500 0   0.350 0.350 0.350
+  prop rock  -5.000 0.279 2.000   0 1.900 0   0.350 0.350 0.350
+
+  interact cube  -6.000 0.470 2.000   0 0 0   0.600 0.030 0.600   name dig_patch
+    when noitem spade
+    do say THE EARTH HERE HAS BEEN TURNED BEFORE.|NOT BY HAND.
+    when item spade
+    do say THE EARTH TURNS EASILY HERE.|SOMETHING IS UNDER IT.
+    do sound stone
+    do give piece
+    do flag dug
+    do take spade
+
 
 # A washroom off the main hall
 room bathroom
@@ -162,6 +184,16 @@ room bathroom
   height 3
   light 0.0 -2.2 0.0   0.85 0.95 1.00   7
   door out south 0
+
+  # Set high on the far wall. The cue from the billiard room is what reaches it
+  interact cylinder  2.500 -1.900 2.700   0 0 0   0.120 0.300 0.120   name switch
+    when noitem cue
+    do say A SWITCH, SET TOO HIGH ON THE WALL.|YOUR HAND FALLS SHORT OF IT.
+    when item cue
+    do say YOU HOOK THE CUE OVER THE SWITCH AND PULL.
+    do sound lever
+    do rotate switch  0 0 -140  over 0.30  toggle
+    do flag switch_thrown
 
 
 # Long room off the north side of the hall
@@ -172,6 +204,17 @@ room billiard_room
   light 0.0 -2.3  3.0   1.00 0.85 0.60   8
   door out south 0
 
+  # The balls on the table are laid out by the game, not by this file
+  prop cube  0.000 0.100 1.000   0 0 0   3.000 0.400 1.400   name table
+
+  interact cylinder  -3.400 -0.400 4.000   0 0 0.250   0.080 1.200 0.080   name cue
+    when noitem cue
+    do say A CUE, STOOD AGAINST THE WALL.|IT IS LONGER THAN YOUR ARM.
+    do give cue
+    do flag took_cue
+    when item cue
+    do say THERE IS NOWHERE TO STAND IT BACK.
+
 
 # The big room at the east end of the hall
 room ballroom
@@ -180,6 +223,11 @@ room ballroom
   light -4.0 -3.2  0.0   1.00 0.95 0.85   12
   light  4.0 -3.2  0.0   0.95 0.90 1.00   12
   door out west 0
+
+  # Stood in the middle of an empty floor. It is not here the second time
+  interact cube  0.000 -0.300 0.000   0 0.300 0   0.900 0.800 0.500   name piano
+    do say A PIANO, IN THE MIDDLE OF THE FLOOR.|NOTHING IS ARRANGED AROUND IT.
+    do sound piano
 
 
 # Glass room between the hall and the field
@@ -219,6 +267,28 @@ room shed
   height 2.6
   light 0.0 -1.8 0.0   1.00 0.70 0.40   6
   door out east 0
+
+  interact blade1  -3.000 -0.100 -1.000   0 0 0   0.500 0.500 0.500   name spade
+    when noitem spade
+    do say A SPADE, LEANING WHERE A TOOL SHOULD HANG.
+    do give spade
+    do flag took_spade
+    when item spade
+    do say THE HOOK IT CAME OFF IS EMPTY.
+
+  # What the board says is written by the game out of your own save
+  interact cube  0.000 -0.700 3.200   0 0 0   1.200 0.700 0.030   name board
+    do say THE BOARD IS BLANK.
+
+
+# The field again, with nothing standing in it. Deliberately has no doors --
+# the game walks you back out of it once you have gone far enough in
+room field_red
+  size 24 12
+  height 3
+  open
+  light -6.0 -2.0 0.0   0.70 0.06 0.06   16
+  light  6.0 -2.0 0.0   0.60 0.05 0.05   16
 
 
 # Walled only to the waist, so you can see the field from it
