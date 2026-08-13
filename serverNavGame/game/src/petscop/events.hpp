@@ -14,6 +14,7 @@ struct TransformComponent;
 namespace petscop {
 
 struct GameState;
+class DialogBox;
 class ModelCache;
 
 // What the haunting is allowed to reach into
@@ -23,6 +24,7 @@ struct Stage {
   std::vector<Prop>* props = nullptr;
   ModelCache* models = nullptr;
   TransformComponent* player = nullptr;
+  DialogBox* dialog = nullptr;
 };
 
 // Everything the house does that the map file cannot say on its own
@@ -45,7 +47,8 @@ class EventDirector {
   void update(float dt, bool playing, int startedProp);
 
   // Where a door leads, which an event may point somewhere else
-  void reroute(int& toRoom, int& toDoor);
+  // Returns false when the door is not to be taken at all
+  bool reroute(int& toRoom, int& toDoor);
 
   // --- what the scene reads back each frame ---
   bool locksDoors() const { return locked; }
@@ -64,7 +67,23 @@ class EventDirector {
   // A room an event wants you moved to, handed over once
   bool takeWarp(int& room, int& door);
 
+  // Which door of this room is plugged shut, or -1 for none
+  int sealedDoor() const { return sealed; }
+
  private:
+  // --- progression: four things to finish before building two opens ---
+  int questsLeft() const;
+  void stoneAndGate();          // turn the rock three times, put the gate back down
+  void ballroomTiles(bool playing);  // cross to the piano on the pale tiles only
+  void terraceDoor();           // the door that will not open yet
+
+  // Where a named prop stands now, whether or not you are in its room
+  bool placeOf(const std::string& room, const std::string& name, glm::vec3& translation,
+               glm::vec3& rotation) const;
+
+  // What the map file stood a prop at, before anything moved it
+  const MapObject* mapObject(const std::string& room, const std::string& name) const;
+
   // How many times you have walked into a room, kept in the save as an item
   int visits(const std::string& room) const;
   int findRoom(const std::string& name) const;
@@ -142,6 +161,11 @@ class EventDirector {
 
   // You have to step off the corner before leaning on it counts again
   bool onEdge = false;
+
+  // The tile crossing is unbroken, and the terrace door has already spoken
+  bool tileRun = false;
+  bool toldDoor = false;
+  int sealed = -1;
 
   std::mt19937 rng{std::random_device{}()};
 };

@@ -62,6 +62,7 @@ void RoomScene::loadModels() {
   stage.props = &props;
   stage.models = &models;
   stage.player = xform;
+  stage.dialog = &dialog;
   events.bind(stage);
 
   std::cout << "[petscop] loaded map '" << map.name << "': " << map.rooms.size() << " room(s), "
@@ -303,8 +304,10 @@ void RoomScene::update(float dt) {
     if (playerMover && events.takesControl()) playerMover->enabled = false;
 
     // A held door is a wall you cannot walk out through, not just a dead trigger
+    // One door on its own can be plugged too, for a way on that is not open yet
     const bool sealed = events.locksDoors();
-    for (Door& door : doors) door.blocker.enabled = sealed;
+    for (std::size_t i = 0; i < doors.size(); i++)
+      doors[i].blocker.enabled = sealed || static_cast<int>(i) == events.sealedDoor();
 
     player.updateComponents(dt);
 
@@ -331,7 +334,15 @@ void RoomScene::update(float dt) {
 
         pendingRoom = door.toRoom;
         pendingDoor = door.toDoor;
-        events.reroute(pendingRoom, pendingDoor);
+
+        // A refused door has to be stepped off before it is tried again
+        if (!events.reroute(pendingRoom, pendingDoor)) {
+          doors[i].armed = false;
+          pendingRoom = -1;
+          pendingDoor = -1;
+          break;
+        }
+
         phase = Phase::FadingOut;
         break;
       }

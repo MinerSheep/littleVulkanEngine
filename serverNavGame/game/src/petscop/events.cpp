@@ -1,6 +1,7 @@
 #include "petscop/events.hpp"
 
 #include "lve_game_object.hpp"
+#include "petscop/dialog_box.hpp"
 #include "petscop/game_state.hpp"
 #include "petscop/model_cache.hpp"
 
@@ -38,6 +39,22 @@ const char* word[6][5] = {
     {"010", "101", "101", "101", "010"},  // O
     {"101", "111", "111", "101", "101"},  // N
     {"111", "100", "110", "100", "111"},  // E
+};
+
+// The four things building two waits on
+const char* quests[] = {"quest_stone", "quest_mirror", "quest_tiles", "quest_dig"};
+const int questCount = 4;
+
+// The pale tiles across the ballroom floor, one row per 2 units of depth and one
+// letter per 2 across. They run from the west doorway to the piano, and the only
+// way through is the way they go
+const char* tiles[6] = {
+    ".......",
+    ".WWWWW.",
+    "WW.W...",
+    "W..WW..",
+    "W......",
+    ".......",
 };
 
 // A flag as the board would print it
@@ -103,6 +120,48 @@ int EventDirector::findDoor(int index, const std::string& name) const {
     if (list[i].name == name) return static_cast<int>(i);
   }
   return -1;
+}
+
+const MapObject* EventDirector::mapObject(const std::string& roomName,
+                                          const std::string& name) const {
+  const int index = findRoom(roomName);
+  if (index < 0) return nullptr;
+
+  for (const MapObject& object : stage.map->rooms[index].objects) {
+    if (object.name == name) return &object;
+  }
+  return nullptr;
+}
+
+// The live prop if you are standing in its room, the save's memory of it if you
+// are not, and where the map stood it if nothing has ever touched it
+bool EventDirector::placeOf(const std::string& where, const std::string& name,
+                            glm::vec3& translation, glm::vec3& rotation) const {
+  if (where == roomName && stage.props) {
+    const int index = findProp(*stage.props, name);
+    if (index >= 0) {
+      const Prop& live = (*stage.props)[index];
+      translation = live.motion.active ? live.motion.toTranslation : live.translation;
+      rotation = live.motion.active ? live.motion.toRotation : live.rotation;
+      return true;
+    }
+  }
+
+  if (stage.state) {
+    const std::map<std::string, PropMemory>::const_iterator found =
+        stage.state->memories.find(where + "." + name);
+    if (found != stage.state->memories.end()) {
+      translation = found->second.translation;
+      rotation = found->second.rotation;
+      return true;
+    }
+  }
+
+  const MapObject* rest = mapObject(where, name);
+  if (!rest) return false;
+  translation = rest->translation;
+  rotation = rest->rotation;
+  return true;
 }
 
 Prop* EventDirector::prop(const std::string& name) {
@@ -296,6 +355,7 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
   tinted = false;
   frozen = false;
   locked = false;
+  sealed = -1;
 
   // Standing still with nothing held down
   bool holding = false;
@@ -310,6 +370,12 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
 
   blackout(dt);
 
+  // Reads the rock and the gate out of the save, so it finishes from any room
+  stoneAndGate();
+
+  if (roomName == "ballroom") ballroomTiles(playing);
+  if (roomName == "terrace") terraceDoor();
+
   if (roomName == "foyer") foyerLight();
   if (roomName == "closet") closetShutIn(dt, startedProp);
   if (roomName == "bathroom") bathroomWater(dt, playing);
@@ -320,6 +386,7 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
     greenhouseShape(dt);
   }
   if (roomName == "field" || roomName == "field_red") fieldEdge(playing);
+
 }
 
 // E13: the screen is held shut, and he is facing the other way when it opens
@@ -501,6 +568,103 @@ void EventDirector::fieldEdge(bool playing) {
   warpDoor = -1;
 }
 
+// --- progression ------------------------------------------------------------
+
+int EventDirector::questsLeft() const {
+  if (!stage.state) return questCount;
+
+  int left = 0;
+  for (int i = 0; i < questCount; i++) {
+    if (!stage.state->hasFlag(quests[i])) left++;
+  }
+  return left;
+}
+
+// Quest 1: the rock stood three quarter turns off where it started, and the slab
+// back down across the closet doorway. Opening the gate is the only way in to the
+// rock, so putting it back is the half people forget
+void EventDirector::stoneAndGate() {
+  if (!stage.state || stage.state->hasFlag("quest_stone")) return;
+
+  glm::vec3 rockAt, rockTurn, gateAt, gateTurn;
+  if (!placeOf("closet", "rock", rockAt, rockTurn)) return;
+  if (!placeOf("foyer", "gate", gateAt, gateTurn)) return;
+
+  const MapObject* rockRest = mapObject("closet", "rock");
+  const MapObject* gateRest = mapObject("foyer", "gate");
+  if (!rockRest || !gateRest) return;
+
+  // Three turns, seven turns and eleven all leave it facing the same way, so an
+  // overshoot is something you can walk off rather than a run you have to restart
+  const float circle = glm::two_pi<float>();
+  const float turned = std::fmod(rockTurn.y - rockRest->rotation.y + circle * 8.f, circle);
+  if (std::fabs(turned - glm::pi<float>() * 1.5f) > 0.25f) return;
+
+  if (std::fabs(gateAt.y - gateRest->translation.y) > 0.1f) return;
+
+  stage.state->setFlag("quest_stone", true);
+  if (stage.dialog) stage.dialog->open("SOMETHING GIVES, TWO ROOMS AWAY.");
+}
+
+// Quest 3: the pale tiles are the only floor that counts. Step off them and the
+// crossing is over, and the only place it starts again is the doorway
+void EventDirector::ballroomTiles(bool playing) {
+  for (int row = 0; row < 6; row++) {
+    for (int column = 0; column < 7; column++) {
+      if (tiles[row][column] != 'W') continue;
+      conjure("cube", glm::vec3(-6.f + 2.f * column, 0.47f, -5.f + 2.f * row), glm::vec3(0.f),
+              glm::vec3(0.92f, 0.02f, 0.92f));
+    }
+  }
+
+  if (!playing || !stage.player || !stage.state) return;
+  if (stage.state->hasFlag("quest_tiles")) return;
+
+  const glm::vec3 here = stage.player->translation;
+  const int column = static_cast<int>(std::floor((here.x + 7.f) * 0.5f));
+  const int row = static_cast<int>(std::floor((here.z + 6.f) * 0.5f));
+  const bool onFloor = column >= 0 && column < 7 && row >= 0 && row < 6;
+  const bool pale = onFloor && tiles[row][column] == 'W';
+
+  if (column == 0 && row == 3) {
+    tileRun = true;  // back at the doorway, which is where a crossing starts
+  } else if (!pale && tileRun) {
+    tileRun = false;
+    lve::LveAudio::instance().play("stone");
+  }
+
+  if (!tileRun || column != 3 || row != 3) return;
+
+  stage.state->setFlag("quest_tiles", true);
+  if (stage.dialog) stage.dialog->open("YOU REACH THE MIDDLE WITHOUT TOUCHING THE FLOOR.");
+}
+
+// The way into building two, plugged until all four are done
+void EventDirector::terraceDoor() {
+  const int left = questsLeft();
+  if (left == 0) return;
+
+  const int door = findDoor(room, "doors");
+  if (door < 0) return;
+  sealed = door;
+
+  if (!stage.player) return;
+  const glm::vec3 at = stage.map->rooms[room].doors[door].translation;
+  const glm::vec3 here = stage.player->translation;
+
+  // Says its piece once, and not again until you have stepped away from it
+  if (glm::length(glm::vec2(here.x - at.x, here.z - at.z)) > 2.2f) {
+    toldDoor = false;
+    return;
+  }
+  if (toldDoor || !stage.dialog) return;
+  toldDoor = true;
+
+  const char* counted[] = {"", "ONE THING IS", "TWO THINGS ARE", "THREE THINGS ARE",
+                           "FOUR THINGS ARE"};
+  stage.dialog->open("THE DOOR DOES NOT OPEN.|" + std::string(counted[left]) + " UNFINISHED.");
+}
+
 // --- what the scene reads back ----------------------------------------------
 
 float EventDirector::lightGain(std::size_t index) const {
@@ -520,19 +684,28 @@ bool EventDirector::takeWarp(int& toRoom, int& toDoor) {
 
 // E33: read the note, and the next time you come out of the shed you come out
 // somewhere else. It only ever happens once
-void EventDirector::reroute(int& toRoom, int& toDoor) {
-  if (roomName != "shed" || !stage.state) return;
-  if (!stage.state->hasFlag("read_note") || stage.state->hasFlag("shed_closet")) return;
+//
+// Also the last word on the way into building two, in case a slow frame carries
+// him through the plug in the doorway
+bool EventDirector::reroute(int& toRoom, int& toDoor) {
+  if (!stage.state) return true;
+
+  if (roomName == "terrace" && toRoom == findRoom("building_two") && questsLeft() > 0)
+    return false;
+
+  if (roomName != "shed") return true;
+  if (!stage.state->hasFlag("read_note") || stage.state->hasFlag("shed_closet")) return true;
 
   const int closet = findRoom("closet");
-  if (closet < 0) return;
+  if (closet < 0) return true;
 
   const int out = findDoor(closet, "out");
-  if (out < 0) return;
+  if (out < 0) return true;
 
   stage.state->setFlag("shed_closet", true);
   toRoom = closet;
   toDoor = out;
+  return true;
 }
 
 }  // namespace petscop

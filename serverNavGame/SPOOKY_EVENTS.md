@@ -1,11 +1,14 @@
 # Spooky events — building one
 
 A pool of events to draw from, and a progression spine that decides when building two opens.
-Nothing here is committed to. Pick what you like, rename anything, drop the rest.
+
+Sixteen of these are built and marked **✔** — those entries describe what actually shipped, which
+in a couple of cases is not what the entry originally proposed. Everything unmarked is new and
+nothing here is committed to. Pick what you like, rename anything, drop the rest.
 
 Everything is written against the map as it stands in `maps/petscop.mapsrc`: **foyer, closet,
-hall, hall_main, hall_west, yard, bathroom, billiard_room, ballroom, greenhouse, field, shed,
-terrace, building_two**.
+hall, hall_main, hall_west, yard, bathroom, billiard_room, ballroom, greenhouse, field, field_red,
+shed, terrace, building_two**.
 
 ---
 
@@ -17,7 +20,7 @@ you. A room that is the wrong size but still has its own light and its own name 
 A save file with a line in it you did not write.
 
 So the good events here are all built out of the machinery already in the repo — flags, prop
-memories, `do move`, the fade, the room-name overlay — used one step past what it was for.
+memories, `do move`, the fade, the room stretch — used one step past what it was for.
 
 Three pacing rules worth holding to:
 
@@ -28,39 +31,63 @@ Three pacing rules worth holding to:
 
 ---
 
-## What you can trigger on today, and what needs building
+## Where the events live now
 
-| Trigger | State today |
+The original version of this file guessed the events would arrive as new `do` verbs in the map
+file. They did not. They live in **`game/src/petscop/events.cpp`**, as `EventDirector`, and the
+map file has learnt nothing new. Read the ideas below with that in mind: "needs" almost always
+means a few lines of C++, not a change to `build_map.py`.
+
+The director is handed a `Stage` — the map, the save, the live prop list, the model cache, the
+player transform — and events come in two shapes:
+
+- **Put props right as the room stands up** (`onEnterRoom`). E01, E15, E36. Safe to touch the real
+  props here, because collision registration has not happened yet.
+- **Set an override, worked out again from nothing every frame** (`update`). E05, E07, E30, E32.
+  Nothing has to be undone when the event stops, because everything resets at the top of the frame.
+
+`dress()` sits ahead of both: it gets the `MapRoom` before a single prop is built, and can change
+anything on it — size, camera, lights, objects, doors, spawn points. E11 is the only thing using it
+today and it is by far the most under-used hook in the file.
+
+**Counters cost nothing.** `@visits.<room>` and `@edge.field` are items with an `@` in front, so
+they ride in the save with every other item and need no `saveVersion` bump. Any "Nth time" idea
+below is one `addItem` and one `itemCount`.
+
+## What you can trigger on today
+
+| Trigger | State |
 |---|---|
 | Pressed E on a prop | **have** — `interact` + `do` lines |
 | A flag is / is not set | **have** — `when flag`, `when noflag` |
 | Carrying / not carrying an item | **have** — `when item`, `when noitem` |
 | How a prop was left last time | **have** — `PropMemory`, restored on re-entry |
-| Entered a room | **have** — `enterRoom()`, but nothing hangs off it |
-| **Nth** time entering a room | need — `std::map<std::string,int> visits` in `GameState` |
-| Stood still for N seconds | need — idle timer in `RoomScene::update` |
-| Walked into a wall, at a spot | need — bump test off `CollisionSystem`, plus a position box |
-| Pressed E on a prop N times | need — a counter per prop, or reuse `flipped` |
-| Quit and came back | need — `sessions` count written by `writeSave` |
+| Nth time entering a room | **have** — `@visits.<room>`, read by `visits()` |
+| Pressed E on a prop N times | **have** — `startedProp` into `update`, plus an `@` counter |
+| Stood still for N seconds | **have** — `idle`, and it watches keys as well as position |
+| Standing at a spot, or leaning on a wall | **have** — `stage.player->translation`, see `fieldEdge` |
+| Re-entered a room after seeing X | **have** — flag set by X |
+| Doors taken back to back | **have** — `mash`, off `sinceEntry` |
+| Quit and came back | need — a session count in the save |
 | Total distance walked | need — accumulate in `update` |
-| Re-entered a room *after* seeing X | **have** — flag set by X, `when flag` on re-entry |
 
-| New action | Unlocks |
+| Thing the director can do | Where |
 |---|---|
-| `do light <r g b> <intensity> over <s>` | ~9 of the ideas below. Highest value single item |
-| `do wait <seconds>` | lets a script breathe instead of firing all at once |
-| `do warp <room> [door]` | rooms that lead somewhere other than their door |
-| `do spawn <mesh> <x y z>` / `do despawn` | anything appearing while you watch |
-| `do freeze` / `do release` | takes the character off your hands for a beat |
-| `do camera <eye> <look> over <s>` | the camera is fixed per room today, so any move reads as wrong |
-| `do fade <seconds>` / `do title <text>` | reuses the fade quad and the room-name overlay |
-| `do rename <room-name>` | the corner overlay is a great liar |
-| a `when` clause on a **door** | the whole progression gate below depends on this |
+| Resize a room, move its camera, edit its objects and lights | `dress()` — E11 only, so far |
+| Stand something up that has no collision | `conjure()` — E21, E30, E32 |
+| Replace what a prop says | `rewrite()` — E36 |
+| Kill one light, or dim every light | `gain` / `killedLight` — E05, E07, E30 |
+| Wash the room a colour | `tint` — E30, E32 |
+| Stop the backdrop | `bgScale` — E29 |
+| Hold the screen black, take the character off you | `black` / `frozen` — E13 |
+| Lock the doors | `locked` — E07 |
+| Move you to another room | `takeWarp` — E32 |
+| Send a door somewhere else | `reroute()` — E33 |
+| Play or cut a sound | `LveAudio::play` / `stopAll` |
 
-Two notes on the save. `readSave` throws away a save whose version does not match, so any new
-field means bumping `saveVersion` and losing existing saves — do the additions in one go rather
-than three times. And `GameState` is the natural home for a `seen` set: the count of events the
-player has actually witnessed is what the ending below keys off.
+Still missing, and named in the ideas below: **per-light gains** (there is one global `gain` and one
+killed index), **naming props from `dress()`** so unnamed layout scenery can be remembered,
+**the room-name overlay text**, and **a session count**.
 
 ---
 
@@ -70,252 +97,247 @@ Read `→ Piece n` as "this feeds the progression spine at the bottom".
 
 ## Foyer — the room you wake up in
 
-**E01 · The tree is gone.**
-Third time you walk back into the foyer, the tree is not there. The floor where it stood is
-scaled flat and slightly wrong-coloured. Press E on the empty spot: `SOMEBODY TOOK IT.`
-*Needs:* visit count. *Have:* `do hide`, prop memory.
+**E01 · The tree is gone. ✔**
+Third time you walk back into the foyer, the tree is not there. A bare slab is scaled flat where it
+stood, and pressing E on it says `SOMEBODY TOOK IT.` Sets `tree_taken`, so it never comes back.
 
-**E02 · The lever that goes one step too far.**
-The lever is `toggle` today, so it rocks between two positions. Pull it eight times in one visit
-and the toggle stops working — the gate keeps going down, through the floor, and does not come
-back. The lever is now stuck at an angle no toggle can produce.
-*Needs:* press counter. *Have:* `do move`, `do rotate`, `do flag`.
+**E02 · The gate comes back down.**
+The lever lifts the slab off the closet doorway and prop memory holds it up between visits. From
+the third visit the house puts it back down while you are away — the memory says up, the room says
+down. The lever's second page changes from `IT HAS BEEN PULLED BEFORE.` to `YOU HAVE PULLED IT
+BEFORE.` and nothing else about it changes. → Piece 1
+*Have:* `PropMemory`, `rewrite()`.
 
-**E03 · The second lever.**
-Once E02 has happened, a second lever stands where the first one was, and the first one is gone.
-It has no dialog at all — pressing E does nothing but play `lever.wav`. It moves nothing you can
-see. It sets a flag. → Piece 1
+**E03 · The camera steps back.**
+The foyer camera is fixed. Every fourth visit `dress()` pushes `cameraEye` one step further from
+`cameraLook`, so the room reads smaller and more of the ceiling is in shot. It never comes back in,
+and by the last step the character is small enough to be hard to pick out.
+*Have:* `dress()` already moves a camera — E11 does it to keep the hall on screen.
 
-**E04 · The count in the corner.**
-The room-name overlay reads `FOYER` normally. After enough visits it reads `FOYER (12)`. The
-number is your visit count plus one, always, and you can check.
-*Needs:* visit count, overlay text hook.
+**E04 · The door that is not one.**
+A door-shaped panel on the foyer's south wall, where the front of the house should be. Press E:
+`IT IS NOT A DOOR.` Once you hold three pieces it says `IT IS NOT A DOOR YET.` and nothing else
+about it has changed.
+*Have:* all of it — an `interact` with a `when item piece` split, straight in the mapsrc.
 
-**E05 · The blue light stays.**
-The foyer has a warm key light and a cold blue fill. Come back from the yard after dark-flag and
-the warm one is out. Nothing else changes — the room is just blue now, permanently.
-*Needs:* `do light`.
+**E05 · The blue light stays. ✔**
+Come back from the yard and the warm key light over the foyer is out for good, leaving the cold
+blue fill on its own. Sets `saw_dark_foyer`, which is what arms E15.
 
 ## Closet — the dead end off the foyer
 
-**E06 · The worn side.**
-The rock turns 90° per press with no toggle, so it has four faces. Turn the worn side to face the
-doorway and leave the room. Come back: it has been turned back. Do it again and it stays, and the
-worn side has a shape in it, about the size of a hand. → Piece 1
-*Have:* prop memory does exactly this already.
+**E06 · The rock is in your way.**
+The rock turns 90° a press and never toggles back. Every fourth quarter turn it also travels one
+step toward the doorway, between visits, never while you are looking. Eventually you have to walk
+around it to get out, and one more step puts it in the foyer. → Piece 1
+*Have:* `PropMemory`, `startedProp` for the press count.
 
-**E07 · Shut in.**
-On one specific entry the closet door is disarmed. Twenty seconds, the light drops to nothing over
-about eight of them, and then it lets you out with no comment.
-*Needs:* `do light`, door arm/disarm from a script.
+**E07 · Shut in. ✔**
+Roughly one press of the rock in three shuts the closet. Doors lock for twenty seconds, the orange
+light fades to nothing over the first eight, and then it lets you out with no comment.
 
-**E08 · The closet is the ballroom.**
-After you have been in the ballroom, one later visit to the closet loads a room 14×12 instead of
-6×6 — the ballroom's dimensions, with the closet's one orange light stranded in the middle and
-the closet's name in the corner. Walk to the far wall. There is nothing there. Leave and it is a
-closet again.
-*Needs:* per-room size override, or a duplicate room the door points at conditionally.
+**E08 · The closet is deeper.**
+Every time E07 shuts you in, `dress()` adds two to the closet's depth. The doorway stays where it
+is and the one orange light stays in the middle, so each time there is more room behind you that
+the light does not reach. Nothing is ever in it.
+*Needs:* the E11 stretch, applied on one axis and keyed to a counter instead of visits.
 
 ## Hall and hall_main — the spine of the house
 
-**E09 · Something walking the other way.**
-Halfway up the long hall, a prop moves past you on the opposite side and out the far end, at
-walking pace. It is a `man.glb`-shaped silhouette with no light on it. It does not stop.
-*Needs:* `do spawn`, a path move. *Have:* `do move` over seconds.
+**E09 · The light behind you.**
+`hall_main` has three lights. Walk past the middle and the one nearest the door you came in through
+goes out; walk back toward it and it lifts again as you approach. It is smooth enough to read as
+falloff and steep enough to be wrong. → Piece 2
+*Needs:* per-light gains, driven off `player.x`.
 
-**E10 · The knock.**
-Walk into the north wall of `hall_main` at the gap between the bathroom and billiard doors.
-Three bumps at that exact spot, three knocks answering back, and the fourth one gets:
-`THERE IS A ROOM HERE.` A door appears in the wall that `build_map.py` never generated. → Piece 2
-*Needs:* wall-bump detector, `do spawn`, a door added at runtime.
+**E10 · Footprints.**
+Once you have walked the length of `hall_main`, flat dark slabs stand up behind you at the spots you
+stopped at — the whole path, laid down at once, while you are facing away from it. They are gone
+next visit. Late game only.
+*Have:* `conjure()`. *Needs:* a short ring of positions kept in `update`.
 
-**E11 · The hall got longer.**
-`hall_main` is 32 long. Leave by the west end and come back and it is 48, with the same three
-lights spread thinner and a stretch in the middle that is unlit. The doors are all still where
-they should be, which means walking further between them.
-*Needs:* room size override.
+**E11 · The hall changes length. ✔**
+From the fourth visit `dress()` scales `hall_main` and everything in it — walls, doors, lights,
+spawn points — and pulls the camera in to match. Shipped at `stretch = 0.5`, so the hall comes back
+*half* the length rather than half as long again; the comment in `events.cpp` says the opposite of
+what the constant does, so pick the one you meant.
 
-**E12 · Rooms closing behind you.**
-Every time you finish a thread, one door on `hall_main` you have already used quietly stops
-working. No dialog, no locked sound. It just does not fade any more.
-*Have:* door arming. *Needs:* a `when` on a door.
+**E12 · The hall gives you back.**
+One time, after you hold two pieces, taking any north door out of `hall_main` fades out and fades
+back into `hall_main` — at the far end, facing in. The door works normally on the second try and
+every try after.
+*Have:* `reroute()`, which already does this for the shed.
 
-**E13 · The hall you cannot leave.**
-Mash a door back and forth — in and out within a second of arriving, six times. The seventh
-fade goes to black and stays. Ten seconds of footsteps in the dark, then it fades up in the hall,
-facing the way you were not.
-*Needs:* re-entry timing, `do fade`, `do freeze`.
+**E13 · The hall you cannot leave. ✔**
+Six doors taken inside 1.2 seconds of each other. The next fade goes to black and stays for ten
+seconds of footsteps, and when it comes up the character is facing the other way.
 
 ## Yard — outdoors, southwest, wide and open
 
-**E14 · Someone at the tree line.**
-Stand still in the yard for ninety seconds. A figure is standing at the west edge, in front of
-the far tree. Walk at it and it is gone once you are within about six metres — not fading, just
-absent on the next frame.
-*Needs:* idle timer, `do spawn`/`do despawn`.
+**E14 · The path you wore.**
+The yard grass is `pass`, so you walk straight through it. Every tuft you walk over is flattened
+out of sight and stays flattened, in the save, so the yard slowly grows a path shaped like the way
+you always cross it. Nobody is told this is happening.
+*Needs:* `dress()` naming the layout props, because only named props are remembered. That one
+change unlocks four of the ideas here.
 
-**E15 · The tuft that has a name.**
-The yard grass is `pass`, so you walk through it and it is not interactable. After E14, exactly
-one tuft takes an E press. It says a name — a person's, first name only, in caps like everything
-else. It never says it again.
-*Have:* all of it, gated on a flag.
+**E15 · The tuft that has a name. ✔**
+Once the foyer has gone dark, exactly one tuft answers E with `ELEANOR.` It sets `tuft_named` and
+never says it again.
 
-**E16 · Dig here.**
-Two rocks in the yard sit either side of a patch. With the spade from the shed (**E30**) you can
-dig it. What comes out is a piece. What is under the piece is a second, smaller hole.
+**E16 · Dig here. ✔**
+Two stones either side of a patch of turned earth. Without the spade it says the earth has been
+turned before, not by hand. With the spade it gives you a **piece** and takes the spade back.
 → Piece 4
-*Needs:* an item-gated interact — `when item spade` already does this.
 
-**E17 · The yard at night.**
-One entry, late in the game, the yard's two cool lights are at intensity 2 instead of 14, and the
-moving background bars stop moving. Everything else is identical.
-*Needs:* `do light`, a background freeze toggle.
+**E17 · Somebody else has been digging.**
+After E16, every later visit to the yard has one more patch of turned earth in it, somewhere you
+did not dig, and the count matches how many pieces you hold. All of them are already empty:
+`THIS ONE IS ALREADY EMPTY.`
+*Have:* `conjure()`, `itemCount("piece")`.
 
 ## Bathroom — small, off the main hall
 
-**E18 · The mirror does not jump.**
-A `plane` on the wall with a second copy of the character mirrored behind it, matched to your
-position each frame. It matches walking. It does not match jumping — when you leave the ground it
-stays down, and picks you back up when you land.
-*Needs:* a mirrored prop driven by player transform. Cheap, and the single best idea in this file.
+**E18 · The tap you found.**
+Hear the water three times (E19) and the fourth visit has a sink on the wall that was never there.
+The water never plays again. Press E on it: `IT IS DRY.`
+*Have:* `dress()` adding one object, plus a counter on E19 firing.
 
-**E19 · Running water.**
-There is no sink. Standing still for ten seconds starts a water sound. Any input stops it
-instantly, mid-sample.
-*Needs:* idle timer, `do sound` with a stop.
+**E19 · Running water. ✔**
+There is no sink. Ten seconds standing still starts the water, and any input cuts it mid-sample.
 
-**E20 · The bathroom is the yard.**
-Late-game entry loads a room 30×12 with the bathroom's one pale light and the bathroom's name.
-The yard's trees and rocks are all there, indoors, lit like a washroom.
-*Needs:* room size override, same machinery as E08 and E11.
+**E20 · The switch is not for this room.**
+The cue throws the switch above the bathroom mirror and nothing in the bathroom responds. What it
+actually does is kill the middle light of `hall_main`, permanently, and there is something to press
+E on in the dark stretch it leaves. → Piece 2
+*Have:* `switch_thrown` is already set. *Needs:* per-light gains.
 
 ## Billiard room — long, off the north side
 
-**E21 · The balls spell something.**
-Balls (`sphere`) on the table are arranged differently every visit. Over six visits the
-arrangement resolves into letters — one letter per visit, and the sixth is the whole word.
-*Have:* per-visit layouts via prop memory. *Needs:* visit count.
+**E21 · The balls spell something. ✔**
+The balls on the table lay out one more letter every visit, and by the sixth they read **BYGONE**.
 
-**E22 · The ball that does not come back.**
-Press E on the table and a ball rolls to the far cushion and back. Every time. On the twelfth it
-rolls off and does not come back, and the table is one ball short from then on, in the save.
-*Needs:* press counter. *Have:* `do move`, prop memory.
+**E22 · The table is set for two.**
+After BYGONE, the balls stop spelling and lay out as a game already in progress. It has moved on
+every time you come back — always a legal shot on from where you last saw it, never while you are
+in the room.
+*Have:* `conjure()`, visit count. The layouts can be a hand-written table of six positions.
 
-**E23 · The cue.**
-A cue stick on the wall you can take. It is the reach-tool — the switch behind the bathroom
-mirror is not reachable without it. → Piece 2
-*Have:* `do give`, `when item`.
+**E23 · The cue. ✔**
+A cue stick against the wall you can take. It is the reach-tool for the bathroom switch, and there
+is nowhere to stand it back. → Piece 2
 
 ## Ballroom — the big empty room at the east end
 
-**E24 · Music you can only hear by not playing.**
-Idle sixty seconds and a waltz starts, quiet and far off. Any input cuts it. The clip is about
-three minutes long, so the only way to hear it end is to stop playing entirely.
+**E24 · The piano plays itself. ✔**
+The piano is in the middle of the floor the first time and gone every time after. Walking through
+the space where it stood plays it anyway, once per visit.
 
-**E25 · The audience.**
-Thirty identical props in a grid, all facing the far wall. Each time you re-enter, one more has
-turned to face the door. At thirty, the room is full of them looking at you, and the next entry
-they are all gone and the room is empty. → Piece 3
-*Have:* prop memory, `do rotate`. *Needs:* visit count.
+**E25 · The piano comes back.**
+Hold three pieces and the piano is standing there again. Pressing E gives one line — `IT HAS BEEN
+MOVED.` — and no sound, and one of the ballroom's two lights is out, leaving it lit from one side.
+*Have:* show/hide, `rewrite()`. *Needs:* per-light gains.
 
-**E26 · Do not touch the dark squares.**
-The ballroom floor is a checker of two presets. Cross it start to finish on the light squares only
-and a flag sets, with no acknowledgement of any kind. Nothing tells you this is a thing.
-→ Piece 3
-*Needs:* a floor-tile position test.
+**E26 · Six notes.**
+One floor slab in the ballroom is a shade off the rest. Stand on it for three seconds and a single
+piano note plays and the slab is somewhere else. Six notes in and it is a tune you have already
+heard come out of the piano. → Piece 3
+*Have:* `conjure()`, position test, audio.
 
-**E27 · The room is being used.**
-Enter and the fade comes up half a second late. In that half second there is sound of a room full
-of people. It is over before the picture arrives.
-*Needs:* `do wait`, `do fade`.
+**E27 · The second walker.**
+While you are in the ballroom your own footsteps play back a beat late. It reads as the room being
+large until you stop walking, because the late set carries on for one more step.
+*Needs:* a delay line on the footstep sound. Nothing else.
 
 ## Greenhouse — glass, between the hall and the field
 
-**E28 · The plant.**
-One plant grows a little every visit, scaled off the visit count, until it is through the roof.
-Then it is a stump, and the pot has soil turned over in it.
-*Needs:* visit count. *Have:* `do scale`.
+**E28 · The panes stack up.**
+After the shape passes over (E30), one pane of glass is leaning against the north wall. Every visit
+after there is another, stacked against the last, until half the room is glass you have to walk
+around. Press E on the stack: `SOMETHING HAS TO BE REPLACED.`
+*Have:* `conjure()` by visit count. Solid ones want `dress()` instead, so they get boxes.
 
-**E29 · The bars stop.**
-The moving background is behind every room. In the greenhouse, and only the greenhouse, it holds
-still. Nobody will consciously notice, and everybody will feel it.
-*Needs:* per-room `bgSpeed`.
+**E29 · The bars stop. ✔**
+The moving backdrop is behind every room. In the greenhouse, and only the greenhouse, it holds
+still.
 
-**E30 · Something over the glass.**
-Kill the greenhouse's two lights for two seconds. In the dark there is a shape above the roof,
-lit from behind, much too large. Lights come back and it is gone.
-*Needs:* `do light`, `do spawn`.
+**E30 · Something over the glass. ✔**
+Third visit, three seconds in: every light dies, a flat blue wash comes up, and something far too
+large drifts over the roof for two seconds with a drone under it. Sets `saw_shape`.
 
 ## Field — outdoors, the widest place on the map
 
-**E31 · One tree fewer.**
-Cross the field east to west and the tree count is what it was. Cross west to east and it is one
-lower. It never goes back up.
-*Needs:* crossing direction test. *Have:* prop memory, `do hide`.
+**E31 · The shed gets further away.**
+Every time you come into the field from the greenhouse, `dress()` stretches it westward a little —
+the stairs and the terrace stay exactly where they were, and the shed door and the north-west
+corner do not. The walk to the tools gets longer all game and never gets shorter. → Piece 4
+*Have:* the E11 stretch, one axis, one direction.
 
-**E32 · The edge that gives way.**
-Walk into the far west edge of the field — not the shed door, the blank stretch north of it.
-Five times, and on the fifth the collision is not there. Beyond is the field again, unlit, with no
-grass and no doors, and walking far enough in fades you back to the greenhouse. → Piece 4
-*Needs:* wall-bump counter, a collider that can be turned off, `do warp`.
+**E32 · The edge that gives way. ✔**
+Lean on the north-west corner of the field five separate times and the fifth one puts you in
+`field_red` — the field again, washed red, slabs laid out in a spiral where the grass was. Walk far
+enough into it and you come out in the greenhouse. → Piece 4
 
-**E33 · The shed leads to the closet.**
-Go into the shed from the field and it is the shed. Come out and you are in the closet, in the
-foyer wing, on the other side of the house. Going back through the closet door puts you in the
-foyer, normally, and the shed is a shed again next time.
-*Needs:* `do warp`, or a conditional door target.
+**E33 · The shed leads to the closet. ✔**
+Read the note in the closet (`DLEIF WN`) and the next time you walk out of the shed you are in the
+closet instead, on the other side of the house. It happens once.
 
 ## Shed — small outbuilding on the west edge of the field
 
-**E34 · The spade.**
-A spade on a wall of tools. One hook is empty. Take the spade and use it in the yard (**E16**).
-→ Piece 4
+**E34 · The hooks fill up.**
+The shed wall is mostly empty hooks. There is a tool on one more hook every time you set a flag, so
+the wall is the same list the board reads (E36) in a different form. None of them can be taken:
+`NOT THAT ONE.`
+*Have:* `conjure()` against `state.flags.size()`.
 
-**E35 · The empty hook.**
-After you have dug with it, the empty hook has something on it. It is an item you are carrying.
-You still have yours.
+**E35 · Under the shed.**
+The shed floor has a seam in it. Before E33 it does nothing. After E33 has put you out into the
+closet, pressing E on the seam says `THE CLOSET IS UNDER HERE.` — which cannot be true of anywhere
+on this map. It never opens.
+*Have:* all of it, gated on `shed_closet`.
 
-**E36 · The list.**
-A board in the shed that reads your own save back at you — flags, in the order they were set, in
-plain caps. It is one line ahead of you. The bottom line is a flag you have not earned.
-*Needs:* text from `GameState` into a dialog. Small job, big payoff.
+**E36 · The list. ✔**
+The board reads your own save back at you — every flag, in the order the set holds them, three to
+a line, in caps. The last line is always `SAW YOU READING THIS`, which is not a flag you have.
 
 ## Terrace — low walls, looks over the field, and the way on
 
-**E37 · The field is empty.**
-The terrace walls are waist height so the field is visible from it. On one visit the field below
-has no grass, no trees, no rocks. One figure, standing in the middle of it, facing the terrace.
-Walk down the stairs and the field is normal and nobody is in it.
-*Needs:* a second field variant, or `do hide` across a room boundary.
+**E37 · The terrace looks the wrong way.**
+The terrace walls are waist height and there is nothing standing beyond them. Late game there is:
+the yard's trees and rocks, in the yard's arrangement, laid out below a terrace that looks over the
+field from the other side of the house.
+*Have:* `conjure()`, and the yard's layout is already a file you can read positions out of.
 
-**E38 · The count is wrong.**
-Press E on the building two doors without the requirements and it tells you how many you are
-missing. It says three when you need four. It says this consistently, every time, and it is
-wrong every time.
-*Needs:* the door `when`, and a dialog that reads item counts.
+**E38 · The doors ask for things.**
+The building two doors say one line per piece you hold, and they are instructions rather than
+descriptions — `BRING THE ROCK.` `LEAVE THE CUE.` Each one is a thing you can actually do. Doing it
+sets a flag and is never mentioned again, by the doors or by anything else. → the fifth requirement
+*Have:* `rewrite()`, `itemCount`. The rock is already portable if E06 walks it out of the closet.
 
 ## Anywhere — system-level
 
-**E39 · It knows you left.**
-Quit and come back and the first room-name overlay of the session reads `YOU LEFT.` for two
-seconds before it settles into the room's real name.
-*Needs:* session count in the save.
+**E39 · You wake up further along.**
+The save writes down which room you quit in and puts you back there. Late game it puts you back one
+room further on — always the next room toward the terrace, never backward, and only when you have
+been away long enough that you might not be sure.
+*Have:* `state.room` is already the whole mechanism.
 
-**E40 · The character walks off.**
-Five minutes with no input, anywhere. The character starts walking on his own, taking doors, all
-the way to one specific room, and stands there. Input takes him back at any point.
-*Needs:* idle timer, a scripted path, `do freeze`.
+**E40 · He turns to face you.**
+Stand still for forty seconds anywhere and the character turns to face the camera, rather than the
+way he was walking. Any input and he snaps back mid-turn.
+*Have:* `idle`, and E13 already writes `player->rotation`.
 
-**E41 · A room that is not on the map.**
-Rarely, the corner overlay shows a room name that does not appear in `petscop.mapsrc`. The room
-around you is unchanged. It corrects itself on the next room change.
-*Needs:* `do rename`.
+**E41 · The lights come up late.**
+From the third piece on, every room's lights come up a quarter of a second after the fade has
+finished, so every room in the house begins dark for a moment. It is the same everywhere, which is
+what makes it read as the game rather than the room.
+*Have:* `sinceEntry`. *Needs:* per-light gains only if you want it uneven.
 
-**E42 · The line you did not write.**
-The save gains a `flag` line nobody set — named like a sentence rather than an identifier, so it
-reads as English in the middle of a config file. It has no effect on anything. It survives
-deleting other flags.
-*Needs:* one line in `writeSave`. Keep it inside `saves/`, and keep it honest — a game that
+**E42 · Flags for rooms you have not been in.**
+The save quietly gains flags named after rooms in building two. They do nothing, they are never
+checked, and the first place you read them is the board in the shed (E36) — which prints whatever
+is in the save without asking where it came from.
+*Have:* `setFlag` from the director, and E36 does the rest. Keep it inside `saves/` — a game that
 writes outside its own save folder is a different kind of scary than the one you are going for.
 
 ---
@@ -328,25 +350,25 @@ The terrace door to `building_two` is a plain link today. Make it the gate.
 
 | Piece | Wing | Thread | Events |
 |---|---|---|---|
-| 1 | Foyer / closet | Turn the rock's worn side to the door twice, then pull the lever past its toggle | E02, E03, E06 |
-| 2 | Bathroom / billiard | Take the cue, reach what is behind the mirror, and knock through the hall wall | E10, E18, E23 |
-| 3 | Ballroom | Cross the floor on light squares only, and be there when the audience is full | E25, E26 |
-| 4 | Greenhouse / field / shed / yard | Take the spade, dig the marked patch, and walk through the west edge | E16, E32, E34 |
+| 1 | Foyer / closet | Lift the gate and keep it lifted, then turn the rock until it walks itself out of the closet and press E on it in the foyer | E02, E06 |
+| 2 | Bathroom / billiard | Take the cue, throw the switch, and find what the switch put in the dark at the far end of the hall | E09, E20, E23 |
+| 3 | Ballroom | Stand on the odd slab six times and finish the tune | E26 |
+| 4 | Greenhouse / field / shed / yard | Take the spade, dig the marked patch, and lean on the corner of the field until it gives | E16, E31, E32 |
 
-Each thread ends in a `do give piece`, so the gate is `when item piece 4` — which is one line in
-the mapsrc once doors take a `when`.
+Each thread ends in a `do give piece`, so the gate is `when item piece 4` — which is one line in the
+mapsrc once doors take a `when`, and that is the only piece of map syntax the whole spine needs.
 
-Deliberate shape here: pieces 1 and 3 are puzzles you can solve on purpose, and 2 and 4 both
-require you to have already done something the game never asked for (walking into a wall, walking
-off the edge). That is the point. The player who treats it as a normal game gets halfway.
+Deliberate shape here: pieces 1 and 3 are puzzles you can solve on purpose, and 2 and 4 both end in
+something the game never asked for (a switch with no visible effect, walking off the edge). That is
+the point. The player who treats it as a normal game gets halfway.
 
 ## The hidden fifth requirement
 
-Count events witnessed in `GameState` — a `std::set<std::string> seen`, one entry per event that
-actually fired in front of the player.
+Count events witnessed the same way visits are counted — one `@seen.<event>` item, set by the event
+itself at the moment it actually happens in front of the player. No save version bump.
 
-- **Fewer than ~8 seen:** the door opens. Building two's entrance is a copy of the terrace, one
-  room deep, and the door back out leads to the terrace as well. Not a locked door — a loop.
+- **Fewer than ~8 seen:** the door opens. Building two's entrance is a copy of the terrace, one room
+  deep, and the door back out leads to the terrace as well. Not a locked door — a loop.
 - **8 or more:** the door opens onto building two proper.
 
 The door is never refused. The game just does not have anywhere to put a player who has not been
@@ -356,10 +378,10 @@ paying attention. That reads as far worse than a lock, and it costs one branch i
 
 | Pieces held | What the house does |
 |---|---|
-| 0 | One event total, and it is deniable. E01 or E28 — something moved, maybe you misremembered |
-| 1 | Lights start behaving. E05, E29. Still nothing addresses you |
-| 2 | The house responds to you specifically. E14, E18, E25 |
-| 3 | Rooms stop being the size they were. E08, E11, E20 |
+| 0 | One event total, and it is deniable. E01 — something moved, maybe you misremembered |
+| 1 | Lights start behaving. E05, E09, E29. Still nothing addresses you |
+| 2 | The house responds to you specifically. E12, E14, E40 |
+| 3 | Rooms stop being the size they were. E03, E08, E11, E31 |
 | 4 | The save talks. E36, E39, E42 |
 
 Gate it on `piece` count rather than on room visits — it keeps the escalation tied to progress
@@ -369,13 +391,16 @@ instead of to how thorough the player is being.
 
 # If you build three things first
 
-1. **Visit counts in `GameState`.** A `std::map<std::string,int>`, incremented in `enterRoom`,
-   written by `writeSave`, plus `when visits <room> >= n`. Eleven of the ideas above need only
-   this. Bundle it with the other save additions and bump `saveVersion` once.
-2. **`do light`.** The rooms already carry their own lights and nothing can touch them at runtime.
-   Nine ideas, and it is the cheapest atmosphere lever in the whole engine.
-3. **The mirror (E18).** It needs no new action kinds — a prop whose transform is written from the
-   player's each frame, with the jump left out. It is the one event here that is unsettling on the
-   first viewing and worse on the second.
+1. **Per-light gains.** `lightGain` is one global multiplier plus a single killed index, so no event
+   can dim one light and lift another. A `std::vector<float>` sized to the room's lights, reset each
+   frame like everything else, unlocks E09, E20, E25 and E41 — the whole "lights behave" tier of the
+   pacing table.
+2. **Names from `dress()`.** Only named props are remembered, and the scenery in `rooms/*.layout`
+   has no names, so nothing the player does to grass or trees can survive a room change. Naming them
+   as the room is dressed makes the outdoors rooms rememberable and unlocks E14, E17 and E28.
+3. **`dress()` doing more than E11.** It is the only hook that runs before a room exists, and one
+   event uses it. Adding and removing objects through it — rather than `conjure()`, which cannot
+   give anything a collision box — is what E08, E18, E28 and E31 all need.
 
-Everything else can wait for whichever thread you feel like writing.
+The overlay text hook and a session count are each worth one idea apiece and no more, so they can
+wait until something needs them twice.

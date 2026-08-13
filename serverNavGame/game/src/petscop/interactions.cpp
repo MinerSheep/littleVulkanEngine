@@ -142,6 +142,13 @@ void InteractionRunner::update(ColliderComponent* playerCollider,
 
   nearest = -1;
 
+  // A dialog somebody else opened still has to be readable, or it never closes
+  if (dialog->isOpen() && !script.running) {
+    if (actionPressed) dialog->advance();
+    if (playerMover) playerMover->enabled = !dialog->isOpen();
+    return;
+  }
+
   // while a script is running, ALL interactions are blocked
   if (script.running) {
     if (dialog->isOpen()) {
