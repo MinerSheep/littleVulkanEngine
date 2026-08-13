@@ -144,6 +144,11 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
     // A doorway has no mesh, just a box opening at half size
     door.trigger.setLocalBox(glm::vec3(0.f), glm::vec3(1.f));
     door.trigger.refresh(petscop::placement(door.translation, door.rotation, door.scale));
+
+    // Same box again, off until something locks the doors
+    door.blocker.setLocalBox(glm::vec3(0.f), glm::vec3(1.f));
+    door.blocker.refresh(petscop::placement(door.translation, door.rotation, door.scale));
+    door.blocker.enabled = false;
   }
 
   // Stand him at the door he came through, or in the middle for the first room
@@ -172,6 +177,10 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
   for (const Prop& prop : props) {
     if (prop.solid) collisions.addStatic(&prop.collider);
   }
+
+  // The plugs go in disabled, so a doorway is still a doorway until it is not
+  for (const Door& door : doors) collisions.addStatic(&door.blocker);
+
   collisions.addDynamic(player, playerCollider, playerBody);
 
   // He comes out standing in a doorway, so that one waits until he steps off it
@@ -292,6 +301,11 @@ void RoomScene::update(float dt) {
     petscop::tickMotions(props, dt);
 
     if (playerMover && events.takesControl()) playerMover->enabled = false;
+
+    // A held door is a wall you cannot walk out through, not just a dead trigger
+    const bool sealed = events.locksDoors();
+    for (Door& door : doors) door.blocker.enabled = sealed;
+
     player.updateComponents(dt);
 
     // He has moved and his box has followed, so shove him back out of the walls

@@ -77,6 +77,10 @@ class RoomScene : public lve::LveScene {
     glm::vec3 scale{1.f};
     ColliderComponent trigger{};
 
+    // Fills the doorway while an event holds the doors shut
+    // The wall has a real hole in it, so a trigger that does nothing is not enough
+    ColliderComponent blocker{};
+
     int toRoom = -1;  // -1 leads nowhere, walking in does nothing
     int toDoor = -1;
     glm::vec3 spawn{0.f};
