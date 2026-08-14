@@ -1,88 +1,27 @@
 #include "lve_text.hpp"
 
-#include "lve_engine.hpp"  // aspect ratio for square glyphs
+#include "lve_engine.hpp"    // aspect ratio for square glyphs
+#include "lve_font5x7.hpp"   // the glyph bitmaps and their cell geometry
 
 #include <algorithm>
-#include <array>
 #include <cctype>
 #include <cstdint>
-#include <unordered_map>
 
 namespace lve {
 
 namespace {
 
-// Glyph geometry, in dot-matrix cells.
-constexpr int kGlyphCols = 5;   // inked columns per glyph
-constexpr int kGlyphRows = 7;   // inked rows per glyph
-constexpr int kAdvance = 6;     // glyph width + 1 column of spacing
-constexpr int kLineStep = 8;    // glyph height + 1 row of spacing
+// The glyph a character draws with, falling back on its capital when the font
+// has no lowercase for it
+const GlyphRows* glyphFor(char c) {
+  const auto& table = fontTable();
 
-using GlyphRows = std::array<uint8_t, kGlyphRows>;
+  auto it = table.find(c);
+  if (it != table.end()) return &it->second;
 
-// 5x7 bitmap font. Each 0b01110 is a row that uses 5 bits; read from L - R
-// Read from L - R, top - bottom
-const std::unordered_map<char, GlyphRows>& fontTable() {
-  static const std::unordered_map<char, GlyphRows> table = {
-      {' ', {{0, 0, 0, 0, 0, 0, 0}}},
-
-      {'0', {{0b01110, 0b10001, 0b10011, 0b10101, 0b11001, 0b10001, 0b01110}}},
-      {'1', {{0b00100, 0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110}}},
-      {'2', {{0b01110, 0b10001, 0b00001, 0b00010, 0b00100, 0b01000, 0b11111}}},
-      {'3', {{0b11111, 0b00010, 0b00100, 0b00010, 0b00001, 0b10001, 0b01110}}},
-      {'4', {{0b00010, 0b00110, 0b01010, 0b10010, 0b11111, 0b00010, 0b00010}}},
-      {'5', {{0b11111, 0b10000, 0b11110, 0b00001, 0b00001, 0b10001, 0b01110}}},
-      {'6', {{0b00110, 0b01000, 0b10000, 0b11110, 0b10001, 0b10001, 0b01110}}},
-      {'7', {{0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b01000, 0b01000}}},
-      {'8', {{0b01110, 0b10001, 0b10001, 0b01110, 0b10001, 0b10001, 0b01110}}},
-      {'9', {{0b01110, 0b10001, 0b10001, 0b01111, 0b00001, 0b00010, 0b01100}}},
-
-      {'A', {{0b01110, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001}}},
-      {'B', {{0b11110, 0b10001, 0b10001, 0b11110, 0b10001, 0b10001, 0b11110}}},
-      {'C', {{0b01110, 0b10001, 0b10000, 0b10000, 0b10000, 0b10001, 0b01110}}},
-      {'D', {{0b11100, 0b10010, 0b10001, 0b10001, 0b10001, 0b10010, 0b11100}}},
-      {'E', {{0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b11111}}},
-      {'F', {{0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b10000}}},
-      {'G', {{0b01110, 0b10001, 0b10000, 0b10111, 0b10001, 0b10001, 0b01111}}},
-      {'H', {{0b10001, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001}}},
-      {'I', {{0b01110, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110}}},
-      {'J', {{0b00111, 0b00010, 0b00010, 0b00010, 0b00010, 0b10010, 0b01100}}},
-      {'K', {{0b10001, 0b10010, 0b10100, 0b11000, 0b10100, 0b10010, 0b10001}}},
-      {'L', {{0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b11111}}},
-      {'M', {{0b10001, 0b11011, 0b10101, 0b10101, 0b10001, 0b10001, 0b10001}}},
-      {'N', {{0b10001, 0b11001, 0b10101, 0b10011, 0b10001, 0b10001, 0b10001}}},
-      {'O', {{0b01110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110}}},
-      {'P', {{0b11110, 0b10001, 0b10001, 0b11110, 0b10000, 0b10000, 0b10000}}},
-      {'Q', {{0b01110, 0b10001, 0b10001, 0b10001, 0b10101, 0b10010, 0b01101}}},
-      {'R', {{0b11110, 0b10001, 0b10001, 0b11110, 0b10100, 0b10010, 0b10001}}},
-      {'S', {{0b01111, 0b10000, 0b10000, 0b01110, 0b00001, 0b00001, 0b11110}}},
-      {'T', {{0b11111, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100}}},
-      {'U', {{0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110}}},
-      {'V', {{0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01010, 0b00100}}},
-      {'W', {{0b10001, 0b10001, 0b10001, 0b10101, 0b10101, 0b10101, 0b01010}}},
-      {'X', {{0b10001, 0b10001, 0b01010, 0b00100, 0b01010, 0b10001, 0b10001}}},
-      {'Y', {{0b10001, 0b10001, 0b01010, 0b00100, 0b00100, 0b00100, 0b00100}}},
-      {'Z', {{0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b10000, 0b11111}}},
-
-      {':', {{0b00000, 0b00100, 0b00100, 0b00000, 0b00100, 0b00100, 0b00000}}},
-      {'.', {{0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00110, 0b00110}}},
-      {',', {{0b00000, 0b00000, 0b00000, 0b00000, 0b00110, 0b00110, 0b01000}}},
-      {'-', {{0b00000, 0b00000, 0b00000, 0b11111, 0b00000, 0b00000, 0b00000}}},
-      {'+', {{0b00000, 0b00100, 0b00100, 0b11111, 0b00100, 0b00100, 0b00000}}},
-      {'=', {{0b00000, 0b00000, 0b11111, 0b00000, 0b11111, 0b00000, 0b00000}}},
-      {'_', {{0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b11111}}},
-      {'/', {{0b00001, 0b00001, 0b00010, 0b00100, 0b01000, 0b10000, 0b10000}}},
-      {'%', {{0b11001, 0b11010, 0b00010, 0b00100, 0b01000, 0b01011, 0b10011}}},
-      {'*', {{0b00000, 0b10101, 0b01110, 0b11111, 0b01110, 0b10101, 0b00000}}},
-      {'#', {{0b01010, 0b01010, 0b11111, 0b01010, 0b11111, 0b01010, 0b01010}}},
-      {'!', {{0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00000, 0b00100}}},
-      {'?', {{0b01110, 0b10001, 0b00001, 0b00010, 0b00100, 0b00000, 0b00100}}},
-      {'(', {{0b00010, 0b00100, 0b01000, 0b01000, 0b01000, 0b00100, 0b00010}}},
-      {')', {{0b01000, 0b00100, 0b00010, 0b00010, 0b00010, 0b00100, 0b01000}}},
-      {'<', {{0b00010, 0b00100, 0b01000, 0b10000, 0b01000, 0b00100, 0b00010}}},
-      {'>', {{0b01000, 0b00100, 0b00010, 0b00001, 0b00010, 0b00100, 0b01000}}},
-  };
-  return table;
+  const char upper = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+  it = table.find(upper);
+  return it != table.end() ? &it->second : nullptr;
 }
 
 }  // namespace
@@ -118,9 +57,6 @@ void LveTextRenderer::emit(std::vector<UIRenderItem>& out,
   // A 2×2 matrix that scales the quad model into a dot-sized square.
   const glm::mat2 cellTransform{dotW, 0.f, 0.f, dotH};
 
-  // Summon lookup table
-  const auto& table = fontTable();
-
   // Current position for drawing the glyph
   float penX = originNdc.x;
   float penY = originNdc.y;
@@ -135,14 +71,11 @@ void LveTextRenderer::emit(std::vector<UIRenderItem>& out,
       continue;
     }
 
-    // Convert to uppercase
-    char c = static_cast<char>(std::toupper(static_cast<unsigned char>(rawc)));
-
     // Lookup glyph
-    auto it = table.find(c);
-    if (it != table.end()) {
+    const GlyphRows* glyph = glyphFor(rawc);
+    if (glyph) {
 
-      const GlyphRows& rows = it->second;
+      const GlyphRows& rows = *glyph;
 
       // Loop through row
       for (int row = 0; row < kGlyphRows; ++row) {

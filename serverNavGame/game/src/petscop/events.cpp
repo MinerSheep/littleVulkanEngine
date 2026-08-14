@@ -260,12 +260,12 @@ void EventDirector::setLight(std::size_t index, float value) {
 const MapRoom& EventDirector::dress(const MapRoom& source, int index) {
   dressed = source;
 
-  if (source.name == "foyer") foyerPull(dressed);
-  else if (source.name == "hall_main") hallStretch(dressed);
-  else if (source.name == "yard") yardEarth(dressed);
-  else if (source.name == "bathroom") bathroomSink(dressed);
-  else if (source.name == "greenhouse") greenhousePanes(dressed);
-  else if (source.name == "shed") shedSeam(dressed);
+  if (source.name == "Foyer") foyerPull(dressed);
+  else if (source.name == "Hall_Main") hallStretch(dressed);
+  else if (source.name == "Yard") yardEarth(dressed);
+  else if (source.name == "Bathroom") bathroomSink(dressed);
+  else if (source.name == "Greenhouse") greenhousePanes(dressed);
+  else if (source.name == "Shed") shedSeam(dressed);
 
   built = &dressed;
   return dressed;
@@ -401,7 +401,7 @@ void EventDirector::onEnterRoom(int index) {
   roomVisits = visits(roomName);
 
   // E39: he is not always started up in the room he quit in
-  if (waking && roomName == "terrace") standAtDoors();
+  if (waking && roomName == "Terrace") standAtDoors();
   waking = false;
 
   if (stage.player) {
@@ -409,7 +409,7 @@ void EventDirector::onEnterRoom(int index) {
     entryX = stage.player->translation.x;
   }
   if (built) follow = built->cameraLook;
-  if (roomName == "yard") stage.state->setFlag("seen_yard", true);
+  if (roomName == "Yard") stage.state->setFlag("seen_yard", true);
 
   // E13: doors taken one after another until the screen stops coming back
   if (mash >= mashLimit) {
@@ -419,10 +419,10 @@ void EventDirector::onEnterRoom(int index) {
     lve::LveAudio::instance().play("footsteps");
   }
 
-  if (roomName == "foyer") foyerTree();
-  if (roomName == "yard") yardTuft();
-  if (roomName == "shed") shedBoard();
-  if (roomName == "ballroom") ballroomStage();
+  if (roomName == "Foyer") foyerTree();
+  if (roomName == "Yard") yardTuft();
+  if (roomName == "Shed") shedBoard();
+  if (roomName == "Ballroom") ballroomStage();
 }
 
 // E39: he wakes up on the terrace whatever room he left off in, stood in front
@@ -568,31 +568,31 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
   // Reads the rock and the gate out of the save, so it finishes from any room
   stoneAndGate();
 
-  if (roomName == "ballroom") ballroomTiles(playing);
-  if (roomName == "terrace") terraceDoor();
+  if (roomName == "Ballroom") ballroomTiles(playing);
+  if (roomName == "Terrace") terraceDoor();
 
-  if (roomName == "foyer") {
+  if (roomName == "Foyer") {
     foyerLight();
     foyerCamera(dt);
   }
-  if (roomName == "closet") closetShutIn(dt, startedProp);
-  if (roomName == "hall_main") {
+  if (roomName == "Closet") closetShutIn(dt, startedProp);
+  if (roomName == "Hall_Main") {
     hallLightBehind();
     hallFootprints();
   }
-  if (roomName == "yard") yardPath();
-  if (roomName == "bathroom") bathroomWater(dt, playing);
-  if (roomName == "billiard_room") billiardWord();
-  if (roomName == "ballroom") {
+  if (roomName == "Yard") yardPath();
+  if (roomName == "Bathroom") bathroomWater(dt, playing);
+  if (roomName == "Billiard_Room") billiardWord();
+  if (roomName == "Ballroom") {
     ballroomPiano(dt, playing);
     ballroomWalker(dt, playing);
     if (pianoBack) setLight(1, 0.f);  // E25: lit from one side, with it back
   }
-  if (roomName == "greenhouse") {
+  if (roomName == "Greenhouse") {
     bgScale = 0.f;  // E29: the only room the backdrop holds still in
     greenhouseShape(dt);
   }
-  if (roomName == "field" || roomName == "field_red") fieldEdge(playing);
+  if (roomName == "Field" || roomName == "Field_Red") fieldEdge(playing);
 
   // The two that are the same in every room
   turnToCamera(dt);
@@ -862,7 +862,7 @@ void EventDirector::fieldEdge(bool playing) {
   if (!playing || !stage.player) return;
   const glm::vec3 here = stage.player->translation;
 
-  if (roomName == "field_red") {
+  if (roomName == "Field_Red") {
     // Red on everything, and slabs laid out where the grass was
     tinted = true;
     tint = glm::vec4(1.f, 0.10f, 0.09f, 0.65f);
@@ -876,10 +876,10 @@ void EventDirector::fieldEdge(bool playing) {
 
     // Walk far enough into it and you are back in the greenhouse
     if (glm::length(glm::vec2(here.x, here.z)) < 9.f) return;
-    const int greenhouse = findRoom("greenhouse");
+    const int greenhouse = findRoom("Greenhouse");
     if (greenhouse < 0) return;
     warpRoom = greenhouse;
-    warpDoor = findDoor(greenhouse, "field");
+    warpDoor = findDoor(greenhouse, "Field");
     return;
   }
 
@@ -894,7 +894,7 @@ void EventDirector::fieldEdge(bool playing) {
   stage.state->addItem("@edge.field", 1);
   if (stage.state->itemCount("@edge.field") < 5) return;
 
-  const int red = findRoom("field_red");
+  const int red = findRoom("Field_Red");
   if (red < 0) return;
   warpRoom = red;
   warpDoor = -1;
@@ -950,11 +950,11 @@ void EventDirector::stoneAndGate() {
   if (!stage.state || stage.state->hasFlag("quest_stone")) return;
 
   glm::vec3 rockAt, rockTurn, gateAt, gateTurn;
-  if (!placeOf("closet", "rock", rockAt, rockTurn)) return;
-  if (!placeOf("foyer", "gate", gateAt, gateTurn)) return;
+  if (!placeOf("Closet", "rock", rockAt, rockTurn)) return;
+  if (!placeOf("Foyer", "gate", gateAt, gateTurn)) return;
 
-  const MapObject* rockRest = mapObject("closet", "rock");
-  const MapObject* gateRest = mapObject("foyer", "gate");
+  const MapObject* rockRest = mapObject("Closet", "rock");
+  const MapObject* gateRest = mapObject("Foyer", "gate");
   if (!rockRest || !gateRest) return;
 
   // Three turns, seven turns and eleven all leave it facing the same way, so an
@@ -1048,7 +1048,7 @@ bool EventDirector::cameraOverride(glm::vec3& eye, glm::vec3& look) const {
 int EventDirector::wakeRoom(int fallback) {
   if (!stage.state || questsDone() < 3) return fallback;
 
-  const int terrace = findRoom("terrace");
+  const int terrace = findRoom("Terrace");
   if (terrace < 0) return fallback;
 
   waking = true;
@@ -1072,10 +1072,10 @@ bool EventDirector::hallGivesBack(int& toRoom, int& toDoor) {
   if (toRoom < 0 || toRoom >= static_cast<int>(stage.map->rooms.size())) return false;
 
   const std::string& ahead = stage.map->rooms[toRoom].name;
-  if (ahead != "greenhouse" && ahead != "bathroom" && ahead != "billiard_room") return false;
+  if (ahead != "Greenhouse" && ahead != "Bathroom" && ahead != "Billiard_Room") return false;
 
-  const int hall = findRoom("hall_main");
-  const int far = findDoor(hall, "ballroom");
+  const int hall = findRoom("Hall_Main");
+  const int far = findDoor(hall, "Ballroom");
   if (hall < 0 || far < 0) return false;
 
   stage.state->setFlag("hall_gave_back", true);
@@ -1092,15 +1092,15 @@ bool EventDirector::hallGivesBack(int& toRoom, int& toDoor) {
 bool EventDirector::reroute(int& toRoom, int& toDoor) {
   if (!stage.state) return true;
 
-  if (roomName == "terrace" && toRoom == findRoom("building_two") && questsLeft() > 0)
+  if (roomName == "Terrace" && toRoom == findRoom("Building_Two") && questsLeft() > 0)
     return false;
 
-  if (roomName == "hall_main" && hallGivesBack(toRoom, toDoor)) return true;
+  if (roomName == "Hall_Main" && hallGivesBack(toRoom, toDoor)) return true;
 
-  if (roomName != "shed") return true;
+  if (roomName != "Shed") return true;
   if (!stage.state->hasFlag("read_note") || stage.state->hasFlag("shed_closet")) return true;
 
-  const int closet = findRoom("closet");
+  const int closet = findRoom("Closet");
   if (closet < 0) return true;
 
   const int out = findDoor(closet, "out");

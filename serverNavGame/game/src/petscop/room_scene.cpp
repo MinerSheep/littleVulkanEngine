@@ -9,6 +9,20 @@
 #include <iostream>
 #include <stdexcept>
 
+namespace {
+
+// The room's name the way it goes on screen
+// A room ident cannot hold a space, so Hall_Main reads back as Hall Main
+std::string displayName(const std::string& ident) {
+  std::string out = ident;
+  for (char& c : out) {
+    if (c == '_') c = ' ';
+  }
+  return out;
+}
+
+}  // namespace
+
 void RoomScene::loadModels() {
   std::string error;
   if (!petscop::loadMap(mapPath, map, error)) 
@@ -453,8 +467,8 @@ void RoomScene::update(float dt) {
   UIrenderItems.clear();
   if (textRenderer) {
     if (currentRoom >= 0) {
-      textRenderer->emit(UIrenderItems, map.rooms[currentRoom].name, glm::vec2(-0.95f, -0.93f),
-                         0.035f, glm::vec3(0.85f));
+      textRenderer->emit(UIrenderItems, displayName(map.rooms[currentRoom].name),
+                         glm::vec2(-0.95f, -0.93f), 0.035f, glm::vec3(0.85f));
     }
     if (phase == Phase::Playing) {
       emitHoverBox();

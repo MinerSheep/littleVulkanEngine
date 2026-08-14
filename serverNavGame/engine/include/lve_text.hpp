@@ -28,8 +28,9 @@ class LveTextRenderer {
   //               cell width is aspect-corrected from the live window so glyphs stay
   //               square regardless of window shape.
   //   color/alpha : passed straight through to each dot's UIRenderItem.
-  // '\n' starts a new line. Lowercase letters are drawn using the uppercase glyphs.
-  // Characters with no glyph advance the cursor but draw nothing.
+  // '\n' starts a new line
+  // Lowercase has its own glyphs, and anything the font is missing falls back on
+  // its capital. A character with no glyph either way moves the pen and draws nothing
   void emit(std::vector<UIRenderItem>& out,
             const std::string& text,
             glm::vec2 originNdc,

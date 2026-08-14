@@ -62,11 +62,11 @@
 #   wallheight <h>    walls shorter than the room, like a terrace you see over
 
 map petscop
-start foyer
+start Foyer
 
 
 # The room you wake up in. Wide and short, one way on and a side room
-room foyer
+room Foyer
   size 12 8
   height 3
   light  0.0 -2.2  0.0   1.00 0.95 0.85   9
@@ -93,7 +93,7 @@ room foyer
 
 
 # A long corridor running away from the foyer, up to the main hall
-room hall
+room Hall
   size 6 14
   height 3
   light 0.0 -2.4 -4.0   1.00 0.90 0.75   8
@@ -103,7 +103,7 @@ room hall
 
 
 # A dead end off the side of the foyer, low ceiling
-room closet
+room Closet
   size 6 6
   height 2.6
   light 0.0 -1.8 0.0   1.00 0.60 0.30   7
@@ -122,7 +122,7 @@ room closet
 
 # The wide corridor the whole building hangs off. Everything upstairs of the
 # foyer is reached from here
-room hall_main
+room Hall_Main
   size 32 6
   height 3
   light -12.0 -2.4 0.0   1.00 0.90 0.75   9
@@ -137,7 +137,7 @@ room hall_main
 
 
 # The corridor down to the back door, and out into the yard
-room hall_west
+room Hall_West
   size 6 12
   height 3
   light 0.0 -2.4 -3.0   1.00 0.90 0.75   8
@@ -148,7 +148,7 @@ room hall_west
 
 # Outdoors. No walls, only the frame of the door you came out of, up in the
 # far corner where the back of the house is
-room yard
+room Yard
   size 30 12
   height 3
   open
@@ -179,7 +179,7 @@ room yard
 
 
 # A washroom off the main hall
-room bathroom
+room Bathroom
   size 8 6
   height 3
   light 0.0 -2.2 0.0   0.85 0.95 1.00   7
@@ -197,7 +197,7 @@ room bathroom
 
 
 # Long room off the north side of the hall
-room billiard_room
+room Billiard_Room
   size 8 13
   height 3
   light 0.0 -2.3 -3.0   1.00 0.85 0.60   8
@@ -217,7 +217,7 @@ room billiard_room
 
 
 # The big room at the east end of the hall
-room ballroom
+room Ballroom
   size 14 12
   height 4
   light -4.0 -3.2  0.0   1.00 0.95 0.85   12
@@ -231,7 +231,7 @@ room ballroom
 
 
 # Glass room between the hall and the field
-room greenhouse
+room Greenhouse
   size 12 6
   height 3
   light -3.0 -2.4 0.0   0.75 1.00 0.80   8
@@ -242,7 +242,7 @@ room greenhouse
 
 # Outdoors, and the widest place on the map. The stairs on the east side climb
 # to the terrace
-room field
+room Field
   size 24 12
   height 3
   open
@@ -262,7 +262,7 @@ room field
 
 
 # A small outbuilding on the west edge of the field
-room shed
+room Shed
   size 7 7
   height 2.6
   light 0.0 -1.8 0.0   1.00 0.70 0.40   6
@@ -283,7 +283,7 @@ room shed
 
 # The field again, with nothing standing in it. Deliberately has no doors --
 # the game walks you back out of it once you have gone far enough in
-room field_red
+room Field_Red
   size 24 12
   height 3
   open
@@ -292,7 +292,7 @@ room field_red
 
 
 # Walled only to the waist, so you can see the field from it
-room terrace
+room Terrace
   size 8 6
   height 3
   wallheight 1.4
@@ -302,7 +302,7 @@ room terrace
 
 
 # The way into the second building. It goes no further yet
-room building_two
+room Building_Two
   size 9 5
   height 3
   light 0.0 -2.2 0.0   0.90 0.85 0.95   7
@@ -310,17 +310,17 @@ room building_two
   door inside  north 0
 
 
-link foyer.hallway  hall.back
-link foyer.closet   closet.out
+link Foyer.hallway  Hall.back
+link Foyer.closet   Closet.out
 
-link hall.deeper          hall_main.lower
-link hall_main.west_hall  hall_west.inside
-link hall_west.yard       yard.back
-link hall_main.bathroom   bathroom.out
-link hall_main.billiard   billiard_room.out
-link hall_main.ballroom   ballroom.out
-link hall_main.greenhouse greenhouse.inside
-link greenhouse.field     field.greenhouse
-link field.shed           shed.out
-link field.stairs         terrace.stairs
-link terrace.doors        building_two.outside
+link Hall.deeper          Hall_Main.lower
+link Hall_Main.west_hall  Hall_West.inside
+link Hall_West.yard       Yard.back
+link Hall_Main.bathroom   Bathroom.out
+link Hall_Main.billiard   Billiard_Room.out
+link Hall_Main.ballroom   Ballroom.out
+link Hall_Main.greenhouse Greenhouse.inside
+link Greenhouse.field     Field.greenhouse
+link Field.shed           Shed.out
+link Field.stairs         Terrace.stairs
+link Terrace.doors        Building_Two.outside
