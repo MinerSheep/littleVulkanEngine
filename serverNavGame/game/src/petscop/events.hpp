@@ -50,10 +50,16 @@ class EventDirector {
   // Returns false when the door is not to be taken at all
   bool reroute(int& toRoom, int& toDoor);
 
+  // The room to start up in, which is not always the one the save left him in
+  int wakeRoom(int fallback);
+
   // --- what the scene reads back each frame ---
   bool locksDoors() const { return locked; }
   bool holdsBlack() const { return black > 0.f; }
   bool takesControl() const { return frozen; }
+
+  // Writes over the room's fixed camera while an event has hold of it
+  bool cameraOverride(glm::vec3& eye, glm::vec3& look) const;
 
   // A multiplier on one of the room's own lights
   float lightGain(std::size_t index) const;
@@ -73,6 +79,7 @@ class EventDirector {
  private:
   // --- progression: four things to finish before building two opens ---
   int questsLeft() const;
+  int questsDone() const;
   void stoneAndGate();          // turn the rock three times, put the gate back down
   void ballroomTiles(bool playing);  // cross to the piano on the pale tiles only
   void terraceDoor();           // the door that will not open yet
@@ -96,23 +103,54 @@ class EventDirector {
   void conjure(const std::string& mesh, const glm::vec3& t, const glm::vec3& r,
                const glm::vec3& s);
 
+  // Which mesh a room's objects mean by that name, or -1 when the map has none
+  int preset(const std::string& mesh) const;
+
+  // Stands one more thing in the room before it is built, box, name and all
+  // Unlike conjure this one is real -- you walk into it and can press E on it
+  void addObject(MapRoom& room, const glm::vec3& t, const glm::vec3& r, const glm::vec3& s,
+                 const std::string& name, const std::string& words, bool solid = true);
+
   // Replaces what pressing E on a prop does, flips and all
   void rewrite(const std::string& name, const std::string& words);
 
+  // One light pulled down on its own, on top of whatever the room is doing
+  void setLight(std::size_t index, float value);
+
+  // Rooms an event changes before they are built
+  void foyerPull(MapRoom& room);        // E03
+  void hallStretch(MapRoom& room);      // E11
+  void yardEarth(MapRoom& room);        // E14 names the grass, E17 digs the patches
+  void bathroomSink(MapRoom& room);     // E18
+  void greenhousePanes(MapRoom& room);  // E28
+  void shedSeam(MapRoom& room);         // E35
+
+  // E12: sends a door out of the hall back into the hall, once
+  bool hallGivesBack(int& toRoom, int& toDoor);
+
   // Events that put props right as the room stands up
-  void foyerTree();   // E01
-  void yardTuft();    // E15
-  void shedBoard();   // E36
+  void foyerTree();      // E01
+  void yardTuft();       // E15
+  void shedBoard();      // E36
+  void ballroomStage();  // E24 takes the piano away, E25 brings it back
+  void standAtDoors();   // E39
 
   // Events that only set an override, worked out again every frame
   void blackout(float dt);                       // E13
   void foyerLight();                             // E05
+  void foyerCamera(float dt);                    // E03
   void closetShutIn(float dt, int startedProp);  // E07
+  void hallLightBehind();                        // E09
+  void hallFootprints();                         // E10
+  void yardPath();                               // E14
   void bathroomWater(float dt, bool playing);    // E19
-  void billiardWord();                           // E21
+  void billiardWord();                           // E21, and E22 once it is spelt
   void ballroomPiano(float dt, bool playing);    // E24
+  void ballroomWalker(float dt, bool playing);   // E27
   void greenhouseShape(float dt);                // E30
   void fieldEdge(bool playing);                  // E32
+  void turnToCamera(float dt);                   // E40
+  void lateLights();                             // E41
 
   Stage stage;
 
@@ -121,17 +159,24 @@ class EventDirector {
   int roomVisits = 0;
   float sinceEntry = 0.f;
 
+  // The room as it was actually built, which dress() may have changed
+  const MapRoom* built = nullptr;
+
   // Standing still with nothing held down
   float idle = 0.f;
   glm::vec3 lastPos{0.f};
+
+  // Whether he covered ground this frame, and whether he did last frame
+  bool moved = false;
+  bool wasMoving = false;
 
   bool locked = false;
   bool frozen = false;
   float black = 0.f;  // seconds the screen is held shut
 
-  // Every light in the room is scaled by this, and one may be killed outright
+  // Every light in the room is scaled by this, and any one of them on its own
   float gain = 1.f;
-  int killedLight = -1;
+  std::vector<float> gains;
 
   float bgScale = 1.f;
   bool tinted = false;
@@ -142,8 +187,16 @@ class EventDirector {
   int warpRoom = -1;
   int warpDoor = -1;
 
-  // The room copy E11 hands back in place of the real one
+  // The room copy dress() hands back in place of the real one
   MapRoom dressed;
+
+  // Where the camera is this frame, and whether an event put it there
+  bool hasCam = false;
+  glm::vec3 camEye{0.f};
+  glm::vec3 camLook{0.f};
+
+  // The spot the foyer camera is drifting after
+  glm::vec3 follow{0.f};
 
   // How long the closet has had you, and whether it is going to
   float shutIn = -1.f;
@@ -152,8 +205,24 @@ class EventDirector {
   int mash = 0;
   bool turnAround = false;
 
-  // The piano only plays itself once per visit
+  // Where he came into the hall, and the two ends of it he has reached
+  float entryX = 0.f;
+  bool sawWest = false;
+  bool sawEast = false;
+
+  // Everywhere he came to a stop in this room
+  std::vector<glm::vec3> stops;
+
+  // The piano only plays itself once per visit, and later stands there again
   bool pianoPlayed = false;
+  bool pianoBack = false;
+
+  // The walker a beat behind him: time to his next step, and to its late one
+  float stepAt = 0.f;
+  float echoAt = -1.f;
+
+  // He is being started up somewhere he did not leave off
+  bool waking = false;
 
   // The shape over the greenhouse, and the tap you cannot find
   float shapeAt = -1.f;

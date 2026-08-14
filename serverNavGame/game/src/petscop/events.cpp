@@ -57,6 +57,20 @@ const char* tiles[6] = {
     ".......",
 };
 
+// Where somebody else has been digging in the yard, in the order they turn up
+const float digSpots[4][2] = {{-9.5f, 4.2f}, {2.5f, -2.0f}, {8.5f, 3.4f}, {-2.5f, -1.6f}};
+
+// A game of billiards going on without you, six frames of it, on the table. Each
+// one is a shot on from the one before, and the first ball is the cue
+const float frames[6][6][2] = {
+    {{-2.1f, 1.00f}, {1.6f, 0.75f}, {1.9f, 1.00f}, {1.9f, 0.50f}, {2.2f, 1.25f}, {2.2f, 0.75f}},
+    {{0.4f, 0.95f}, {1.2f, 0.55f}, {1.8f, 1.35f}, {2.3f, 0.60f}, {0.9f, 1.60f}, {2.4f, 1.10f}},
+    {{-0.8f, 1.40f}, {1.2f, 0.55f}, {1.5f, 1.70f}, {2.3f, 0.60f}, {0.1f, 1.90f}, {2.4f, 1.10f}},
+    {{1.1f, 0.30f}, {0.6f, 0.60f}, {1.5f, 1.70f}, {2.5f, 0.35f}, {0.1f, 1.90f}, {2.4f, 1.10f}},
+    {{-1.6f, 0.60f}, {0.6f, 0.60f}, {-0.4f, 1.80f}, {2.5f, 0.35f}, {0.1f, 1.90f}, {1.7f, 1.50f}},
+    {{-2.3f, 1.60f}, {-1.0f, 0.90f}, {-0.4f, 1.80f}, {2.5f, 0.35f}, {-1.8f, 0.40f}, {1.7f, 1.50f}},
+};
+
 // A flag as the board would print it
 std::string shout(const std::string& flag) {
   std::string out;
@@ -83,20 +97,25 @@ void EventDirector::bind(const Stage& newStage) {
 
 void EventDirector::reset() {
   spawned.clear();
+  stops.clear();
   room = -1;
   roomName.clear();
+  built = nullptr;
   locked = false;
   frozen = false;
   black = 0.f;
   gain = 1.f;
-  killedLight = -1;
+  gains.clear();
   bgScale = 1.f;
   tinted = false;
+  hasCam = false;
   warpRoom = -1;
   warpDoor = -1;
   shutIn = -1.f;
   shapeAt = -1.f;
   waterAt = -1.f;
+  echoAt = -1.f;
+  waking = false;
 }
 
 // --- odds and ends ----------------------------------------------------------
@@ -196,32 +215,157 @@ void EventDirector::rewrite(const std::string& name, const std::string& words) {
   target->flipped.assign(1, 0);
 }
 
+int EventDirector::preset(const std::string& mesh) const {
+  if (!stage.map) return -1;
+  for (std::size_t i = 0; i < stage.map->presets.size(); i++) {
+    if (stage.map->presets[i] == mesh) return static_cast<int>(i);
+  }
+  return -1;
+}
+
+// Everything an event adds to a room is a cube, which is every shape the house
+// puts up on its own -- a slab of earth, a pane of glass, a seam in the floor
+void EventDirector::addObject(MapRoom& room, const glm::vec3& t, const glm::vec3& r,
+                              const glm::vec3& s, const std::string& name,
+                              const std::string& words, bool solid) {
+  const int cube = preset("cube");
+  if (cube < 0) return;
+
+  MapObject extra;
+  extra.preset = cube;
+  extra.translation = t;
+  extra.rotation = r;
+  extra.scale = s;
+  extra.solid = solid;
+  extra.name = name;
+
+  if (!words.empty()) {
+    MapAction say;
+    say.kind = ActionKind::Say;
+    say.text = words;
+    extra.actions.push_back(say);
+  }
+  room.objects.push_back(extra);
+}
+
+void EventDirector::setLight(std::size_t index, float value) {
+  if (gains.size() <= index) gains.resize(index + 1, 1.f);
+  gains[index] = value;
+}
+
 // --- the room about to be built ---------------------------------------------
+
+// Every room comes through as a copy, and a helper may change anything on it --
+// its size, its camera, the things standing in it. The map never knows
+const MapRoom& EventDirector::dress(const MapRoom& source, int index) {
+  dressed = source;
+
+  if (source.name == "foyer") foyerPull(dressed);
+  else if (source.name == "hall_main") hallStretch(dressed);
+  else if (source.name == "yard") yardEarth(dressed);
+  else if (source.name == "bathroom") bathroomSink(dressed);
+  else if (source.name == "greenhouse") greenhousePanes(dressed);
+  else if (source.name == "shed") shedSeam(dressed);
+
+  built = &dressed;
+  return dressed;
+}
+
+// E03: every fourth visit the foyer camera comes in a step closer, and it never
+// goes back out. foyerCamera is the half that walks after him
+void EventDirector::foyerPull(MapRoom& room) {
+  const int step = (visits(room.name) + 1) / 4;
+  if (step < 1) return;
+
+  const float close = 1.f - 0.16f * static_cast<float>(step);
+  const float pull = close < 0.34f ? 0.34f : close;
+  room.cameraEye = room.cameraLook + (room.cameraEye - room.cameraLook) * pull;
+}
 
 // E11: the hall is half as long again from the fourth time you walk into it, and
 // stays that way. Stretching the room data is the whole trick -- walls, doors,
 // spawn points and lights all come out of it further apart
-const MapRoom& EventDirector::dress(const MapRoom& source, int index) {
-  if (source.name != "hall_main" || visits(source.name) + 1 < 4) return source;
+void EventDirector::hallStretch(MapRoom& room) {
+  if (visits(room.name) + 1 < 4) return;
 
   const float stretch = 0.5f;
-  dressed = source;
-  dressed.size.x *= stretch;
+  const glm::vec3 back = room.cameraEye - room.cameraLook;
+  room.size.x *= stretch;
 
-  for (MapObject& object : dressed.objects) {
+  for (MapObject& object : room.objects) {
     object.translation.x *= stretch;
     object.scale.x *= stretch;
   }
-  for (MapDoor& door : dressed.doors) {
+  for (MapDoor& door : room.doors) {
     door.translation.x *= stretch;
     door.scale.x *= stretch;
     door.spawn.x *= stretch;
   }
-  for (MapLight& light : dressed.lights) light.position.x *= stretch;
+  for (MapLight& light : room.lights) light.position.x *= stretch;
 
   // Back the camera off by the same amount, or the ends fall off the screen
-  dressed.cameraEye = dressed.cameraLook + (source.cameraEye - source.cameraLook) * stretch;
-  return dressed;
+  room.cameraEye = room.cameraLook + back * stretch;
+}
+
+// E14 gives every tuft a name, which is what gets it remembered
+// E17 stands one more empty patch of turned earth in the yard every visit
+void EventDirector::yardEarth(MapRoom& room) {
+  int tuft = 0;
+  for (MapObject& object : room.objects) {
+    if (object.solid || !object.name.empty()) continue;
+    object.name = "grass_" + std::to_string(tuft++);
+  }
+
+  if (!stage.state || !stage.state->hasFlag("quest_dig")) return;
+
+  stage.state->addItem("@patches.yard", 1);
+  int digs = stage.state->itemCount("@patches.yard");
+  if (digs > 4) digs = 4;
+
+  for (int i = 0; i < digs; i++) {
+    addObject(room, glm::vec3(digSpots[i][0], 0.470f, digSpots[i][1]), glm::vec3(0.f),
+              glm::vec3(0.6f, 0.03f, 0.6f), "dig_old_" + std::to_string(i),
+              "THIS ONE IS ALREADY EMPTY.");
+  }
+}
+
+// E18: heard the water three times and there is a sink on the wall the bathroom
+// has never had. Finding it stops the water for good
+void EventDirector::bathroomSink(MapRoom& room) {
+  if (!stage.state || stage.state->itemCount("@water.heard") < 3) return;
+
+  addObject(room, glm::vec3(3.600f, -0.350f, 0.500f), glm::vec3(0.f),
+            glm::vec3(0.30f, 0.30f, 0.55f), "sink", "IT IS DRY.");
+}
+
+// E28: after the shape went over, a pane of glass is leaning on the north wall,
+// and one more of them every visit until you are walking around the stack
+void EventDirector::greenhousePanes(MapRoom& room) {
+  if (!stage.state || !stage.state->hasFlag("saw_shape")) return;
+
+  stage.state->addItem("@panes.greenhouse", 1);
+  int panes = stage.state->itemCount("@panes.greenhouse");
+  if (panes > 6) panes = 6;
+
+  // Each one is propped further out than the last and lies over that bit more
+  const float tall = 1.15f;
+  for (int i = 0; i < panes; i++) {
+    const float out = static_cast<float>(i);
+    const float lean = 0.200f + 0.040f * out;
+    addObject(room, glm::vec3(-3.400f, 0.500f - tall * std::cos(lean), 2.500f - 0.300f * out),
+              glm::vec3(-lean, 0.f, 0.f), glm::vec3(1.35f, tall, 0.05f),
+              i == 0 ? "panes" : "", i == 0 ? "SOMETHING HAS TO BE REPLACED." : "");
+  }
+}
+
+// E35: a seam in the shed floor that does nothing at all, until the shed has put
+// you out into the closet. Then it tells you what is under it
+void EventDirector::shedSeam(MapRoom& room) {
+  const bool under = stage.state && stage.state->hasFlag("shed_closet");
+
+  addObject(room, glm::vec3(0.900f, 0.470f, 0.800f), glm::vec3(0.f, 0.350f, 0.f),
+            glm::vec3(1.2f, 0.02f, 0.22f), "seam",
+            under ? "THE CLOSET IS UNDER HERE." : "", false);
 }
 
 // --- the room is standing ---------------------------------------------------
@@ -240,15 +384,31 @@ void EventDirector::onEnterRoom(int index) {
   idle = 0.f;
   locked = false;
   pianoPlayed = false;
+  pianoBack = false;
   shutIn = -1.f;
   shapeAt = -1.f;
   waterAt = -1.f;
+  echoAt = -1.f;
+  stepAt = 0.f;
   onEdge = true;  // you have to step off a corner before leaning on it counts
+
+  // Nothing about the last room's walking carries into this one
+  stops.clear();
+  sawWest = false;
+  sawEast = false;
 
   stage.state->addItem("@visits." + roomName, 1);
   roomVisits = visits(roomName);
 
-  if (stage.player) lastPos = stage.player->translation;
+  // E39: he is not always started up in the room he quit in
+  if (waking && roomName == "terrace") standAtDoors();
+  waking = false;
+
+  if (stage.player) {
+    lastPos = stage.player->translation;
+    entryX = stage.player->translation.x;
+  }
+  if (built) follow = built->cameraLook;
   if (roomName == "yard") stage.state->setFlag("seen_yard", true);
 
   // E13: doors taken one after another until the screen stops coming back
@@ -262,14 +422,40 @@ void EventDirector::onEnterRoom(int index) {
   if (roomName == "foyer") foyerTree();
   if (roomName == "yard") yardTuft();
   if (roomName == "shed") shedBoard();
+  if (roomName == "ballroom") ballroomStage();
+}
 
-  // E24: the piano is only there the first time
-  if (roomName == "ballroom" && roomVisits >= 2) {
-    if (Prop* piano = prop("piano")) {
-      piano->disappeared = true;
-      piano->collider.enabled = false;
-    }
+// E39: he wakes up on the terrace whatever room he left off in, stood in front
+// of the doors and looking straight at them
+void EventDirector::standAtDoors() {
+  if (!stage.player) return;
+
+  const int door = findDoor(room, "doors");
+  if (door < 0) return;
+
+  const MapDoor& doors = stage.map->rooms[room].doors[door];
+  stage.player->translation = doors.spawn;
+  stage.player->rotation.y =
+      std::atan2(doors.translation.x - doors.spawn.x, doors.translation.z - doors.spawn.z);
+}
+
+// E24: the piano is only in the middle of the floor the first time. E25: three
+// things done and it is standing there again, moved, with the room lit one side
+void EventDirector::ballroomStage() {
+  Prop* piano = prop("piano");
+  if (!piano) return;
+
+  pianoBack = questsDone() >= 3;
+  if (pianoBack) {
+    piano->disappeared = false;
+    piano->collider.enabled = true;
+    rewrite("piano", "IT HAS BEEN MOVED.");
+    return;
   }
+
+  if (roomVisits < 2) return;
+  piano->disappeared = true;
+  piano->collider.enabled = false;
 }
 
 // E01: the tree goes on the third time you walk in, and the bare floor it stood
@@ -350,23 +536,32 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
   // so an event that stops running leaves nothing behind to undo
   spawned.clear();
   gain = 1.f;
-  killedLight = -1;
+  gains.clear();
   bgScale = 1.f;
   tinted = false;
   frozen = false;
   locked = false;
   sealed = -1;
+  hasCam = false;
 
   // Standing still with nothing held down
   bool holding = false;
   GLFWwindow* window = lve::LveEngine::instance().getGLFWWindow();
   for (int key : watchedKeys) holding = holding || glfwGetKey(window, key) == GLFW_PRESS;
 
+  wasMoving = moved;
+  moved = false;
   if (stage.player) {
-    if (glm::distance(stage.player->translation, lastPos) > 0.01f) holding = true;
+    moved = playing && glm::distance(stage.player->translation, lastPos) > 0.01f;
     lastPos = stage.player->translation;
   }
-  idle = (holding || !playing) ? 0.f : idle + dt;
+  idle = (holding || moved || !playing) ? 0.f : idle + dt;
+
+  // Where the room stands its camera, before an event walks off with it
+  if (built) {
+    camEye = built->cameraEye;
+    camLook = built->cameraLook;
+  }
 
   blackout(dt);
 
@@ -376,17 +571,32 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
   if (roomName == "ballroom") ballroomTiles(playing);
   if (roomName == "terrace") terraceDoor();
 
-  if (roomName == "foyer") foyerLight();
+  if (roomName == "foyer") {
+    foyerLight();
+    foyerCamera(dt);
+  }
   if (roomName == "closet") closetShutIn(dt, startedProp);
+  if (roomName == "hall_main") {
+    hallLightBehind();
+    hallFootprints();
+  }
+  if (roomName == "yard") yardPath();
   if (roomName == "bathroom") bathroomWater(dt, playing);
   if (roomName == "billiard_room") billiardWord();
-  if (roomName == "ballroom") ballroomPiano(dt, playing);
+  if (roomName == "ballroom") {
+    ballroomPiano(dt, playing);
+    ballroomWalker(dt, playing);
+    if (pianoBack) setLight(1, 0.f);  // E25: lit from one side, with it back
+  }
   if (roomName == "greenhouse") {
     bgScale = 0.f;  // E29: the only room the backdrop holds still in
     greenhouseShape(dt);
   }
   if (roomName == "field" || roomName == "field_red") fieldEdge(playing);
 
+  // The two that are the same in every room
+  turnToCamera(dt);
+  lateLights();
 }
 
 // E13: the screen is held shut, and he is facing the other way when it opens
@@ -405,8 +615,25 @@ void EventDirector::blackout(float dt) {
 // E05: the warm light over the foyer does not come back on after the yard
 void EventDirector::foyerLight() {
   if (!stage.state->hasFlag("seen_yard")) return;
-  killedLight = 0;
+  setLight(0, 0.f);
   stage.state->setFlag("saw_dark_foyer", true);
+}
+
+// E03: once the foyer camera has started coming in it stops holding still, and
+// drifts after him wherever he goes. It is always a little behind him
+void EventDirector::foyerCamera(float dt) {
+  if (!built || !stage.player || roomVisits / 4 < 1) return;
+
+  glm::vec3 want = built->cameraLook;
+  want.x = stage.player->translation.x;
+  want.z = stage.player->translation.z;
+
+  const float chase = dt * 1.6f;
+  follow += (want - follow) * (chase > 1.f ? 1.f : chase);
+
+  hasCam = true;
+  camLook = follow;
+  camEye = follow + (built->cameraEye - built->cameraLook);
 }
 
 // E07: now and then, turning the rock shuts you in for twenty seconds
@@ -439,9 +666,73 @@ void EventDirector::closetShutIn(float dt, int startedProp) {
   }
 }
 
+// E09: the light nearest the door you came in by goes out behind you, and lifts
+// again as you walk back toward it
+void EventDirector::hallLightBehind() {
+  if (questsDone() < 1 || !built || !stage.player || built->lights.empty()) return;
+
+  std::size_t behind = 0;
+  for (std::size_t i = 1; i < built->lights.size(); i++) {
+    if (std::fabs(built->lights[i].position.x - entryX) <
+        std::fabs(built->lights[behind].position.x - entryX))
+      behind = i;
+  }
+
+  // Steep enough to be wrong, smooth enough to pass for the light falling off
+  const float near = built->size.x * 0.18f;
+  const float far = built->size.x * 0.45f;
+  const float away = std::fabs(stage.player->translation.x - built->lights[behind].position.x);
+  const float lift = (far - away) / (far - near);
+  setLight(behind, lift < 0.f ? 0.f : (lift > 1.f ? 1.f : lift));
+}
+
+// E10: walk the whole length of the hall and every place you stopped on the way
+// stands up behind you at once, as a flat dark slab
+void EventDirector::hallFootprints() {
+  if (!built || !stage.player) return;
+
+  const glm::vec3 here = stage.player->translation;
+  const float end = built->size.x * 0.5f - 2.f;
+  if (here.x < -end) sawWest = true;
+  if (here.x > end) sawEast = true;
+
+  // Where he came to a stop, never two of them on top of each other
+  if (wasMoving && !moved && (stops.empty() || glm::distance(stops.back(), here) > 1.5f)) {
+    if (stops.size() >= 14) stops.erase(stops.begin());
+    stops.push_back(here);
+  }
+
+  if (questsDone() < 3 || !sawWest || !sawEast) return;
+  for (const glm::vec3& stop : stops)
+    conjure("cube", glm::vec3(stop.x, 0.470f, stop.z), glm::vec3(0.f),
+            glm::vec3(0.30f, 0.02f, 0.46f));
+}
+
+// E14: every tuft he walks over is flattened out of sight and stays that way
+// The yard wears a path shaped like the way he always crosses it
+void EventDirector::yardPath() {
+  if (questsDone() < 2 || !stage.player || !stage.props) return;
+
+  const glm::vec3 here = stage.player->translation;
+  for (Prop& tuft : *stage.props) {
+    if (tuft.disappeared || tuft.name.rfind("grass_", 0) != 0) continue;
+
+    // The one tuft with something to say is not walked flat
+    if (!tuft.actions.empty()) continue;
+
+    if (glm::distance(glm::vec2(tuft.translation.x, tuft.translation.z),
+                      glm::vec2(here.x, here.z)) > 0.55f)
+      continue;
+    tuft.disappeared = true;
+  }
+}
+
 // E19: a tap you cannot find, in a room that has no sink
 void EventDirector::bathroomWater(float dt, bool playing) {
   const float clip = 3.6f;
+
+  // Once the sink is on the wall the water has nothing left to be
+  if (stage.state->itemCount("@water.heard") >= 3) return;
 
   if (!playing || idle < 10.f) {
     // Any input cuts it mid sample
@@ -453,6 +744,8 @@ void EventDirector::bathroomWater(float dt, bool playing) {
   }
 
   if (waterAt < 0.f || waterAt >= clip) {
+    // Only the first one of a visit counts, which is what E18 is waiting on
+    if (waterAt < 0.f) stage.state->addItem("@water.heard", 1);
     lve::LveAudio::instance().play("water");
     waterAt = 0.f;
     return;
@@ -460,7 +753,8 @@ void EventDirector::bathroomWater(float dt, bool playing) {
   waterAt += dt;
 }
 
-// E21: the balls on the table spell one more letter of BYGONE every visit
+// E21: the balls on the table spell one more letter of BYGONE every visit.
+// E22: once it is spelt they stop, and play a game instead
 void EventDirector::billiardWord() {
   const int shown = roomVisits < 6 ? roomVisits : 6;
   if (shown < 1) return;
@@ -471,6 +765,16 @@ void EventDirector::billiardWord() {
 
   const float tableZ = 1.0f;
   const float tableTop = -0.39f;
+
+  // The table has moved on again while you were out of the room
+  if (roomVisits > 6) {
+    const int frame = (roomVisits - 7) % 6;
+    for (int ball = 0; ball < 6; ball++) {
+      conjure("sphere", glm::vec3(frames[frame][ball][0], tableTop, frames[frame][ball][1]),
+              glm::vec3(0.f), glm::vec3(0.09f));
+    }
+    return;
+  }
 
   for (int letter = 0; letter < shown; letter++) {
     for (int row = 0; row < 5; row++) {
@@ -486,15 +790,43 @@ void EventDirector::billiardWord() {
   }
 }
 
-// E24: the piano is gone, and walking through where it stood plays it anyway
+// E24: the piano is gone, and walking through where it stood plays it anyway.
+// It goes quiet again once E25 has stood the thing back up
 void EventDirector::ballroomPiano(float dt, bool playing) {
-  if (!playing || pianoPlayed || roomVisits < 2 || !stage.player) return;
+  if (!playing || pianoPlayed || pianoBack || roomVisits < 2 || !stage.player) return;
 
   const glm::vec3 here = stage.player->translation;
   if (glm::length(glm::vec2(here.x, here.z)) > 1.6f) return;
 
   lve::LveAudio::instance().play("piano");
   pianoPlayed = true;
+}
+
+// E27: somebody walks the ballroom a beat behind him. The late set takes one
+// more step after he has already stopped
+void EventDirector::ballroomWalker(float dt, bool playing) {
+  const float stride = 0.44f;
+  const float behind = 0.36f;
+
+  if (!playing) {
+    echoAt = -1.f;
+    return;
+  }
+
+  if (moved) {
+    stepAt -= dt;
+    if (stepAt <= 0.f) {
+      stepAt = stride;
+      echoAt = behind;
+    }
+  }
+
+  if (echoAt < 0.f) return;
+  echoAt -= dt;
+  if (echoAt > 0.f) return;
+
+  echoAt = -1.f;
+  lve::LveAudio::instance().play("step");
 }
 
 // E30: the greenhouse lights go out, and something far too big passes over
@@ -568,6 +900,35 @@ void EventDirector::fieldEdge(bool playing) {
   warpDoor = -1;
 }
 
+// E40: forty seconds stood still and he stops facing the way he was walking and
+// turns to look at the camera. Any input and he snaps back mid turn
+void EventDirector::turnToCamera(float dt) {
+  if (idle < 40.f || !stage.player) return;
+
+  const glm::vec3 away = camEye - stage.player->translation;
+  const float want = std::atan2(away.x, away.z);
+
+  // The short way round, never the long way about
+  const float circle = glm::two_pi<float>();
+  const float turn =
+      std::fmod(want - stage.player->rotation.y + glm::pi<float>() + circle, circle) -
+      glm::pi<float>();
+
+  const float step = 1.3f * dt;
+  if (std::fabs(turn) <= step) {
+    stage.player->rotation.y = want;
+    return;
+  }
+  stage.player->rotation.y += turn < 0.f ? -step : step;
+}
+
+// E41: from the third thing on, every room in the house comes up dark for a
+// quarter of a second after the fade has already finished
+void EventDirector::lateLights() {
+  if (questsDone() < 3 || sinceEntry >= 0.5f) return;
+  gain = 0.f;
+}
+
 // --- progression ------------------------------------------------------------
 
 int EventDirector::questsLeft() const {
@@ -579,6 +940,8 @@ int EventDirector::questsLeft() const {
   }
   return left;
 }
+
+int EventDirector::questsDone() const { return questCount - questsLeft(); }
 
 // Quest 1: the rock stood three quarter turns off where it started, and the slab
 // back down across the closet doorway. Opening the gate is the only way in to the
@@ -668,8 +1031,28 @@ void EventDirector::terraceDoor() {
 // --- what the scene reads back ----------------------------------------------
 
 float EventDirector::lightGain(std::size_t index) const {
-  if (killedLight >= 0 && static_cast<std::size_t>(killedLight) == index) return 0.f;
-  return gain < 0.f ? 0.f : (gain > 1.f ? 1.f : gain);
+  const float own = index < gains.size() ? gains[index] : 1.f;
+  const float lit = gain * own;
+  return lit < 0.f ? 0.f : (lit > 1.f ? 1.f : lit);
+}
+
+bool EventDirector::cameraOverride(glm::vec3& eye, glm::vec3& look) const {
+  if (!hasCam) return false;
+  eye = camEye;
+  look = camLook;
+  return true;
+}
+
+// E39: late on he does not start up in the room the save left him in. It is
+// always the terrace, which is always further along than where he stopped
+int EventDirector::wakeRoom(int fallback) {
+  if (!stage.state || questsDone() < 3) return fallback;
+
+  const int terrace = findRoom("terrace");
+  if (terrace < 0) return fallback;
+
+  waking = true;
+  return terrace;
 }
 
 bool EventDirector::takeWarp(int& toRoom, int& toDoor) {
@@ -679,6 +1062,25 @@ bool EventDirector::takeWarp(int& toRoom, int& toDoor) {
   toDoor = warpDoor;
   warpRoom = -1;
   warpDoor = -1;
+  return true;
+}
+
+// E12: one time only, a north door out of the hall does not lead out of the
+// hall. You come back in at the far end of it, facing the way you were going
+bool EventDirector::hallGivesBack(int& toRoom, int& toDoor) {
+  if (questsDone() < 2 || stage.state->hasFlag("hall_gave_back")) return false;
+  if (toRoom < 0 || toRoom >= static_cast<int>(stage.map->rooms.size())) return false;
+
+  const std::string& ahead = stage.map->rooms[toRoom].name;
+  if (ahead != "greenhouse" && ahead != "bathroom" && ahead != "billiard_room") return false;
+
+  const int hall = findRoom("hall_main");
+  const int far = findDoor(hall, "ballroom");
+  if (hall < 0 || far < 0) return false;
+
+  stage.state->setFlag("hall_gave_back", true);
+  toRoom = hall;
+  toDoor = far;
   return true;
 }
 
@@ -692,6 +1094,8 @@ bool EventDirector::reroute(int& toRoom, int& toDoor) {
 
   if (roomName == "terrace" && toRoom == findRoom("building_two") && questsLeft() > 0)
     return false;
+
+  if (roomName == "hall_main" && hallGivesBack(toRoom, toDoor)) return true;
 
   if (roomName != "shed") return true;
   if (!stage.state->hasFlag("read_note") || stage.state->hasFlag("shed_closet")) return true;

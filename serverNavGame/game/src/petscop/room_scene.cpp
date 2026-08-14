@@ -71,11 +71,14 @@ void RoomScene::loadModels() {
   enterRoom(startingRoom(), -1);
 }
 
-int RoomScene::startingRoom() const {
+int RoomScene::startingRoom() {
+  int found = map.startRoom;
   for (std::size_t i = 0; i < map.rooms.size(); i++) {
-    if (map.rooms[i].name == state.room) return static_cast<int>(i);
+    if (map.rooms[i].name == state.room) found = static_cast<int>(i);
   }
-  return map.startRoom;
+
+  // An event gets to say he woke up somewhere else
+  return events.wakeRoom(found);
 }
 
 void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
@@ -384,7 +387,8 @@ void RoomScene::update(float dt) {
   events.update(dt, phase == Phase::Playing,
                 phase == Phase::Playing ? interactions.startedProp() : -1);
 
-  // --- camera: one pose for the whole room ------------------------------------
+  // --- camera: one pose for the whole room, unless an event has taken it ------
+  events.cameraOverride(cameraEye, cameraLook);
   camera.setViewTarget(cameraEye, cameraLook);
   camera.setPerspectiveProjection(glm::radians(50.f), lve::LveEngine::instance().getAspectRatio(),
                                   0.1f, 100.f);

@@ -142,8 +142,9 @@ class RoomScene : public lve::LveScene {
   // arriveDoor is which door of the new room he steps out of
   void enterRoom(int roomIndex, int arriveDoor = -1);
 
-  // The room the save left him in, or the map's own start
-  int startingRoom() const;
+  // The room the save left him in, or the map's own start, or wherever an event
+  // would rather he woke up
+  int startingRoom();
 
   void emitHoverBox();
 
