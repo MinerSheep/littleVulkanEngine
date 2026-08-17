@@ -149,8 +149,15 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
   }
 
   // Boxes, now that nothing more is going to be added
+  // A tree's mesh is mostly canopy, so a box round the whole of it has you
+  // walking into a trunk you are still a body's width away from
+  lve::LveModel* treeMesh = models.get("tree");
   for (Prop& prop : props) {
     if (prop.model) prop.collider.fitToModel(*prop.model);
+    if (prop.model && prop.model == treeMesh) {
+      prop.collider.localHalfExtent.x *= trunkFootprint;
+      prop.collider.localHalfExtent.z *= trunkFootprint;
+    }
     prop.refreshBox();
   }
 
@@ -329,7 +336,20 @@ void RoomScene::update(float dt) {
     player.updateComponents(dt);
 
     // He has moved and his box has followed, so shove him back out of the walls
+    const glm::vec3 beforeSettle = player.getComponent<TransformComponent>()->translation;
     collisions.settleAll();
+
+    // TEMPORARY: shouts when the settle moves him further than a step of walking
+    // Delete this once the jolt in the forest is pinned down
+    {
+      const glm::vec3 after = player.getComponent<TransformComponent>()->translation;
+      const glm::vec3 shove = after - beforeSettle;
+      if (glm::length(glm::vec2(shove.x, shove.z)) > 0.5f) {
+        std::cout << "[settle] " << map.rooms[currentRoom].name << " dt " << dt << "  from ("
+                  << beforeSettle.x << "," << beforeSettle.z << ") shoved (" << shove.x << ","
+                  << shove.y << "," << shove.z << ")" << std::endl;
+      }
+    }
 
     interactions.update(playerCollider, playerMover);
 

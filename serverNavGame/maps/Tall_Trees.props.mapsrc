@@ -1,0 +1,11 @@
+# props for room Tall_Trees, laid out in the editor
+# paste these into the room's block in the .mapsrc, replacing its old prop lines
+# floors, walls, doorways and lights are left out -- build_map.py makes those
+  prop tree  -1.138 0.500 -4.471   0.000 0.900 0.000   0.550 0.550 0.550
+  prop tree  -0.207 0.500 1.498   0.000 2.500 0.000   0.520 0.520 0.520
+  prop tree  1.240 0.500 3.471   0.000 4.300 0.000   0.500 0.500 0.500
+  prop tree  0.486 0.500 -1.600   0.000 1.800 0.000   0.480 0.480 0.480
+  prop tree  6.551 0.500 1.599   0.000 3.600 0.000   0.340 0.340 0.340
+  prop plane  10.700 0.500 0.520   0.000 0.000 0.000   7.482 7.482 7.482
+  prop rock  5.357 0.500 5.665   0.000 -0.424 0.000   1.000 1.000 1.000
+  prop flat_vase  5.823 0.500 3.748   0.000 0.000 0.000   1.000 1.000 1.000

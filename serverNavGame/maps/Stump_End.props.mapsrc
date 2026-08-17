@@ -1,0 +1,17 @@
+# props for room Stump_End, laid out in the editor
+# paste these into the room's block in the .mapsrc, replacing its old prop lines
+# floors, walls, doorways and lights are left out -- build_map.py makes those
+  prop tree  0.839 0.500 2.068   0.000 1.900 0.000   0.340 0.340 0.340
+  prop tree  3.521 0.500 -2.067   0.000 4.400 0.000   0.300 0.300 0.300
+  interact cylinder  -3.800 0.300 0.000   0.000 0.000 0.000   0.700 0.300 0.700  name stump
+  do say A STUMP, CUT FLAT.
+  do say THE RINGS DO NOT GO ALL THE WAY ROUND.
+  prop grass  -2.005 0.500 0.000   0.000 0.000 0.000   1.000 1.000 1.000
+  prop grass  -2.498 0.500 1.187   0.000 0.000 0.000   1.000 1.000 1.000
+  prop grass  -3.367 0.500 -1.456   0.000 0.000 0.000   1.000 1.000 1.000
+  prop grass  -4.351 0.500 1.288   0.000 0.000 0.000   1.000 1.000 1.000
+  prop tree  -1.517 0.500 2.199   0.000 0.000 0.000   0.329 0.329 0.329
+  prop tree  -3.665 0.500 2.673   0.000 0.000 0.000   0.359 0.359 0.359
+  prop tree  -5.909 0.500 1.642   0.000 0.000 0.000   0.364 0.364 0.364
+  prop tree  -5.225 0.500 -1.929   0.000 0.000 0.000   0.360 0.360 0.360
+  prop tree  -0.234 0.500 -2.287   0.000 0.000 0.000   0.336 0.336 0.336

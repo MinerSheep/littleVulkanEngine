@@ -163,4 +163,7 @@ class RoomScene : public lve::LveScene {
   float hideThreshold = 0.25f;
 
   float groundY = 0.5f;  // the floor the map is built on
+
+  // How much of a tree's width you can actually walk into, trunk against canopy
+  float trunkFootprint = 0.32f;
 };

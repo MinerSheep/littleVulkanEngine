@@ -2,6 +2,7 @@
 
 #include "lve_scene.hpp"
 #include "lve_camera.hpp"
+#include "lve_map_file.hpp"
 #include "lve_model.hpp"
 #include "lve_text.hpp"
 #include "keyboard_movement_controller.hpp"
@@ -42,15 +43,43 @@ namespace lve {
       glm::vec3 translation{0.f, groundY, 0.f};
       glm::vec3 rotation{0.f};
       glm::vec3 scale{1.f};
+
+      // A prop out of a .map keeps what makes it itself, so saving puts it back whole
+      bool interact = false;
+      bool solid = true;
+      std::string name;
+      std::vector<std::string> script;  // the interact's when/do lines, word for word
     };
 
     void spawn(int preset);                          // add at origin, select it
     void save() const;                               // write scene_layout.txt
     glm::mat4 matrixOf(const EditorObject& o) const; // translate * R * scale
 
+    // Swaps in one room's props off a compiled .map, and writes them back as .mapsrc lines
+    void loadRoom(const std::string& path, const std::string& room);
+    void saveRoom();
+
+    // Finds a mesh by name, loading models/<name>.obj the first time it is asked for
+    int presetIndex(const std::string& name);
+
     std::vector<EditorObject> objects;
     int   selected = 0;
     float elapsed  = 0.f;  // drives the selection marker's bob
+
+    // The room being edited, and where it was read from
+    std::string mapPath;
+    std::string roomName;
+
+    // Floor, walls and doorways, drawn so props can be lined up against them
+    // build_map.py owns these, so the editor never moves or saves them
+    std::vector<EditorObject> locked;
+
+    // Typing "<file> <room>" along the top of the screen, opened with L
+    bool typing = false;
+    std::string entry;
+
+    // What the last load or save did, shown in the HUD
+    std::string status = "L LOAD A ROOM";
 
     // The spawnable presets, and which one the next Space will spawn
     std::vector<Preset> presets;
@@ -78,6 +107,7 @@ namespace lve {
     bool prevLeft = false, prevRight = false, prevSpace = false, prevEnter = false;
     bool prevUp = false, prevDown = false;  // cycle the spawn preset
     bool prevT = false;                     // toggle camera/object mode
+    bool prevL = false, prevBack = false, prevEsc = false;  // the load line
 
     // Tuning (units per second, scaled by dt)
     static constexpr float moveSpeed  = 3.0f;

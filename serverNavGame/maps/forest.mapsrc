@@ -93,8 +93,8 @@ room Well_Path
   door south  south  0
   door east   east   5
   door west   west   5
-  prop tree  -1.8 0.5  6.4   0 0.6 0   0.36 0.36 0.36
-  prop tree   1.6 0.5  6.8   0 2.9 0   0.32 0.32 0.32
+  prop tree  -1.9 0.5  7.0   0 0.6 0   0.30 0.30 0.30
+  prop tree   1.7 0.5  7.2   0 2.9 0   0.28 0.28 0.28
 
   interact cylinder  -1.6 0.10 0.0   0 0 0   0.85 0.55 0.85   name well
     do say A WELL, WITH THE LID STILL ON IT.
@@ -220,8 +220,8 @@ room Camp_South
   light  3.0 -2.8 0.0   0.22 0.30 0.40   12
   door north  north  0
   door south  south  4
-  prop tree  -2.6 0.5  1.0   0 1.7 0   0.34 0.34 0.34
-  prop tree  -0.8 0.5  1.6   0 4.2 0   0.30 0.30 0.30
+  prop tree  -5.0 0.5  1.6   0 1.7 0   0.30 0.30 0.30
+  prop tree  -2.0 0.5 -1.8   0 4.2 0   0.28 0.28 0.28
 
 
 # A ring of mushrooms, and a wall with nothing on the other side of it
@@ -359,7 +359,7 @@ room False_Path
   door back  west  -5
   door path  west   5
   prop tree  -1.6 0.5  1.8   0 1.6 0   0.34 0.34 0.34
-  prop tree   1.8 0.5 -2.4   0 4.0 0   0.30 0.30 0.30
+  prop tree   1.8 0.5 -3.2   0 4.0 0   0.30 0.30 0.30
 
 
 # Trees between the shrine and the false path
@@ -404,7 +404,7 @@ room Stump_End
   light  3.0 -2.8 0.0   0.20 0.28 0.38   12
   door east  east  0
   prop tree   1.6 0.5  1.2   0 1.9 0   0.34 0.34 0.34
-  prop tree   3.4 0.5 -1.0   0 4.4 0   0.30 0.30 0.30
+  prop tree   2.8 0.5 -1.0   0 4.4 0   0.30 0.30 0.30
 
   interact cylinder  -3.8 0.30 0.0   0 0 0   0.70 0.30 0.70   name stump
     do say A STUMP, CUT FLAT.
