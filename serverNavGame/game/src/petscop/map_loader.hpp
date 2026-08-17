@@ -105,6 +105,11 @@ struct MapLight {
 // walk into the next one
 struct MapRoom {
   std::string name;
+
+  // Whether the name goes in the corner of the screen
+  // The forest keeps its rooms nameless, so you cannot tell one from another
+  bool showName = true;
+
   glm::vec3 size{1.f};  // width, depth, height
   glm::vec3 cameraEye{0.f};
   glm::vec3 cameraLook{0.f};

@@ -142,6 +142,9 @@ bool loadMap(const std::string& path, GameMap& out, std::string& error) {
     } else if (room < 0) {
       return fail(key + " outside a room");
 
+    } else if (key == "noname") {
+      out.rooms[room].showName = false;
+
     } else if (key == "size") {
       if (!readVec3(ss, out.rooms[room].size)) return fail("size needs width, depth and height");
 

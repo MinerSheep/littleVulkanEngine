@@ -23,6 +23,9 @@ namespace petscop {
 
 namespace {
 
+// How long the house holds still after it has done something in front of him
+const float quietFor = 0.f;
+
 // How long a room has to be left in for the next door not to count as mashing
 const float mashWindow = 1.2f;
 const int mashLimit = 6;
@@ -116,9 +119,24 @@ void EventDirector::reset() {
   waterAt = -1.f;
   echoAt = -1.f;
   waking = false;
+  quiet = 0.f;
 }
 
 // --- odds and ends ----------------------------------------------------------
+
+// Something happened in front of him, so nothing else does for a while
+void EventDirector::fired() { quiet = quietFor; }
+
+// Once the flag is down the thing is part of the room and stops asking
+bool EventDirector::settled(const std::string& flag, bool ready) {
+  if (!stage.state) return false;
+  if (stage.state->hasFlag(flag)) return true;
+  if (!ready || !canFire()) return false;
+
+  stage.state->setFlag(flag, true);
+  fired();
+  return true;
+}
 
 int EventDirector::visits(const std::string& name) const {
   return stage.state ? stage.state->itemCount("@visits." + name) : 0;
@@ -316,7 +334,7 @@ void EventDirector::yardEarth(MapRoom& room) {
     object.name = "grass_" + std::to_string(tuft++);
   }
 
-  if (!stage.state || !stage.state->hasFlag("quest_dig")) return;
+  if (!settled("earth_turned", stage.state && stage.state->hasFlag("quest_dig"))) return;
 
   stage.state->addItem("@patches.yard", 1);
   int digs = stage.state->itemCount("@patches.yard");
@@ -332,7 +350,7 @@ void EventDirector::yardEarth(MapRoom& room) {
 // E18: heard the water three times and there is a sink on the wall the bathroom
 // has never had. Finding it stops the water for good
 void EventDirector::bathroomSink(MapRoom& room) {
-  if (!stage.state || stage.state->itemCount("@water.heard") < 3) return;
+  if (!settled("sink_found", stage.state && stage.state->itemCount("@water.heard") >= 3)) return;
 
   addObject(room, glm::vec3(3.600f, -0.350f, 0.500f), glm::vec3(0.f),
             glm::vec3(0.30f, 0.30f, 0.55f), "sink", "IT IS DRY.");
@@ -341,7 +359,7 @@ void EventDirector::bathroomSink(MapRoom& room) {
 // E28: after the shape went over, a pane of glass is leaning on the north wall,
 // and one more of them every visit until you are walking around the stack
 void EventDirector::greenhousePanes(MapRoom& room) {
-  if (!stage.state || !stage.state->hasFlag("saw_shape")) return;
+  if (!settled("panes_leaning", stage.state && stage.state->hasFlag("saw_shape"))) return;
 
   stage.state->addItem("@panes.greenhouse", 1);
   int panes = stage.state->itemCount("@panes.greenhouse");
@@ -413,10 +431,13 @@ void EventDirector::onEnterRoom(int index) {
 
   // E13: doors taken one after another until the screen stops coming back
   if (mash >= mashLimit) {
-    black = 10.f;
-    turnAround = true;
     mash = 0;
-    lve::LveAudio::instance().play("footsteps");
+    if (canFire()) {
+      black = 10.f;
+      turnAround = true;
+      lve::LveAudio::instance().play("footsteps");
+      fired();
+    }
   }
 
   if (roomName == "Foyer") foyerTree();
@@ -465,8 +486,12 @@ void EventDirector::foyerTree() {
   Prop* hole = prop("tree_hole");
   if (!tree || !hole) return;
 
-  const bool taken = roomVisits >= 3 || stage.state->hasFlag("tree_taken");
-  if (taken) stage.state->setFlag("tree_taken", true);
+  bool taken = stage.state->hasFlag("tree_taken");
+  if (!taken && roomVisits >= 3 && canFire()) {
+    taken = true;
+    stage.state->setFlag("tree_taken", true);
+    fired();
+  }
 
   tree->disappeared = taken;
   tree->collider.enabled = !taken;
@@ -477,7 +502,7 @@ void EventDirector::foyerTree() {
 // E15: once the foyer has gone dark, one tuft of grass in the yard answers E
 void EventDirector::yardTuft() {
   if (!stage.state->hasFlag("saw_dark_foyer")) return;
-  if (stage.state->hasFlag("tuft_named")) return;
+  if (stage.state->hasFlag("tuft_named") || !canFire()) return;
   if (!stage.models || !stage.props) return;
 
   lve::LveModel* grass = stage.models->get("grass");
@@ -531,6 +556,7 @@ void EventDirector::shedBoard() {
 
 void EventDirector::update(float dt, bool playing, int startedProp) {
   sinceEntry += dt;
+  if (quiet > 0.f) quiet -= dt;
 
   // Everything an event overrides is worked out again from nothing each frame,
   // so an event that stops running leaves nothing behind to undo
@@ -615,8 +641,13 @@ void EventDirector::blackout(float dt) {
 // E05: the warm light over the foyer does not come back on after the yard
 void EventDirector::foyerLight() {
   if (!stage.state->hasFlag("seen_yard")) return;
+
+  if (!stage.state->hasFlag("saw_dark_foyer")) {
+    if (!canFire()) return;
+    stage.state->setFlag("saw_dark_foyer", true);
+    fired();
+  }
   setLight(0, 0.f);
-  stage.state->setFlag("saw_dark_foyer", true);
 }
 
 // E03: once the foyer camera has started coming in it stops holding still, and
@@ -642,10 +673,12 @@ void EventDirector::closetShutIn(float dt, int startedProp) {
     if (startedProp < 0 || !stage.props) return;
     if (startedProp >= static_cast<int>(stage.props->size())) return;
     if ((*stage.props)[startedProp].name != "rock") return;
+    if (!canFire()) return;
 
     std::uniform_int_distribution<int> odds(0, 2);
     if (odds(rng) != 0) return;
     shutIn = 0.f;
+    fired();
     return;
   }
 
@@ -745,7 +778,11 @@ void EventDirector::bathroomWater(float dt, bool playing) {
 
   if (waterAt < 0.f || waterAt >= clip) {
     // Only the first one of a visit counts, which is what E18 is waiting on
-    if (waterAt < 0.f) stage.state->addItem("@water.heard", 1);
+    if (waterAt < 0.f) {
+      if (!canFire()) return;
+      stage.state->addItem("@water.heard", 1);
+      fired();
+    }
     lve::LveAudio::instance().play("water");
     waterAt = 0.f;
     return;
@@ -794,6 +831,7 @@ void EventDirector::billiardWord() {
 // It goes quiet again once E25 has stood the thing back up
 void EventDirector::ballroomPiano(float dt, bool playing) {
   if (!playing || pianoPlayed || pianoBack || roomVisits < 2 || !stage.player) return;
+  if (!canFire()) return;
 
   const glm::vec3 here = stage.player->translation;
   if (glm::length(glm::vec2(here.x, here.z)) > 1.6f) return;
@@ -826,7 +864,7 @@ void EventDirector::ballroomWalker(float dt, bool playing) {
   if (echoAt > 0.f) return;
 
   echoAt = -1.f;
-  lve::LveAudio::instance().play("step");
+  if (canFire()) lve::LveAudio::instance().play("step");
 }
 
 // E30: the greenhouse lights go out, and something far too big passes over
@@ -835,8 +873,10 @@ void EventDirector::greenhouseShape(float dt) {
 
   if (shapeAt < 0.f) {
     if (stage.state->hasFlag("saw_shape") || roomVisits < 3 || sinceEntry < 3.f) return;
+    if (!canFire()) return;
     shapeAt = 0.f;
     lve::LveAudio::instance().play("drone");
+    fired();
     return;
   }
 
@@ -895,15 +935,16 @@ void EventDirector::fieldEdge(bool playing) {
   if (stage.state->itemCount("@edge.field") < 5) return;
 
   const int red = findRoom("Field_Red");
-  if (red < 0) return;
+  if (red < 0 || !canFire()) return;
   warpRoom = red;
   warpDoor = -1;
+  fired();
 }
 
 // E40: forty seconds stood still and he stops facing the way he was walking and
 // turns to look at the camera. Any input and he snaps back mid turn
 void EventDirector::turnToCamera(float dt) {
-  if (idle < 40.f || !stage.player) return;
+  if (idle < 40.f || !stage.player || !canFire()) return;
 
   const glm::vec3 away = camEye - stage.player->translation;
   const float want = std::atan2(away.x, away.z);
@@ -1068,7 +1109,7 @@ bool EventDirector::takeWarp(int& toRoom, int& toDoor) {
 // E12: one time only, a north door out of the hall does not lead out of the
 // hall. You come back in at the far end of it, facing the way you were going
 bool EventDirector::hallGivesBack(int& toRoom, int& toDoor) {
-  if (questsDone() < 2 || stage.state->hasFlag("hall_gave_back")) return false;
+  if (questsDone() < 2 || stage.state->hasFlag("hall_gave_back") || !canFire()) return false;
   if (toRoom < 0 || toRoom >= static_cast<int>(stage.map->rooms.size())) return false;
 
   const std::string& ahead = stage.map->rooms[toRoom].name;
@@ -1079,6 +1120,7 @@ bool EventDirector::hallGivesBack(int& toRoom, int& toDoor) {
   if (hall < 0 || far < 0) return false;
 
   stage.state->setFlag("hall_gave_back", true);
+  fired();
   toRoom = hall;
   toDoor = far;
   return true;
@@ -1099,6 +1141,7 @@ bool EventDirector::reroute(int& toRoom, int& toDoor) {
 
   if (roomName != "Shed") return true;
   if (!stage.state->hasFlag("read_note") || stage.state->hasFlag("shed_closet")) return true;
+  if (!canFire()) return true;
 
   const int closet = findRoom("Closet");
   if (closet < 0) return true;
@@ -1107,6 +1150,7 @@ bool EventDirector::reroute(int& toRoom, int& toDoor) {
   if (out < 0) return true;
 
   stage.state->setFlag("shed_closet", true);
+  fired();
   toRoom = closet;
   toDoor = out;
   return true;

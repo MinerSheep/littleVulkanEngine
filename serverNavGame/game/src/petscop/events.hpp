@@ -77,6 +77,18 @@ class EventDirector {
   int sealedDoor() const { return sealed; }
 
  private:
+  // --- how often the house is allowed to do something ---
+  //
+  // Gates the events that happen *to* him at a moment -- a sound, a lock, a light
+  // going out, being moved. Never what a room simply is when he walks into it, and
+  // never the four quests
+  bool canFire() const { return quiet <= 0.f; }
+  void fired();
+
+  // Something the house puts in a room for good. It waits for a quiet moment,
+  // writes down that it happened, and after that the thing is simply there
+  bool settled(const std::string& flag, bool ready);
+
   // --- progression: four things to finish before building two opens ---
   int questsLeft() const;
   int questsDone() const;
@@ -173,6 +185,9 @@ class EventDirector {
   bool locked = false;
   bool frozen = false;
   float black = 0.f;  // seconds the screen is held shut
+
+  // Seconds left before the house may do something again
+  float quiet = 0.f;
 
   // Every light in the room is scaled by this, and any one of them on its own
   float gain = 1.f;

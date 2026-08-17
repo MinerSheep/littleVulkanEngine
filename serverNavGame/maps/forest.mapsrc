@@ -1,0 +1,437 @@
+# Area two: the forest, and the house at the end of it
+#
+# The door out of building two comes up on trees. Nothing says so -- the rooms
+# down here have no names in the corner, which is what 'hidenames' does. The
+# house is the one thing in the forest that admits what it is.
+#
+# Compile it with:
+#   python3 tools/build_map.py maps/forest.mapsrc -o maps/forest.map
+#
+# Laid out from maps/forest_two_layout.png. Everything outdoors is 'open', so
+# only the frame around each doorway stands -- you can see clearing to clearing
+# and still not be able to walk it.
+
+map forest
+start Start
+hidenames
+
+
+# Where you come to. One way on and no way back
+room Start
+  size 8 12
+  height 4
+  open
+  light 0.0 -2.8 -2.0   0.30 0.38 0.48   12
+  light 0.0 -2.8  3.0   0.26 0.34 0.44   12
+  door on north 0
+  prop tree  -3.0 0.5 -4.2   0 0.4 0   0.35 0.35 0.35
+  prop tree   3.2 0.5  4.0   0 2.1 0   0.30 0.30 0.30
+  prop rock   2.6 0.17 -3.4  0 0.9 0   0.45 0.45 0.45
+
+
+# A stand of trees with a way out either side
+room Clearing_Trees
+  size 14 10
+  height 4
+  open
+  light -3.0 -2.8 0.0   0.30 0.38 0.48   13
+  light  4.0 -2.8 1.0   0.24 0.32 0.42   13
+  door back  south  1.5
+  door west  west   0
+  door east  east   1.5
+  prop tree  -1.5 0.5  1.5   0 0.7 0   0.45 0.45 0.45
+  prop tree   0.5 0.5  2.6   0 2.8 0   0.40 0.40 0.40
+  prop tree  -2.8 0.5  3.0   0 1.5 0   0.38 0.38 0.38
+  prop tree   1.8 0.5  0.4   0 0.2 0   0.34 0.34 0.34
+  prop rock  -4.5 0.17 -2.0  0 1.8 0   0.55 0.55 0.55
+
+
+# A short run west, and trees the whole way
+room Path_West
+  size 14 6
+  height 4
+  open
+  light -3.0 -2.8 0.0   0.28 0.36 0.46   12
+  light  3.0 -2.8 0.0   0.24 0.32 0.42   12
+  door east  east  0
+  door west  west  0
+  prop tree  -3.2 0.5  2.1   0 1.1 0   0.30 0.30 0.30
+  prop tree   1.4 0.5 -2.1   0 3.0 0   0.28 0.28 0.28
+  prop tree   4.6 0.5  2.2   0 0.5 0   0.26 0.26 0.26
+
+
+# The widest place down here, and the thickest
+room Deep_Trees
+  size 24 16
+  height 4
+  open
+  light -7.0 -3.0  2.0   0.28 0.36 0.46   17
+  light  6.0 -3.0 -2.0   0.22 0.30 0.40   17
+  door east   east   -4
+  door north  north   8
+  prop tree  -6.0 0.5  3.0   0 0.7 0   0.50 0.50 0.50
+  prop tree  -3.4 0.5  3.6   0 2.4 0   0.46 0.46 0.46
+  prop tree  -0.8 0.5  3.1   0 1.2 0   0.48 0.48 0.48
+  prop tree   1.8 0.5  3.8   0 3.9 0   0.44 0.44 0.44
+  prop tree  -7.5 0.5  0.4   0 1.9 0   0.42 0.42 0.42
+  prop tree  -5.0 0.5 -0.6   0 4.4 0   0.40 0.40 0.40
+  prop tree  -2.0 0.5 -4.6   0 0.3 0   0.45 0.45 0.45
+  prop tree   0.6 0.5 -5.2   0 2.2 0   0.41 0.41 0.41
+  prop tree   3.4 0.5 -4.4   0 5.1 0   0.43 0.43 0.43
+  prop tree   8.0 0.5  1.0   0 1.6 0   0.36 0.36 0.36
+  prop rock  -9.5 0.17 -3.0  0 0.9 0   0.60 0.60 0.60
+  prop rock   5.5 0.17  5.0  0 2.4 0   0.50 0.50 0.50
+
+
+# A well nobody has drawn from, on the way between the gate and the car
+room Well_Path
+  size 6 16
+  height 4
+  open
+  light 0.0 -2.8 -4.0   0.30 0.38 0.48   13
+  light 0.0 -2.8  4.0   0.24 0.32 0.42   13
+  door south  south  0
+  door east   east   5
+  door west   west   5
+  prop tree  -1.8 0.5  6.4   0 0.6 0   0.36 0.36 0.36
+  prop tree   1.6 0.5  6.8   0 2.9 0   0.32 0.32 0.32
+
+  interact cylinder  -1.6 0.10 0.0   0 0 0   0.85 0.55 0.85   name well
+    do say A WELL, WITH THE LID STILL ON IT.
+    do sound stone
+    do say IT HAS NOT BEEN OPENED IN A LONG TIME.
+
+
+# A gate standing on its own, with nothing either side of it
+room Gate_Clearing
+  size 16 6
+  height 4
+  open
+  light -4.0 -2.8 0.0   0.28 0.36 0.46   13
+  light  4.0 -2.8 0.0   0.24 0.32 0.42   13
+  door east   east    1
+  door north  north  -5
+  prop tree  -6.4 0.5 -1.4   0 1.3 0   0.36 0.36 0.36
+  prop tree  -5.0 0.5 -2.0   0 3.4 0   0.32 0.32 0.32
+
+  interact cube  0.0 -0.55 0.0   0 0 0   1.30 1.10 0.12   name gate
+    do say A GATE, AND NO FENCE ON EITHER SIDE OF IT.
+    do sound lever
+    do rotate gate  0 74 0  over 0.60  toggle
+    do say IT SWINGS. NOTHING ABOUT THE WALK CHANGES.
+
+
+# Somebody drove in here, which cannot be done
+room Car_Clearing
+  size 15 10
+  height 4
+  open
+  light -4.0 -2.8 1.0   0.30 0.38 0.48   13
+  light  4.0 -2.8 0.0   0.24 0.32 0.42   13
+  door west   west   2
+  door south  south  4
+  prop tree  -5.4 0.5 -3.6   0 0.9 0   0.34 0.34 0.34
+  prop tree  -2.2 0.5  3.9   0 2.6 0   0.30 0.30 0.30
+  prop tree   6.4 0.5 -3.4   0 4.1 0   0.30 0.30 0.30
+
+  interact cube  2.6 0.05 1.6   0 0.42 0   1.90 0.62 0.90   name car
+    when noflag saw_car
+    do say A CAR, WITH THE DOORS SHUT AND THE GLASS STILL IN IT.
+    do say THERE IS NO ROAD.
+    do flag saw_car
+    when flag saw_car
+    do say THERE IS STILL NO ROAD.
+
+
+# Trees, and a turn east
+room Car_South
+  size 14 7
+  height 4
+  open
+  light -3.0 -2.8 0.0   0.28 0.36 0.46   12
+  light  3.5 -2.8 0.0   0.22 0.30 0.40   12
+  door north  north  -4
+  door east   east    0
+  prop tree  -0.6 0.5  1.6   0 1.4 0   0.38 0.38 0.38
+  prop tree   1.4 0.5  2.0   0 3.7 0   0.34 0.34 0.34
+  prop rock   4.6 0.17 -2.0  0 0.6 0   0.48 0.48 0.48
+
+
+# A long climb north toward the camp
+room Ridge
+  size 6 15
+  height 4
+  open
+  light 0.0 -2.8 -4.0   0.28 0.36 0.46   13
+  light 0.0 -2.8  4.0   0.22 0.30 0.40   13
+  door west   west  -4
+  door north  north  0
+  prop tree  -1.7 0.5  1.2   0 2.0 0   0.34 0.34 0.34
+  prop tree   1.5 0.5 -1.0   0 4.6 0   0.30 0.30 0.30
+
+
+# Somebody camped here. The key is on the ground beside the tent
+room Tent_Camp
+  size 18 13
+  height 4
+  open
+  light -4.0 -3.0  1.0   0.34 0.40 0.46   15
+  light  5.0 -3.0 -1.0   0.24 0.32 0.42   15
+  door south  south   3
+  door east   east   -4
+  door north  north  -6
+  prop tree   5.4 0.5  4.6   0 1.1 0   0.42 0.42 0.42
+  prop tree   7.0 0.5  3.8   0 3.3 0   0.38 0.38 0.38
+  prop tree  -7.4 0.5 -3.6   0 0.8 0   0.36 0.36 0.36
+
+  interact cube  -1.0 -0.10 0.6   0 0.30 0   1.40 1.00 1.30   name tent
+    do say A TENT, STILL PEGGED OUT AND STILL DRY INSIDE.
+    do say WHOEVER PUT IT UP MEANT TO COME BACK.
+
+  interact cube  -3.6 0.44 -1.8   0 0.85 0   0.22 0.06 0.09   name key
+    when noitem key
+    do say A KEY, LYING WHERE IT WAS DROPPED.
+    do sound stone
+    do give key
+    do flag took_key
+    when item key
+    do say THE GRASS IS STILL FLAT WHERE IT WAS.
+
+
+# East off the camp
+room Camp_East
+  size 14 5
+  height 4
+  open
+  light -3.0 -2.8 0.0   0.26 0.34 0.44   12
+  light  3.0 -2.8 0.0   0.22 0.30 0.40   12
+  door west   west   0
+  door south  south  5
+  prop tree  -1.6 0.5  1.9   0 2.7 0   0.26 0.26 0.26
+  prop tree   2.4 0.5  1.9   0 0.4 0   0.24 0.24 0.24
+
+
+# Turning back south again
+room Camp_South
+  size 14 6
+  height 4
+  open
+  light -3.0 -2.8 0.0   0.26 0.34 0.44   12
+  light  3.0 -2.8 0.0   0.22 0.30 0.40   12
+  door north  north  0
+  door south  south  4
+  prop tree  -2.6 0.5  1.0   0 1.7 0   0.34 0.34 0.34
+  prop tree  -0.8 0.5  1.6   0 4.2 0   0.30 0.30 0.30
+
+
+# A ring of mushrooms, and a wall with nothing on the other side of it
+room Ring
+  size 14 15
+  height 4
+  open
+  light -3.0 -3.0  0.0   0.30 0.34 0.40   14
+  light  3.0 -3.0  0.0   0.22 0.26 0.34   14
+  door north  north  -3
+  door west   west   -3
+
+  # The wall closes the east side off and goes nowhere either way along it
+  prop cube  6.2 -1.20 0.0   0 0 0   0.35 1.75 7.20   name wall
+
+  prop cylinder  -2.00 0.44  0.00   0 0 0   0.18 0.10 0.18
+  prop cylinder  -1.24 0.44  1.57   0 0 0   0.18 0.10 0.18
+  prop cylinder   0.62 0.44  1.90   0 0 0   0.18 0.10 0.18
+  prop cylinder   1.80 0.44  0.87   0 0 0   0.18 0.10 0.18
+  prop cylinder   1.80 0.44 -0.87   0 0 0   0.18 0.10 0.18
+  prop cylinder   0.62 0.44 -1.90   0 0 0   0.18 0.10 0.18
+  prop cylinder  -1.24 0.44 -1.57   0 0 0   0.18 0.10 0.18
+
+  interact cylinder  0.00 0.44 0.00   0 0 0   0.18 0.10 0.18   name mushrooms
+    do say MUSHROOMS, GROWN IN A RING.
+    do say THE ONE IN THE MIDDLE IS THE ONE THAT SHOULD NOT BE THERE.
+
+
+# Trees grown in a shape, on the way round to the ring
+room Hollow
+  size 14 15
+  height 4
+  open
+  light -3.0 -3.0  2.0   0.28 0.36 0.46   14
+  light  3.0 -3.0 -2.0   0.22 0.30 0.40   14
+  door east   east   4
+  door west   west   0
+  prop tree  -1.8 0.5  3.2   0 0.6 0   0.40 0.40 0.40
+  prop tree  -0.2 0.5  3.2   0 2.3 0   0.40 0.40 0.40
+  prop tree   1.4 0.5  3.2   0 4.0 0   0.40 0.40 0.40
+  prop tree  -1.8 0.5 -1.4   0 1.5 0   0.40 0.40 0.40
+  prop tree  -0.2 0.5 -1.4   0 3.1 0   0.40 0.40 0.40
+  prop tree   1.4 0.5 -1.4   0 5.5 0   0.40 0.40 0.40
+
+
+# The last of the trees before the water
+room Tall_Trees
+  size 16 10
+  height 4
+  open
+  light -4.0 -3.0  0.0   0.28 0.36 0.46   14
+  light  4.0 -3.0  0.0   0.22 0.30 0.40   14
+  door south  south  5
+  door west   west  -4
+  door north  north -5
+  prop tree  -0.6 0.5  1.0   0 0.9 0   0.55 0.55 0.55
+  prop tree   1.2 0.5  2.2   0 2.5 0   0.52 0.52 0.52
+  prop tree  -2.4 0.5  2.4   0 4.3 0   0.50 0.50 0.50
+  prop tree   0.4 0.5 -1.6   0 1.8 0   0.48 0.48 0.48
+  prop tree   6.2 0.5  0.6   0 3.6 0   0.34 0.34 0.34
+
+
+# The near bank. The water runs north to south and only the bridge crosses it
+room Bank_West
+  size 14 5
+  height 4
+  open
+  light -3.0 -2.8 0.0   0.28 0.36 0.46   12
+  light  3.0 -2.8 0.0   0.24 0.32 0.42   12
+  door south  south -4
+  door east   east   0
+  prop tree  -4.6 0.5  1.9   0 1.2 0   0.28 0.28 0.28
+  prop tree  -1.8 0.5 -1.9   0 3.8 0   0.26 0.26 0.26
+
+
+# Over the water. There is nothing to fall into and no way in either
+room Bridge
+  size 14 9
+  height 4
+  open
+  light -3.0 -2.8 0.0   0.32 0.40 0.50   13
+  light  3.0 -2.8 0.0   0.26 0.34 0.46   13
+  door west  west  0
+  door east  east  0
+
+  prop cube  0.0 0.30 3.30   0 0 0   7.00 0.22 1.10   name water_north
+  interact cube  0.0 0.30 -3.30   0 0 0   7.00 0.22 1.10   name water_south
+    do say THE WATER IS NOT MOVING.
+    do say IT IS THE ONLY THING DOWN HERE THAT IS NOT.
+
+
+# The far bank, and the house is already in sight
+room Bank_East
+  size 14 5
+  height 4
+  open
+  light -3.0 -2.8 0.0   0.26 0.34 0.44   12
+  light  3.0 -2.8 0.0   0.22 0.30 0.40   12
+  door west  west  0
+  door east  east  0
+  prop tree  -3.6 0.5  1.4   0 2.1 0   0.32 0.32 0.32
+  prop rock   3.2 0.17 -1.2  0 0.7 0   0.44 0.44 0.44
+
+  interact cube  5.0 -0.70 1.6   0 0 0   0.30 1.20 0.10   name front_door
+    when noitem key
+    do say THE DOOR IS SHUT, AND IT IS THE ONLY SHUT DOOR IN THE FOREST.
+    when item key
+    do say THE KEY FROM THE TENT TURNS IN IT.
+    do sound lever
+    do flag opened_house
+
+
+# The one room down here that says what it is
+room House
+  size 17 16
+  height 4
+  showname
+  light -4.0 -3.0  3.0   0.55 0.50 0.42   14
+  light  4.0 -3.0 -3.0   0.32 0.34 0.44   14
+  door west  west  0
+  door on    east  0
+  prop flat_vase  -5.0 0.5 -5.0   0 0.4 0   1.00 1.00 1.00
+  prop flat_vase   6.0 0.5  4.4   0 2.2 0   1.00 1.00 1.00
+  prop cube        0.0 0.10 2.0   0 0.15 0   1.60 0.40 0.90   name table
+
+
+# A doorway on the west wall that looks like the way on, and is not
+room False_Path
+  size 6 16
+  height 4
+  open
+  light 0.0 -2.8 -4.0   0.26 0.34 0.44   13
+  light 0.0 -2.8  4.0   0.22 0.30 0.40   13
+  door east  east  -1
+  door back  west  -5
+  door path  west   5
+  prop tree  -1.6 0.5  1.8   0 1.6 0   0.34 0.34 0.34
+  prop tree   1.8 0.5 -2.4   0 4.0 0   0.30 0.30 0.30
+
+
+# Trees between the shrine and the false path
+room Trees_West
+  size 14 5
+  height 4
+  open
+  light -3.0 -2.8 0.0   0.26 0.34 0.44   12
+  light  3.0 -2.8 0.0   0.22 0.30 0.40   12
+  door east  east  0
+  door west  west  0
+  prop tree   0.2 0.5  2.0   0 2.4 0   0.28 0.28 0.28
+  prop tree   3.4 0.5 -2.0   0 0.7 0   0.26 0.26 0.26
+
+
+# A shrine, and the only thing anyone built out here on purpose
+room Shrine_Path
+  size 6 16
+  height 4
+  open
+  light 0.0 -2.8 -4.0   0.34 0.32 0.36   13
+  light 0.0 -2.8  4.0   0.22 0.28 0.38   13
+  door east   east  -1
+  door west   west  -1
+  door south  south  0
+
+  interact cube  0.0 -0.30 5.4   0 0 0   0.55 0.85 0.55   name shrine
+    when noflag saw_shrine
+    do say A SHRINE, KEPT CLEAN.
+    do say SOMETHING HAS BEEN LEFT ON IT AND TAKEN AWAY AGAIN.
+    do flag saw_shrine
+    when flag saw_shrine
+    do say IT HAS BEEN KEPT CLEAN SINCE YOU WERE LAST HERE.
+
+
+# The end of the line west. There is nothing past the stump
+room Stump_End
+  size 13 5
+  height 4
+  open
+  light -3.0 -2.8 0.0   0.26 0.34 0.44   12
+  light  3.0 -2.8 0.0   0.20 0.28 0.38   12
+  door east  east  0
+  prop tree   1.6 0.5  1.2   0 1.9 0   0.34 0.34 0.34
+  prop tree   3.4 0.5 -1.0   0 4.4 0   0.30 0.30 0.30
+
+  interact cylinder  -3.8 0.30 0.0   0 0 0   0.70 0.30 0.70   name stump
+    do say A STUMP, CUT FLAT.
+    do say THE RINGS DO NOT GO ALL THE WAY ROUND.
+
+
+link Start.on             Clearing_Trees.back
+link Clearing_Trees.west  Path_West.east
+link Clearing_Trees.east  Hollow.west
+link Path_West.west       Deep_Trees.east
+link Deep_Trees.north     Well_Path.south
+link Well_Path.west       Gate_Clearing.east
+link Well_Path.east       Car_Clearing.west
+link Gate_Clearing.north  Shrine_Path.south
+link Car_Clearing.south   Car_South.north
+link Car_South.east       Ridge.west
+link Ridge.north          Tent_Camp.south
+link Tent_Camp.east       Camp_East.west
+link Tent_Camp.north      Tall_Trees.south
+link Camp_East.south      Camp_South.north
+link Camp_South.south     Ring.north
+link Ring.west            Hollow.east
+link Tall_Trees.west      False_Path.east
+link Tall_Trees.north     Bank_West.south
+link Bank_West.east       Bridge.west
+link Bridge.east          Bank_East.west
+link Bank_East.east       House.west
+link False_Path.back      Trees_West.east
+link Trees_West.west      Shrine_Path.east
+link Shrine_Path.west     Stump_End.east

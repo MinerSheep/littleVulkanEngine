@@ -38,7 +38,9 @@ class RoomScene : public lve::LveScene {
 
  private:
   // Built by tools/build_map.py, read from the repo root like the meshes are
-  std::string mapPath = "maps/petscop.map";
+  // Walking area two while it is being laid out -- area one is maps/petscop.map,
+  // and the save on the line below has to be swapped back with it
+  std::string mapPath = "maps/forest.map";
 
   petscop::GameMap map;
   petscop::ModelCache models;  // is saved between rooms
@@ -49,8 +51,9 @@ class RoomScene : public lve::LveScene {
   const petscop::MapRoom* liveRoom = nullptr;
 
   // Items, flags, and how each room was left. Delete the file to start over
+  // One save per map, or the forest writes its rooms over the house's memories
   petscop::GameState state;
-  std::string savePath = "saves/petscop.save";
+  std::string savePath = "saves/forest.save";
 
   // The character, put together the same way the skinned demo puts its man together
   // The component pointers are kept so update does not have to look them up

@@ -466,7 +466,7 @@ void RoomScene::update(float dt) {
   // --- overlay: the room's name, then the fade over the top of it -------------
   UIrenderItems.clear();
   if (textRenderer) {
-    if (currentRoom >= 0) {
+    if (currentRoom >= 0 && map.rooms[currentRoom].showName) {
       textRenderer->emit(UIrenderItems, displayName(map.rooms[currentRoom].name),
                          glm::vec2(-0.95f, -0.93f), 0.035f, glm::vec3(0.85f));
     }
