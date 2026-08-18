@@ -6,6 +6,10 @@ The Forest has 4 phases,
 3. The rules are changing -> Doors, rooms, inventory and geometry become unreliable
 4. I am not supposed to be here -> The game begins behaving as though the player is an intruder
 
+Additional Change Required
+- Put Gate_Clearing.props.mapsrc into forest.mapsrc and forest.map
+- Gate should not rotate UNTIL the player has collected the key in Tent_Camp
+
 PHASE 1
 
 **F01 · Path leads to the foyer in the previous area.**

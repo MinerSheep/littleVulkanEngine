@@ -47,6 +47,8 @@ void RoomScene::loadModels() {
 
   playerSkin = player.addComponent<SkinnedModelComponent>();
   playerSkin->setModel(lve::LveSkinnedModel::createModelFromFile("models/statue.glb"));
+  // Soft blue, while the tint path is being tried out
+  playerSkin->tint = glm::vec3(0.25f, 0.33f, 0.95f);
 
   // Forward is set once per room from where the camera sits
   playerMover = player.addComponent<KeyboardMovementComponent>();

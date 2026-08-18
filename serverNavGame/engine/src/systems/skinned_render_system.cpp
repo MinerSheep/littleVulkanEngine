@@ -17,7 +17,7 @@ namespace lve {
 // Same push layout as SimpleRenderSystem
 struct SkinnedPushConstantData {
   glm::mat4 modelMatrix{1.f};
-  glm::mat4 normalMatrix{1.f};
+  glm::mat4 normalMatrix{1.f};  // [3][0..2] carries the tint
 };
 
 // Which triangle winding counts as front-facing for the skinned mesh.
@@ -62,6 +62,10 @@ void SkinnedRenderSystem::render(FrameInfo& frameInfo) {
     SkinnedPushConstantData push{};
     push.modelMatrix = item.modelMatrix;
     push.normalMatrix = item.normalMatrix;
+    // Rides in the last column, which the shader drops when it truncates to mat3
+    push.normalMatrix[3][0] = item.tint.r;
+    push.normalMatrix[3][1] = item.tint.g;
+    push.normalMatrix[3][2] = item.tint.b;
     vkCmdPushConstants(
         frameInfo.commandBuffer,
         pipelineLayout,

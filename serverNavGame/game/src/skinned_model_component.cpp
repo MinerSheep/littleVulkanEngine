@@ -68,5 +68,5 @@ void collectSkinned(GameObject& obj, std::vector<lve::SkinnedRenderItem>& items)
 
   // Placement (with the Y-up -> Y-down flip baked into rotation.z) comes straight
   // from the TransformComponent, exactly like static models in levelscene
-  items.push_back({t->mat4(), glm::mat4(t->normalMatrix()), skin->model.get()});
+  items.push_back({t->mat4(), glm::mat4(t->normalMatrix()), skin->model.get(), skin->tint});
 }

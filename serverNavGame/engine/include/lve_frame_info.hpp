@@ -50,6 +50,8 @@ namespace lve {
     glm::mat4 modelMatrix;
     glm::mat4 normalMatrix;
     LveSkinnedModel* model;
+    // Flat color the whole mesh draws in, 0.85 grey is the untinted look
+    glm::vec3 tint{0.85f};
   };
 
   struct GlobalUbo {

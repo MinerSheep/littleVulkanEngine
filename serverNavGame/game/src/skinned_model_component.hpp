@@ -15,6 +15,9 @@
 struct SkinnedModelComponent : public Component {
   std::unique_ptr<lve::LveSkinnedModel> model;
 
+  // Flat color the mesh draws in, 0.85 grey is the untinted look
+  glm::vec3 tint{0.85f};
+
   // Which clip is playing, and its playback clock. animTime feeds
   // LveSkinnedModel::poseAnimation, which loops it over the clip length
   std::string currentClip;

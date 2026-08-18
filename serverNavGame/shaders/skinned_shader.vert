@@ -50,6 +50,6 @@ void main() {
   mat3 skinNormal = mat3(push.normalMatrix) * mat3(skinMatrix);
   fragNormalWorld = normalize(skinNormal * normal);
 
-  // No material colors are consumed yet -- render with a neutral base color.
-  fragColor = vec3(0.85);
+  // Flat tint for the whole mesh, carried in the column mat3() throws away
+  fragColor = push.normalMatrix[3].xyz;
 }
