@@ -81,6 +81,21 @@ std::string f3(float value) {
 
 std::string vec3(const glm::vec3& v) { return f3(v.x) + " " + f3(v.y) + " " + f3(v.z); }
 
+// A turn is radians in the .map and degrees in the .mapsrc, so it has to go back
+// Everything else, move and scale included, means the same in both
+std::string turnToDegrees(const std::string& line) {
+  const std::vector<std::string> w = split(line);
+  if (w.size() < 8 || w[0] != "do" || w[1] != "rotate") return line;
+
+  glm::vec3 amount{0.f};
+  if (!readVec(w, 3, amount)) return line;
+  amount *= 57.295779513f;
+
+  std::string out = w[0] + " " + w[1] + " " + w[2] + "  " + vec3(amount);
+  for (std::size_t i = 6; i < w.size(); ++i) out += " " + w[i];
+  return out;
+}
+
 }  // namespace
 
 bool readMapRoom(const std::string& path, const std::string& roomName, MapFileRoom& out,
@@ -186,7 +201,7 @@ bool writeMapsrcProps(const std::string& path, const MapFileRoom& room, std::str
       std::istringstream trim(scriptLine);
       std::string rest;
       std::getline(trim >> std::ws, rest);
-      out << "  " << rest << '\n';
+      out << "    " << turnToDegrees(rest) << '\n';
     }
     ++written;
   }

@@ -192,6 +192,11 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
   }
   if (playerCollider) playerCollider->refresh(xform->mat4());
 
+  // Kept for the fall, which stands him back on this exact spot
+  arrivedDoor = arrived ? arriveDoor : -1;
+  arriveSpawn = xform->translation;
+  arriveYaw = xform->rotation.y;
+
   cameraEye = room.cameraEye;
   cameraLook = room.cameraLook;
   const glm::vec3 look = cameraLook - cameraEye;
@@ -224,6 +229,29 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
 
   std::cout << "[petscop] entered " << room.name << ": " << props.size() << " prop(s), "
             << doors.size() << " door(s)" << std::endl;
+}
+
+// Dropping through the floor puts him back at the door he came in by
+void RoomScene::recoverFromFall() {
+  TransformComponent* xform = player.getComponent<TransformComponent>();
+  if (!xform) return;
+
+  xform->translation = arriveSpawn;
+  xform->rotation.y = arriveYaw;
+
+  if (playerBody) {
+    playerBody->velocity = glm::vec3(0.f);
+    playerBody->grounded = false;
+  }
+  if (playerCollider) playerCollider->refresh(xform->mat4());
+
+  // He is standing in the doorway again, so that one waits until he steps off it
+  for (Door& door : doors) door.armed = true;
+  if (arrivedDoor >= 0 && arrivedDoor < static_cast<int>(doors.size()))
+    doors[arrivedDoor].armed = false;
+
+  std::cout << "[petscop] fell out of " << map.rooms[currentRoom].name << ", put back at the door"
+            << std::endl;
 }
 
 void RoomScene::updateWallVisibility() {
@@ -349,6 +377,12 @@ void RoomScene::update(float dt) {
                   << beforeSettle.x << "," << beforeSettle.z << ") shoved (" << shove.x << ","
                   << shove.y << "," << shove.z << ")" << std::endl;
       }
+    }
+
+    // Through the floor and still going, so stand him back up before anything
+    // else this frame reads where he is
+    if (player.getComponent<TransformComponent>()->translation.y > groundY + fallLimit) {
+      recoverFromFall();
     }
 
     interactions.update(playerCollider, playerMover);

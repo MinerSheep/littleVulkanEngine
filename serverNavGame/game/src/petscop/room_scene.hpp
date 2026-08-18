@@ -69,6 +69,14 @@ class RoomScene : public lve::LveScene {
   float jumpSpeed = 4.5f;  // upward, so it goes in as -Y
   bool jumpPrevDown = false;
 
+  // Where he came into this room, kept so a fall can put him back on the doorstep
+  glm::vec3 arriveSpawn{0.f};
+  float arriveYaw = 0.f;
+  int arrivedDoor = -1;
+
+  // How far under the floor counts as off the map, -Y is up so a fall grows y
+  float fallLimit = 8.f;
+
   // Prop and its Motion can be found in petscop/prop.hpp
   using Prop = petscop::Prop;
   std::vector<Prop> props;
@@ -148,6 +156,9 @@ class RoomScene : public lve::LveScene {
   // The room the save left him in, or the map's own start, or wherever an event
   // would rather he woke up
   int startingRoom();
+
+  // Puts him back where he came in after he drops through the floor
+  void recoverFromFall();
 
   void emitHoverBox();
 
