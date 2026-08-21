@@ -5,11 +5,52 @@
 
 #include <glm/gtc/constants.hpp>
 
+#include <sys/stat.h>
+
 #include <cmath>
+#include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 
 namespace {
+
+// The areas in the order they are walked, and the door that carries you on
+// exitRoom/exitDoor name a door that leads nowhere in the map, which is the way on
+struct Area {
+  const char* name;
+  const char* map;
+  const char* save;
+  const char* exitRoom;
+  const char* exitDoor;
+};
+
+const Area kAreas[] = {
+    {"petscop", "maps/petscop.map", "saves/petscop.save", "Building_Two", "inside"},
+    {"forest", "maps/forest.map", "saves/forest.save", "", ""},
+};
+constexpr int kAreaCount = static_cast<int>(sizeof(kAreas) / sizeof(kAreas[0]));
+
+bool fileExists(const std::string& path) { return static_cast<bool>(std::ifstream(path)); }
+
+// Which area the last run reached, or area one when the marker is missing
+int readProgressArea(const std::string& path) {
+  std::ifstream in(path);
+  std::string key, name;
+  if (!(in >> key >> name) || key != "area") return 0;
+  for (int i = 0; i < kAreaCount; i++) {
+    if (name == kAreas[i].name) return i;
+  }
+  return 0;
+}
+
+void writeProgressArea(const std::string& path, int area) {
+  for (std::size_t i = 1; i < path.size(); i++) {
+    if (path[i] == '/') mkdir(path.substr(0, i).c_str(), 0755);
+  }
+  std::ofstream out(path);
+  if (out) out << "area " << kAreas[area].name << "\n";
+}
 
 // The room's name the way it goes on screen
 // A room ident cannot hold a space, so Hall_Main reads back as Hall Main
@@ -24,6 +65,13 @@ std::string displayName(const std::string& ident) {
 }  // namespace
 
 void RoomScene::loadModels() {
+  // Where the last run left off. A marker naming an area whose save has been
+  // deleted drops back to area one, so clearing saves/ starts the game over
+  areaIndex = readProgressArea(progressPath);
+  if (areaIndex > 0 && !fileExists(kAreas[areaIndex].save)) areaIndex = 0;
+  mapPath = kAreas[areaIndex].map;
+  savePath = kAreas[areaIndex].save;
+
   std::string error;
   if (!petscop::loadMap(mapPath, map, error)) 
     throw std::runtime_error("[petscop] " + error);
@@ -80,6 +128,9 @@ void RoomScene::loadModels() {
   stage.player = xform;
   stage.dialog = &dialog;
   events.bind(stage);
+
+  // After bind, and after the save has been read
+  events.newRun();
 
   std::cout << "[petscop] loaded map '" << map.name << "': " << map.rooms.size() << " room(s), "
             << map.presets.size() << " mesh(es)" << std::endl;
@@ -140,6 +191,7 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
 
   for (const petscop::MapDoor& source : room.doors) {
     Door door;
+    door.name = source.name;
     door.translation = source.translation;
     door.rotation = source.rotation;
     door.scale = source.scale;
@@ -202,7 +254,8 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
   cameraEye = room.cameraEye;
   cameraLook = room.cameraLook;
   const glm::vec3 look = cameraLook - cameraEye;
-  if (playerMover) playerMover->forwardYaw = std::atan2(look.x, look.z);
+  roomYaw = std::atan2(look.x, look.z);
+  if (playerMover) playerMover->forwardYaw = roomYaw;
 
   // Register LAST, now that props and doors have stopped growing
   // Doorways are left out on purpose, they are meant to be walked through
@@ -222,8 +275,10 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
 
   currentRoom = roomIndex;
 
+  watch.placed(room.name, arriveSpawn, arrived ? "walking in through a door" : "no door at all");
+
   // Last, so an event can put props right now that they are all standing
-  events.onEnterRoom(roomIndex);
+  events.onEnterRoom(roomIndex, arriveDoor);
 
   // Walking through a door is the autosave
   state.room = room.name;
@@ -231,6 +286,60 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
 
   std::cout << "[petscop] entered " << room.name << ": " << props.size() << " prop(s), "
             << doors.size() << " door(s)" << std::endl;
+}
+
+// Swaps one area for the next, and writes down that it happened
+void RoomScene::enterArea(int area) {
+  if (area < 0 || area >= kAreaCount) return;
+
+  // Write the area he is leaving down before any of it is thrown away
+  if (currentRoom >= 0) {
+    state.rememberRoom(map.rooms[currentRoom].name, props);
+    petscop::writeSave(savePath, state);
+  }
+  currentRoom = -1;
+
+  // CollisionSystem holds pointers into props, so it lets go first
+  collisions.clear();
+  props.clear();
+  doors.clear();
+  interactions.reset();
+  events.reset();
+  liveRoom = nullptr;
+
+  areaIndex = area;
+  mapPath = kAreas[area].map;
+  savePath = kAreas[area].save;
+
+  std::string error;
+  if (!petscop::loadMap(mapPath, map, error)) throw std::runtime_error("[petscop] " + error);
+  models.preload(map.presets);
+
+  // The new area starts from its own save, never the last one's flags
+  state = petscop::GameState{};
+  petscop::readSave(savePath, state);
+
+  // Save and marker land together, so the two can never disagree about where he is
+  petscop::writeSave(savePath, state);
+  writeProgressArea(progressPath, area);
+
+  std::cout << "[petscop] area '" << kAreas[area].name << "' from " << mapPath << std::endl;
+  enterRoom(startingRoom(), -1);
+}
+
+// What shoved him hardest last settle, by the name the map gave it
+std::string RoomScene::pusherName() const {
+  const ColliderComponent* who = collisions.lastPusher;
+  if (!who) return std::string();
+
+  for (const Prop& prop : props) {
+    if (&prop.collider != who) continue;
+    return prop.name.empty() ? std::string("an unnamed prop") : "prop '" + prop.name + "'";
+  }
+  for (const Door& door : doors) {
+    if (&door.blocker == who) return "the plug in door '" + door.name + "'";
+  }
+  return std::string("a box no longer in this room");
 }
 
 // Dropping through the floor puts him back at the door he came in by
@@ -252,8 +361,7 @@ void RoomScene::recoverFromFall() {
   if (arrivedDoor >= 0 && arrivedDoor < static_cast<int>(doors.size()))
     doors[arrivedDoor].armed = false;
 
-  std::cout << "[petscop] fell out of " << map.rooms[currentRoom].name << ", put back at the door"
-            << std::endl;
+  watch.placed(map.rooms[currentRoom].name, xform->translation, "a fall through the floor");
 }
 
 void RoomScene::updateWallVisibility() {
@@ -315,6 +423,9 @@ void RoomScene::emitBackground() {
   backgroundItems.clear();
   if (!bgEnabled || !textRenderer) return;
 
+  // F03: an event can take the bars away entirely, leaving the room over black
+  if (events.hidesBackground()) return;
+
   // The unit quad runs 0 to 1
   // doubling it and shifting it covers the whole screen, the same way the fade quad does
   backgroundItems.push_back(
@@ -342,9 +453,20 @@ void RoomScene::emitBackground() {
 void RoomScene::update(float dt) {
   clock += dt;
 
-  if (phase == Phase::Playing) {
-    GLFWwindow* window = lve::LveEngine::instance().getGLFWWindow();
+  // ESC stops the walk where it stands and puts his pockets on the screen
+  GLFWwindow* window = lve::LveEngine::instance().getGLFWWindow();
+  menu.stripped = events.menuStripped();
 
+  // It does not open mid fade, with the room already going
+  const petscop::PauseMenu::Choice picked =
+      (phase == Phase::Playing || menu.isOpen()) ? menu.update(window)
+                                                 : petscop::PauseMenu::Choice::None;
+  if (picked == petscop::PauseMenu::Choice::Back) events.onSettingsClosed();
+  if (picked == petscop::PauseMenu::Choice::Leave) glfwSetWindowShouldClose(window, GLFW_TRUE);
+
+  const bool paused = menu.isOpen();
+
+  if (phase == Phase::Playing && !paused) {
     const bool jumpDown = glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
     if (jumpDown && !jumpPrevDown && playerBody && playerBody->grounded) {
 
@@ -357,33 +479,40 @@ void RoomScene::update(float dt) {
 
     if (playerMover && events.takesControl()) playerMover->enabled = false;
 
+    // An event can take him out of his own body, and nothing in the room can
+    // touch him or hold him up while he is out of it
+    const bool loose = events.untethered();
+    if (playerSkin) playerSkin->tint = loose ? glm::vec3(0.55f) : glm::vec3(0.25f, 0.33f, 0.95f);
+    if (playerCollider) playerCollider->enabled = !loose;
+    if (playerBody) playerBody->useGravity = !loose;
+
+    // Forward is the camera's, unless an event has turned the controls round
+    if (playerMover)
+      playerMover->forwardYaw = roomYaw + (events.invertsControls() ? glm::pi<float>() : 0.f);
+
     // A held door is a wall you cannot walk out through, not just a dead trigger
     // One door on its own can be plugged too, for a way on that is not open yet
     const bool sealed = events.locksDoors();
     for (std::size_t i = 0; i < doors.size(); i++)
       doors[i].blocker.enabled = sealed || static_cast<int>(i) == events.sealedDoor();
 
+    TransformComponent* body = player.getComponent<TransformComponent>();
+    watch.begin(currentRoom >= 0 ? map.rooms[currentRoom].name : "nowhere", body->translation, dt);
+
+    // Whether he was standing on something, read before the move clears it
+    const bool standing = playerBody && playerBody->grounded;
+
     player.updateComponents(dt);
+    watch.afterMove(body->translation, playerBody ? playerBody->velocity : glm::vec3(0.f),
+                    standing);
 
     // He has moved and his box has followed, so shove him back out of the walls
-    const glm::vec3 beforeSettle = player.getComponent<TransformComponent>()->translation;
     collisions.settleAll();
-
-    // TEMPORARY: shouts when the settle moves him further than a step of walking
-    // Delete this once the jolt in the forest is pinned down
-    {
-      const glm::vec3 after = player.getComponent<TransformComponent>()->translation;
-      const glm::vec3 shove = after - beforeSettle;
-      if (glm::length(glm::vec2(shove.x, shove.z)) > 0.5f) {
-        std::cout << "[settle] " << map.rooms[currentRoom].name << " dt " << dt << "  from ("
-                  << beforeSettle.x << "," << beforeSettle.z << ") shoved (" << shove.x << ","
-                  << shove.y << "," << shove.z << ")" << std::endl;
-      }
-    }
+    watch.afterSettle(body->translation, pusherName());
 
     // Through the floor and still going, so stand him back up before anything
     // else this frame reads where he is
-    if (player.getComponent<TransformComponent>()->translation.y > groundY + fallLimit) {
+    if (body->translation.y > groundY + fallLimit) {
       recoverFromFall();
     }
 
@@ -402,8 +531,20 @@ void RoomScene::update(float dt) {
       // An event can hold every door shut, and can send one somewhere else
       for (std::size_t i = 0; i < doors.size() && !events.locksDoors(); i++) {
         const Door& door = doors[i];
-        if (!door.armed || door.toRoom < 0) continue;
+        if (!door.armed) continue;
         if (!box.overlaps(door.trigger.worldBox())) continue;
+
+        // A door that leads nowhere is the way on, when the area names it
+        if (door.toRoom < 0) {
+          const Area& here = kAreas[areaIndex];
+          if (areaIndex + 1 >= kAreaCount) continue;
+          if (currentRoom < 0 || map.rooms[currentRoom].name != here.exitRoom) continue;
+          if (door.name != here.exitDoor) continue;
+
+          pendingArea = areaIndex + 1;
+          phase = Phase::FadingOut;
+          break;
+        }
 
         pendingRoom = door.toRoom;
         pendingDoor = door.toDoor;
@@ -438,7 +579,12 @@ void RoomScene::update(float dt) {
 
       // The one place the room is ever rebuilt. Everything that reads props and
       // doors has finished for the frame
-      enterRoom(pendingRoom, pendingDoor);
+      if (pendingArea >= 0) {
+        enterArea(pendingArea);
+        pendingArea = -1;
+      } else {
+        enterRoom(pendingRoom, pendingDoor);
+      }
       pendingRoom = -1;
       pendingDoor = -1;
       phase = Phase::FadingIn;
@@ -454,8 +600,16 @@ void RoomScene::update(float dt) {
   }
 
   // Runs whatever the phase, so a held fade and a room swap both still tick
-  events.update(dt, phase == Phase::Playing,
-                phase == Phase::Playing ? interactions.startedProp() : -1);
+  const bool walking = phase == Phase::Playing && !paused;
+  events.update(dt, walking, walking ? interactions.startedProp() : -1);
+
+  // An event can end the run here, with the room and the save written down first
+  if (events.fakesCrash()) {
+    if (currentRoom >= 0) state.rememberRoom(map.rooms[currentRoom].name, props);
+    petscop::writeSave(savePath, state);
+    std::cerr << "vkQueueSubmit: VK_ERROR_DEVICE_LOST" << std::endl;
+    std::_Exit(3);
+  }
 
   // --- camera: one pose for the whole room, unless an event has taken it ------
   events.cameraOverride(cameraEye, cameraLook);
@@ -522,14 +676,19 @@ void RoomScene::update(float dt) {
   // --- overlay: the room's name, then the fade over the top of it -------------
   UIrenderItems.clear();
   if (textRenderer) {
-    if (currentRoom >= 0 && map.rooms[currentRoom].showName) {
-      textRenderer->emit(UIrenderItems, displayName(map.rooms[currentRoom].name),
-                         glm::vec2(-0.95f, -0.93f), 0.035f, glm::vec3(0.85f));
-    }
-    if (phase == Phase::Playing) {
+    // An event may answer to the name in the corner in place of the room
+    std::string title;
+    if (currentRoom >= 0 && !events.titled(title) && map.rooms[currentRoom].showName)
+      title = displayName(map.rooms[currentRoom].name);
+    if (!title.empty())
+      textRenderer->emit(UIrenderItems, title, glm::vec2(-0.95f, -0.93f), 0.035f,
+                         glm::vec3(0.85f));
+
+    if (phase == Phase::Playing && !paused) {
       emitHoverBox();
       dialog.emit(UIrenderItems, *textRenderer);
     }
+    menu.emit(UIrenderItems, *textRenderer, state);
     if (fade > 0.f) {
       // One quad over the whole screen
       // Pushed last, because UI draws in the order it is handed over

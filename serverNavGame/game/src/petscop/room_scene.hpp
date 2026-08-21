@@ -18,6 +18,8 @@
 #include "petscop/dialog_box.hpp"
 #include "petscop/events.hpp"
 #include "petscop/game_state.hpp"
+#include "petscop/pause_menu.hpp"
+#include "petscop/player_watch.hpp"
 #include "petscop/prop.hpp"
 #include "petscop/interactions.hpp"
 #include "petscop/save_file.hpp"
@@ -38,9 +40,9 @@ class RoomScene : public lve::LveScene {
 
  private:
   // Built by tools/build_map.py, read from the repo root like the meshes are
-  // Walking area two while it is being laid out -- area one is maps/petscop.map,
-  // and the save on the line below has to be swapped back with it
-  std::string mapPath = "maps/forest.map";
+  // Both of these are set from the progress marker at startup, and swapped again
+  // when a door carries him on to the next area
+  std::string mapPath = "maps/petscop.map";
 
   petscop::GameMap map;
   petscop::ModelCache models;  // is saved between rooms
@@ -53,7 +55,12 @@ class RoomScene : public lve::LveScene {
   // Items, flags, and how each room was left. Delete the file to start over
   // One save per map, or the forest writes its rooms over the house's memories
   petscop::GameState state;
-  std::string savePath = "saves/forest.save";
+  std::string savePath = "saves/petscop.save";
+
+  // Which area the last run reached, kept beside the saves rather than inside one
+  // Delete saves/ and the game starts over in area one
+  std::string progressPath = "saves/progress.save";
+  int areaIndex = 0;
 
   // The character, put together the same way the skinned demo puts its man together
   // The component pointers are kept so update does not have to look them up
@@ -83,6 +90,9 @@ class RoomScene : public lve::LveScene {
 
   // A box with no collision sent to collision system
   struct Door {
+    // What the map calls it, matched against the area's way on
+    std::string name;
+
     glm::vec3 translation{0.f};
     glm::vec3 rotation{0.f};
     glm::vec3 scale{1.f};
@@ -119,11 +129,24 @@ class RoomScene : public lve::LveScene {
   int pendingRoom = -1;
   int pendingDoor = -1;
 
+  // Set instead of pendingRoom when the fade is carrying him to the next area
+  int pendingArea = -1;
+
   // Dialog box, and the thing that reads E and runs a prop's list of actions
   // Script and Actions are in petscop/interactions.hpp
   petscop::DialogBox dialog;
   petscop::InteractionRunner interactions;
   float clock = 0.f;
+
+  // ESC stops the walk, in petscop/pause_menu.hpp
+  petscop::PauseMenu menu;
+
+  // Shouts on the console when he moves in a way walking cannot explain
+  // In petscop/player_watch.hpp, and only there to chase the jolt in the forest
+  petscop::PlayerWatch watch;
+
+  // What shoved him hardest last settle, looked up off collisions.lastPusher
+  std::string pusherName() const;
 
   // Everything spooky the house does, in petscop/events.hpp
   petscop::EventDirector events;
@@ -153,6 +176,9 @@ class RoomScene : public lve::LveScene {
   // arriveDoor is which door of the new room he steps out of
   void enterRoom(int roomIndex, int arriveDoor = -1);
 
+  // Throws out the whole area and stands the next one up, map and save and all
+  void enterArea(int area);
+
   // The room the save left him in, or the map's own start, or wherever an event
   // would rather he woke up
   int startingRoom();
@@ -174,6 +200,9 @@ class RoomScene : public lve::LveScene {
   float hideThreshold = 0.25f;
 
   float groundY = 0.5f;  // the floor the map is built on
+
+  // Which way forward points in this room, before an event turns it round
+  float roomYaw = 0.f;
 
   // How much of a tree's width you can actually walk into, trunk against canopy
   float trunkFootprint = 0.32f;

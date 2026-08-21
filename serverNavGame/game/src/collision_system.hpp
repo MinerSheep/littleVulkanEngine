@@ -58,6 +58,11 @@ class CollisionSystem {
   // -Y is up in this engine
   glm::vec3 groundNormal{0.f, -1.f, 0.f};
 
+  // The hardest single shove the last settle had to make, and the box it came
+  // out of. Read by PlayerWatch, nothing steers off it
+  glm::vec3 lastPush{0.f};
+  const ColliderComponent* lastPusher = nullptr;
+
  private:
   struct Body {
     TransformComponent* xform = nullptr;

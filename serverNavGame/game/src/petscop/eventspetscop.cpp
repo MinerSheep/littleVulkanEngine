@@ -120,6 +120,31 @@ void EventDirector::reset() {
   echoAt = -1.f;
   waking = false;
   quiet = 0.f;
+
+  noBackdrop = false;
+  forestTick = 0.f;
+  arrivedFrom = -1;
+  manAt = -1.f;
+  followerUp = false;
+  toldAfraid = false;
+  toldOther = false;
+  driftAt = -1.f;
+  dollPressed = false;
+  dollTurn = 0.f;
+  pathClear = false;
+  lastRoom.clear();
+  wallUp = false;
+  crashing = false;
+  stareAt = -1.f;
+}
+
+// Which map is playing. The forest is area two, the house is everything else
+bool EventDirector::forest() const { return stage.map && stage.map->name == "forest"; }
+
+// One more run of the game, counted in the save the same way visits are
+void EventDirector::newRun() {
+  justLaunched = true;
+  if (stage.state) stage.state->addItem("@runs", 1);
 }
 
 // --- odds and ends ----------------------------------------------------------
@@ -278,6 +303,12 @@ void EventDirector::setLight(std::size_t index, float value) {
 const MapRoom& EventDirector::dress(const MapRoom& source, int index) {
   dressed = source;
 
+  if (forest()) {
+    dressForest(dressed);
+    built = &dressed;
+    return dressed;
+  }
+
   if (source.name == "Foyer") foyerPull(dressed);
   else if (source.name == "Hall_Main") hallStretch(dressed);
   else if (source.name == "Yard") yardEarth(dressed);
@@ -388,7 +419,7 @@ void EventDirector::shedSeam(MapRoom& room) {
 
 // --- the room is standing ---------------------------------------------------
 
-void EventDirector::onEnterRoom(int index) {
+void EventDirector::onEnterRoom(int index, int arriveDoor) {
   if (!stage.map || !stage.state) return;
   if (index < 0 || index >= static_cast<int>(stage.map->rooms.size())) return;
 
@@ -397,6 +428,8 @@ void EventDirector::onEnterRoom(int index) {
   else mash = 0;
 
   room = index;
+  arrivedFrom = arriveDoor;
+  lastRoom = roomName;
   roomName = stage.map->rooms[index].name;
   sinceEntry = 0.f;
   idle = 0.f;
@@ -438,6 +471,11 @@ void EventDirector::onEnterRoom(int index) {
       lve::LveAudio::instance().play("footsteps");
       fired();
     }
+  }
+
+  if (forest()) {
+    enterForest();
+    return;
   }
 
   if (roomName == "Foyer") foyerTree();
@@ -575,6 +613,11 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
   GLFWwindow* window = lve::LveEngine::instance().getGLFWWindow();
   for (int key : watchedKeys) holding = holding || glfwGetKey(window, key) == GLFW_PRESS;
 
+  // debug command to skip all progress steps
+  if (glfwGetKey(window, GLFW_KEY_F1) == GLFW_PRESS)
+    for(auto& quest : quests)
+      stage.state->setFlag(quest, true);
+
   wasMoving = moved;
   moved = false;
   if (stage.player) {
@@ -590,6 +633,11 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
   }
 
   blackout(dt);
+
+  if (forest()) {
+    updateForest(dt, playing, startedProp);
+    return;
+  }
 
   // Reads the rock and the gate out of the save, so it finishes from any room
   stoneAndGate();
@@ -1087,6 +1135,7 @@ bool EventDirector::cameraOverride(glm::vec3& eye, glm::vec3& look) const {
 // E39: late on he does not start up in the room the save left him in. It is
 // always the terrace, which is always further along than where he stopped
 int EventDirector::wakeRoom(int fallback) {
+  if (forest()) return forestWake(fallback);
   if (!stage.state || questsDone() < 3) return fallback;
 
   const int terrace = findRoom("Terrace");
@@ -1133,6 +1182,7 @@ bool EventDirector::hallGivesBack(int& toRoom, int& toDoor) {
 // him through the plug in the doorway
 bool EventDirector::reroute(int& toRoom, int& toDoor) {
   if (!stage.state) return true;
+  if (forest()) return forestReroute(toRoom, toDoor);
 
   if (roomName == "Terrace" && toRoom == findRoom("Building_Two") && questsLeft() > 0)
     return false;

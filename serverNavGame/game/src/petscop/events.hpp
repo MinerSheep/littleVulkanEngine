@@ -41,7 +41,8 @@ class EventDirector {
   const MapRoom& dress(const MapRoom& room, int index);
 
   // The room is standing and its props are back the way they were left
-  void onEnterRoom(int index);
+  // arriveDoor is the door he stepped out of, or -1 when he did not use one
+  void onEnterRoom(int index, int arriveDoor = -1);
 
   // startedProp is the prop a press just set going, or -1 for none
   void update(float dt, bool playing, int startedProp);
@@ -75,6 +76,30 @@ class EventDirector {
 
   // Which door of this room is plugged shut, or -1 for none
   int sealedDoor() const { return sealed; }
+
+  // F03: the bars behind the room stop being drawn at all
+  bool hidesBackground() const { return noBackdrop; }
+
+  // F08: he is grey, walks through everything and falls through nothing
+  bool untethered() const;
+
+  // F10: the room he woke up in has the controls the wrong way round
+  bool invertsControls() const;
+
+  // F12: the run ends here, and the save is to remember that it did
+  bool fakesCrash() const { return crashing; }
+
+  // F19: one button left in the menu, and it does not say exit
+  bool menuStripped() const;
+
+  // F13: the name in the corner, when an event answers to it instead of the room
+  bool titled(std::string& name) const;
+
+  // He opened the settings and came back out of them
+  void onSettingsClosed();
+
+  // One more run of the game, which the relaunch events count
+  void newRun();
 
  private:
   // --- how often the house is allowed to do something ---
@@ -164,6 +189,53 @@ class EventDirector {
   void turnToCamera(float dt);                   // E40
   void lateLights();                             // E41
 
+  // --- which map is playing -------------------------------------------------
+  //
+  // The house and the forest keep their events apart, and neither one ever sees
+  // the other's rooms
+  bool forest() const;
+
+  // Building two, in eventsforest.cpp
+  void dressForest(MapRoom& room);
+  void enterForest();
+  void updateForest(float dt, bool playing, int startedProp);
+
+  // Forest rooms changed before they are built
+  void forestInvert(MapRoom& room);   // F09
+  // F11 blocks a door rather than adding a real object, so it can clear mid room
+  void forestBridge(MapRoom& room);   // F18
+  void forestBlocked();               // F11
+  void forestSign(MapRoom& room);     // F04
+  void forestNote(MapRoom& room);     // F17
+  void forestLost(MapRoom& room);     // F06
+  void forestWatched(MapRoom& room);  // F12 stands the camera further back
+
+  // Forest events worked out again every frame
+  void forestMan(float dt);            // F02
+  void forestDark(float dt);           // F03
+  void forestFollower(float dt);       // F05
+  void forestAfraid();                 // F07
+  void forestDrift(float dt);          // F14
+  void forestDoll(float dt, int startedProp);  // F15
+  void forestMannequin();              // F16
+  void forestWall();                   // F08, the way back closes up
+  void forestGrey();                   // F08, the doorway that unbinds him
+  void forestMirror();                 // F12
+  void forestStare(float dt);          // F12 on the way back in
+  void forestFoyer();                  // F01
+  void forestPockets();                // F06
+
+  // Somebody stood in a room: a body, a head, and nothing else about him
+  void figure(const glm::vec3& at, float yaw);
+
+  // A room nothing on the map leads into still needs a way out of it
+  void forestDoorway(const std::string& door, const std::string& backRoom,
+                     const std::string& backDoor);
+
+  // F01 sends one door somewhere else, F10 starts him up somewhere he never was
+  bool forestReroute(int& toRoom, int& toDoor);
+  int forestWake(int fallback);
+
   Stage stage;
 
   int room = -1;
@@ -250,6 +322,54 @@ class EventDirector {
   bool tileRun = false;
   bool toldDoor = false;
   int sealed = -1;
+
+  // --- the forest -----------------------------------------------------------
+
+  // F03: nothing behind the room but black
+  bool noBackdrop = false;
+
+  // F02: how far the man is across the room, and the two ends of his walk
+  float manAt = -1.f;
+  glm::vec3 manFrom{0.f};
+  glm::vec3 manTo{0.f};
+
+  // F05: where the tree that walks after him has got to
+  glm::vec3 followerAt{0.f};
+  bool followerUp = false;
+
+  // F07: the blocked path and the other one have each spoken once
+  bool toldAfraid = false;
+  bool toldOther = false;
+
+  // F14: how long the camera has been sliding off him, and where it started
+  float driftAt = -1.f;
+  glm::vec3 driftTo{0.f};
+
+  // F15: the doll has been pressed, and how far round it has turned
+  bool dollPressed = false;
+  float dollTurn = 0.f;
+
+  // F11: eight seconds stood here and the path is open
+  bool pathClear = false;
+
+  // F04: what is left over from the forest's rough one-a-second clock
+  float forestTick = 0.f;
+
+  // Which door he stepped out of into this room, or -1
+  int arrivedFrom = -1;
+
+  // The room he was in before this one, which F06 leaves his things in
+  std::string lastRoom;
+
+  // F08: the door he came in by has closed up behind him
+  bool wallUp = false;
+
+  // F12: the game is about to go out, and how far into the face on the way back
+  bool crashing = false;
+  float stareAt = -1.f;
+
+  // This is the first room of the run, which the relaunch events wait for
+  bool justLaunched = false;
 
   std::mt19937 rng{std::random_device{}()};
 };

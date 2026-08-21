@@ -69,7 +69,8 @@ int main() {
         roomScene.loadModels();
         roomScene.setupLights();
 
-        auto currentTime = std::chrono::high_resolution_clock::now();
+        // A clock that only ever goes forwards, unlike the wall clock
+        auto currentTime = std::chrono::steady_clock::now();
 
         GLFWwindow* window = engine.getGLFWWindow();
         engine.activeScene = &roomScene;
@@ -121,13 +122,13 @@ int main() {
             }
 
             // Take the time after the block
-            auto newTime = std::chrono::high_resolution_clock::now();
-            // rawDt = true wall-clock frame time (used for the FPS meter).
+            auto newTime = std::chrono::steady_clock::now();
+            // rawDt = true frame time (used for the FPS meter).
             float rawDt = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
             currentTime = newTime;
-            // dt (clamped) is what the game/camera integrate against, so a slow
-            // frame can't produce a huge movement step.
-            float dt = glm::min(rawDt, MAX_FRAME_TIME);
+            // What the game walks, falls and counts down against
+            // Never negative, and never a whole stall in one step
+            float dt = glm::clamp(rawDt, 0.f, MAX_FRAME_TIME);
 
             // Report frames-per-second in the title bar once every second.
             fpsAccum += rawDt;

@@ -28,6 +28,12 @@ bool CollisionSystem::pushApart(TransformComponent& xform, ColliderComponent& co
   const glm::vec3 push = collider.worldBox().pushOut(solid.worldBox());
   if (push == glm::vec3(0.f)) return false;
 
+  // The hardest shove of the settle is kept so a watcher can name what did it
+  if (glm::dot(push, push) > glm::dot(lastPush, lastPush)) {
+    lastPush = push;
+    lastPusher = &solid;
+  }
+
   xform.translation += push;
 
   // The box has to follow the move right away, or the next test this pass reads
@@ -61,6 +67,8 @@ bool CollisionSystem::isSupported(const ColliderComponent& collider) const {
 
 void CollisionSystem::settle(TransformComponent& xform, ColliderComponent& collider,
                              RigidbodyComponent* body) {
+  lastPush = glm::vec3(0.f);
+  lastPusher = nullptr;
   if (!collider.enabled) return;
 
   for (int pass = 0; pass < passes; pass++) {

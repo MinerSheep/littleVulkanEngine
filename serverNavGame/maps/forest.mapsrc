@@ -119,12 +119,17 @@ room Gate_Clearing
   door east   east    1
   door north  north  -5
   prop tree  -6.400 0.500 -1.400   0.000 1.300 0.000   0.360 0.360 0.360
-  prop tree2 -4.932 0.500 -2.100   0.000 3.400 0.000   0.320 0.320 0.320
-  interact cube  -0.162 -0.550 0.090   0.000 1.538 0.000   2.532 2.332 1.352  name gate
+  prop tree2  -4.932 0.500 -2.100   0.000 3.400 0.000   0.320 0.320 0.320
+  interact gate  -0.273 -0.550 1.594   0.000 1.538 0.000   1.553 1.353 0.373  name gate
+    when noflag took_key
+    do say A GATE, AND NO FENCE ON EITHER SIDE OF IT.
+    do say IT WILL NOT MOVE.
+    when flag took_key
     do say A GATE, AND NO FENCE ON EITHER SIDE OF IT.
     do sound lever
     do rotate gate  0.000 74.026 0.000 over 0.600 toggle
     do say IT SWINGS. NOTHING ABOUT THE WALK CHANGES.
+  prop cube  -0.177 -0.805 -1.804   0.000 0.000 0.000   1.316 1.316 1.316
 
 
 
@@ -276,6 +281,11 @@ room Ring
   interact cylinder  0.00 0.44 0.00   0 0 0   0.18 0.10 0.18   name mushrooms
     do say MUSHROOMS, GROWN IN A RING.
     do say THE ONE IN THE MIDDLE IS THE ONE THAT SHOULD NOT BE THERE.
+
+  # F05: pressing E does nothing you can see, and it starts walking after you
+  interact tree  -4.80 0.50 4.20   0 0.9 0   0.34 0.34 0.34   name walker
+    do say IT IS A TREE.
+    do flag tree_walks
 
 
 # Trees grown in a shape, on the way round to the ring
@@ -476,6 +486,46 @@ room Stump_End
   prop tree2 -5.225 0.500 -1.929   0.000 0.000 0.000   0.360 0.360 0.360
   prop tree  -0.234 0.500 -2.287   0.000 0.000 0.000   0.336 0.336 0.336
 
+
+
+# F01: it says Foyer, and everything else about it is wrong. One way east out of
+# the trees comes out in here, and only the lever lets him out again
+room Foyer
+  size 12 8
+  height 3
+  showname
+  light 0.0 -2.2 0.0   0.30 0.27 0.24   6
+  door out  south  0
+  interact tree  3.400 0.500 -2.200   0.000 2.400 0.000   0.300 0.300 0.300  name tree
+    do say THE TREE IS ON THE WRONG SIDE OF THE ROOM.
+    do say NOBODY REMEMBERS MOVING IT.
+
+  # The slab across the way out, and the lever on the far side that lifts it
+  prop cube  0.000 -0.650 -4.000   0.000 0.000 0.000   0.900 1.150 0.250  name gate
+  interact cube  1.400 0.100 1.500   0.000 0.000 0.000   0.150 0.400 0.150  name lever
+    when noflag foyer_open
+    do say A LEVER, SET INTO THE FLOOR.
+    do sound lever
+    do rotate self  -32 0 0  over 0.25
+    do move gate  0 -2.600 0  over 1.10
+    do flag foyer_open
+    do say SOMETHING LIFTS BY THE SOUTH WALL.
+    when flag foyer_open
+    do say IT HAS BEEN PULLED.
+
+
+# F10: where a run starts when the game has stopped agreeing about where he is.
+# The controls are the wrong way round in here and nothing says so
+room NOT_HERE_NOT_ANYWHERE
+  size 9 9
+  height 3
+  showname
+  light 0.0 -2.4 0.0   0.20 0.20 0.26   6
+  door out  south  0
+  prop cube  0.000 -0.400 3.400   0.000 0.000 0.000   0.400 0.900 0.400
+  interact cylinder  0.000 0.300 0.000   0.000 0.000 0.000   0.700 0.300 0.700  name stump
+    do say THE STUMP FROM THE END OF THE PATH WEST.
+    do say IT IS NOT CUT FLAT ANY MORE.
 
 
 link Start.on             Clearing_Trees.back
