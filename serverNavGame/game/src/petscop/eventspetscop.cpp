@@ -1172,6 +1172,8 @@ bool EventDirector::cameraOverride(glm::vec3& eye, glm::vec3& look) const {
 // E39: late on he does not start up in the room the save left him in. It is
 // always the terrace, which is always further along than where he stopped
 int EventDirector::wakeRoom(int fallback) {
+  return fallback; // disabled
+
   if (forest()) return forestWake(fallback);
   if (!stage.state || questsDone() < 3) return fallback;
 

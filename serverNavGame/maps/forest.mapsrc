@@ -128,8 +128,8 @@ room Gate_Clearing
     do flag gate_opened
     when flag gate_opened
     do sound lever
-    do move gate  -0.072 0.231 3.126 over 1.100 toggle
-    do rotate gate  0.000 74.026 0.000 over 0.600 toggle
+    do move gate  -0.072 0.231 4.126 over 1.100 toggle
+    do rotate gate  0.000 87.026 0.000 over 0.600 toggle
     do say IT SWINGS. NOTHING ABOUT THE WALK CHANGES.
   prop cube  -0.177 -0.805 -1.804   0.000 0.000 0.000   1.316 1.316 1.316
 

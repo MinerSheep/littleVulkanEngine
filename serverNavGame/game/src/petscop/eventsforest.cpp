@@ -445,8 +445,11 @@ void EventDirector::forestMannequin() {
 
   // Modelled with Y up and stood with Y down, the same flip the player gets
   // Nose first, and a yaw of nothing leaves him looking at the wall
-  conjure("mannequin", glm::vec3(-2.2f, 0.5f - 0.683f, north),
-          glm::vec3(0.f, 0.f, glm::pi<float>()), glm::vec3(0.235f));
+  conjure(
+      "mannequin",
+      glm::vec3(-2.2f, 0.5f - 0.683f, north),
+      glm::vec3(glm::pi<float>(), 0.f, glm::pi<float>()),
+      glm::vec3(0.235f));
 }
 
 // F08: the doorway he came in by fills itself in once he is a few steps off it,
