@@ -18,6 +18,9 @@ struct Script {
   bool running = false;
   int prop = -1;
   std::size_t next = 0;
+
+  // A take that found nothing in his pockets, which ends the list there
+  bool stopped = false;
 };
 
 // Reads E, finds the nearest prop in reach, and runs its list of actions

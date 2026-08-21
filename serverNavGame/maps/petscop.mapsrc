@@ -25,7 +25,7 @@
 #   do show   <prop|self>
 #   do hide   <prop|self>
 #   do give   <item> [count]     put an item in your pocket
-#   do take   <item> [count]     take one back out
+#   do take   <item> [count]     take one back out, and stop the list if he has none
 #   do flag   <name>             remember that something happened
 #   do unflag <name>
 #
@@ -168,14 +168,15 @@ room Yard
   prop rock  -5.000 0.279 2.000   0 1.900 0   0.350 0.350 0.350
 
   interact cube  -6.000 0.470 2.000   0 0 0   0.600 0.030 0.600   name dig_patch
-    when noitem spade
+    when flag quest_dig
+    do say THE EARTH IS OPEN. WHATEVER WAS UNDER IT IS IN YOUR POCKET.
+    when noflag quest_dig
     do say THE EARTH HERE HAS BEEN TURNED BEFORE.|NOT BY HAND.
-    when item spade
+    do take spade 1
     do say THE EARTH TURNS EASILY HERE.|SOMETHING IS UNDER IT.
     do sound stone
-    do give piece
+    do give piece 1
     do flag quest_dig
-    do take spade
 
 
 # A washroom off the main hall
@@ -187,9 +188,9 @@ room Bathroom
 
   # Hung too high on the far wall. The cue from the billiard room is what reaches it
   interact cube  0.000 -1.550 2.700   0 0 0   0.900 0.650 0.030   name mirror
-    when noitem cue
+    when noflag quest_mirror
     do say A MIRROR, HUNG TOO HIGH TO SEE YOURSELF IN.|IT DOES NOT SIT FLAT.
-    when item cue
+    do take cue 1
     do say YOU LEVER THE CUE IN BEHIND THE MIRROR.|IT COMES OFF THE WALL.
     do sound stone
     do hide mirror
@@ -210,8 +211,9 @@ room Billiard_Room
   interact cylinder  -3.400 -0.400 4.000   0 0 0.250   0.080 1.200 0.080   name cue
     when noitem cue
     do say A CUE, STOOD AGAINST THE WALL.|IT IS LONGER THAN YOUR ARM.
-    do give cue
+    do hide self
     do flag took_cue
+    do give cue
     when item cue
     do say THERE IS NOWHERE TO STAND IT BACK.
 
@@ -271,8 +273,9 @@ room Shed
   interact blade1  -3.000 -0.100 -1.000   0 0 0   0.500 0.500 0.500   name spade
     when noitem spade
     do say A SPADE, LEANING WHERE A TOOL SHOULD HANG.
-    do give spade
+    do hide self
     do flag took_spade
+    do give spade
     when item spade
     do say THE HOOK IT CAME OFF IS EMPTY.
 

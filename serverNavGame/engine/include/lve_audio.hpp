@@ -28,6 +28,9 @@ class LveAudio {
 
   void stopAll();
 
+  // TEMP diagnostic: prints where the mixer and one clip's voices have got to
+  void traceClip(const std::string& name) const;
+
   void setMasterVolume(float volume);
   float getMasterVolume() const;
 

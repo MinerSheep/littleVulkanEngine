@@ -38,9 +38,20 @@ bool InteractionRunner::applyAction(const MapAction& action, int owner, bool bac
   }
 
   // POCKET
-  if (action.kind == ActionKind::Give || action.kind == ActionKind::Take) {
-    const int move = action.kind == ActionKind::Give ? action.count : -action.count;
-    if (state) state->addItem(action.text, move);
+  if (action.kind == ActionKind::Give) {
+    if (state) state->addItem(action.text, action.count);
+    return false;
+  }
+
+  // A take is the lock as well as the key: nothing in his pockets to hand over
+  // and the rest of the list never happens
+  if (action.kind == ActionKind::Take) {
+    if (!state) return false;
+    if (state->itemCount(action.text) < action.count) {
+      script.stopped = true;
+      return false;
+    }
+    state->addItem(action.text, -action.count);
     return false;
   }
 
@@ -124,6 +135,7 @@ void InteractionRunner::runScript() {
     }
 
     if (applyAction(action, script.prop, backwards)) return;
+    if (script.stopped) break;
   }
 
   script = Script{};

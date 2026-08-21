@@ -207,14 +207,15 @@ obj 3  2.000 0.279 -4.500  0.000 2.400 0.000  0.400 0.400 0.400
 obj 3  -7.000 0.279 2.000  0.000 0.500 0.000  0.350 0.350 0.350
 obj 3  -5.000 0.279 2.000  0.000 1.900 0.000  0.350 0.350 0.350
 interact 0  -6.000 0.470 2.000  0.000 0.000 0.000  0.600 0.030 0.600  name dig_patch
-when noitem spade
+when flag quest_dig
+do say THE EARTH IS OPEN. WHATEVER WAS UNDER IT IS IN YOUR POCKET.
+when noflag quest_dig
 do say THE EARTH HERE HAS BEEN TURNED BEFORE.|NOT BY HAND.
-when item spade
+do take spade 1
 do say THE EARTH TURNS EASILY HERE.|SOMETHING IS UNDER IT.
 do sound stone
 do give piece 1
 do flag quest_dig
-do take spade 1
 door back  11.000 -0.600 6.000  0.000 0.000 0.000  0.800 1.100 0.500  to 4 0  spawn 11.000 0.500 4.500 3.142
 endroom
 
@@ -230,9 +231,9 @@ wall 0  0.000 -2.100 -3.000  0.000 0.000 0.000  0.800 0.400 0.250  face -0.000 -
 wall 0  4.000 -1.000 0.000  0.000 0.000 0.000  0.250 1.500 3.000  face 1.000 -0.000 -0.000
 wall 0  -4.000 -1.000 0.000  0.000 0.000 0.000  0.250 1.500 3.000  face -1.000 -0.000 -0.000
 interact 0  0.000 -1.550 2.700  0.000 0.000 0.000  0.900 0.650 0.030  name mirror
-when noitem cue
+when noflag quest_mirror
 do say A MIRROR, HUNG TOO HIGH TO SEE YOURSELF IN.|IT DOES NOT SIT FLAT.
-when item cue
+do take cue 1
 do say YOU LEVER THE CUE IN BEHIND THE MIRROR.|IT COMES OFF THE WALL.
 do sound stone
 do hide mirror
@@ -256,8 +257,9 @@ obj 0  0.000 0.100 1.000  0.000 0.000 0.000  3.000 0.400 1.400  name table
 interact 5  -3.400 -0.400 4.000  0.000 0.000 0.250  0.080 1.200 0.080  name cue
 when noitem cue
 do say A CUE, STOOD AGAINST THE WALL.|IT IS LONGER THAN YOUR ARM.
-do give cue 1
+do hide self
 do flag took_cue
+do give cue 1
 when item cue
 do say THERE IS NOWHERE TO STAND IT BACK.
 door out  0.000 -0.600 -6.500  0.000 0.000 0.000  0.800 1.100 0.500  to 3 4  spawn 0.000 0.500 -5.000 0.000
@@ -394,8 +396,9 @@ wall 0  -3.500 -0.800 0.000  0.000 0.000 0.000  0.250 1.300 3.500  face -1.000 -
 interact 6  -3.000 -0.100 -1.000  0.000 0.000 0.000  0.500 0.500 0.500  name spade
 when noitem spade
 do say A SPADE, LEANING WHERE A TOOL SHOULD HANG.
-do give spade 1
+do hide self
 do flag took_spade
+do give spade 1
 when item spade
 do say THE HOOK IT CAME OFF IS EMPTY.
 interact 0  0.000 -0.700 3.200  0.000 0.000 0.000  1.200 0.700 0.030  name board

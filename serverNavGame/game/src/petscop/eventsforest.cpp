@@ -172,10 +172,10 @@ void EventDirector::enterForest() {
   // The way back is open again, until this room shuts it
   wallUp = false;
 
-  // F07: a door has to be walked away from before it will speak
-  // He comes out standing next to one, and that is not walking up to it
-  toldAfraid = true;
-  toldOther = true;
+  // F07: both prompts are ready again every time he walks in
+  // The one door that stays quiet is the one he stepped out of
+  if (toldAfraid)
+    stage.state->setFlag("forest_afraid", true);
 
   // F12: the run after the game went out opens on his face, and only that once
   if (justLaunched) {
@@ -335,6 +335,7 @@ void EventDirector::forestFollower(float dt) {
 void EventDirector::forestAfraid() {
   if (!stage.player || !built || !stage.dialog) return;
   if (!stage.state || stage.state->itemCount("@runs") < 2) return;
+  if (stage.state->hasFlag("forest_afraid")) return;
 
   const int shut = findDoor(room, "east");
   const int other = findDoor(room, "back");
@@ -354,17 +355,13 @@ void EventDirector::forestAfraid() {
       toldAfraid = true;
       stage.dialog->open("YOU ARE AFRAID TO GO THIS WAY.");
     }
-  } else if (toShut > 3.4f) {
-    toldAfraid = false;
   }
 
   if (toOther < 2.2f) {
-    if (!toldOther) {
-      toldOther = true;
+    if (toldAfraid) {
       stage.dialog->open("YOU WOULD RATHER GO THE OTHER WAY.");
+      stage.state->setFlag("forest_afraid", true);
     }
-  } else if (toOther > 3.4f) {
-    toldOther = false;
   }
 }
 

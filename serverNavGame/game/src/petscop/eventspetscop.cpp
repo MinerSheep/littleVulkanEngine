@@ -127,7 +127,6 @@ void EventDirector::reset() {
   manAt = -1.f;
   followerUp = false;
   toldAfraid = false;
-  toldOther = false;
   driftAt = -1.f;
   dollPressed = false;
   dollTurn = 0.f;
@@ -417,6 +416,42 @@ void EventDirector::shedSeam(MapRoom& room) {
             under ? "THE CLOSET IS UNDER HERE." : "", false);
 }
 
+// The things you only ever pick up once, and the flag that spends them for good
+// A quest that is still open hands one back if it goes missing before it is used
+namespace {
+
+struct Pickup {
+  const char* room;
+  const char* prop;
+  const char* item;
+  const char* spent;
+};
+
+const Pickup pickups[] = {
+    {"Billiard_Room", "cue", "cue", "quest_mirror"},
+    {"Shed", "spade", "spade", "quest_dig"},
+    {"Tent_Camp", "key", "key", "gate_opened"},
+};
+
+}  // namespace
+
+// Whether a pickup is lying in the room, worked out again every time he walks in
+// In his pocket or already spent means it stays gone, lost means it is back
+void EventDirector::standPickups() {
+  if (!stage.state) return;
+
+  for (const Pickup& pick : pickups) {
+    if (roomName != pick.room) continue;
+
+    Prop* lying = prop(pick.prop);
+    if (!lying) continue;
+
+    const bool gone = stage.state->hasItem(pick.item) || stage.state->hasFlag(pick.spent);
+    lying->disappeared = gone;
+    lying->collider.enabled = !gone && lying->solid;
+  }
+}
+
 // --- the room is standing ---------------------------------------------------
 
 void EventDirector::onEnterRoom(int index, int arriveDoor) {
@@ -472,6 +507,8 @@ void EventDirector::onEnterRoom(int index, int arriveDoor) {
       fired();
     }
   }
+
+  standPickups();
 
   if (forest()) {
     enterForest();

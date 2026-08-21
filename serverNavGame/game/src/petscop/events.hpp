@@ -136,6 +136,9 @@ class EventDirector {
   // The live prop by that name, or null
   Prop* prop(const std::string& name);
 
+  // Puts a pickup back on the ground when he has lost it and still needs it
+  void standPickups();
+
   // Stands a prop that only exists to be looked at
   void conjure(const std::string& mesh, const glm::vec3& t, const glm::vec3& r,
                const glm::vec3& s);
@@ -339,7 +342,6 @@ class EventDirector {
 
   // F07: the blocked path and the other one have each spoken once
   bool toldAfraid = false;
-  bool toldOther = false;
 
   // F14: how long the camera has been sliding off him, and where it started
   float driftAt = -1.f;

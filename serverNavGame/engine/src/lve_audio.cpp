@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cstddef>
 #include <iostream>
 #include <unordered_map>
@@ -220,6 +221,30 @@ void LveAudio::stopAll() {
   for (auto& entry : impl->clips) {
     for (std::unique_ptr<ma_sound>& voice : entry.second.voices) ma_sound_stop(voice.get());
   }
+}
+
+// TEMP diagnostic: one line a frame, mixer clock against the wall clock
+void LveAudio::traceClip(const std::string& name) const {
+  if (!impl->started) return;
+
+  std::unordered_map<std::string, Impl::Clip>::const_iterator found = impl->clips.find(name);
+  if (found == impl->clips.end()) return;
+
+  static const std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
+  const double wall =
+      std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+  const double rate = static_cast<double>(ma_engine_get_sample_rate(&impl->engine));
+  const double mixer = 1000.0 * ma_engine_get_time_in_pcm_frames(&impl->engine) / rate;
+
+  std::cout << "[audiotrace] wall " << static_cast<long>(wall) << " mixer "
+            << static_cast<long>(mixer) << " lag " << static_cast<long>(wall - mixer);
+  for (std::size_t i = 0; i < found->second.voices.size(); i++) {
+    ma_uint64 cursor = 0;
+    ma_sound_get_cursor_in_pcm_frames(found->second.voices[i].get(), &cursor);
+    std::cout << "  v" << i << " " << static_cast<long>(1000.0 * cursor / rate)
+              << (ma_sound_is_playing(found->second.voices[i].get()) ? "*" : " ");
+  }
+  std::cout << std::endl;
 }
 
 void LveAudio::setMasterVolume(float volume) {
