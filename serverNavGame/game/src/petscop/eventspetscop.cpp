@@ -100,6 +100,11 @@ void EventDirector::bind(const Stage& newStage) {
 
 void EventDirector::reset() {
   spawned.clear();
+
+  // The meshes stay loaded, only the standing about is dropped
+  for (std::unique_ptr<Figure>& who : people) who->hide();
+  peopleUsed = 0;
+
   stops.clear();
   room = -1;
   roomName.clear();
@@ -126,6 +131,8 @@ void EventDirector::reset() {
   arrivedFrom = -1;
   manAt = -1.f;
   followerUp = false;
+  followerRoom.clear();
+  mirrorSeen = false;
   toldAfraid = false;
   driftAt = -1.f;
   dollPressed = false;
@@ -636,6 +643,15 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
   // Everything an event overrides is worked out again from nothing each frame,
   // so an event that stops running leaves nothing behind to undo
   spawned.clear();
+
+  // Last frame's stride runs on, then everybody waits to be stood somewhere new
+  // The forest leaves update early, which is why this is not at the bottom
+  for (std::unique_ptr<Figure>& who : people) {
+    who->tick(dt);
+    who->hide();
+  }
+  peopleUsed = 0;
+
   gain = 1.f;
   gains.clear();
   bgScale = 1.f;
@@ -1172,6 +1188,11 @@ bool EventDirector::cameraOverride(glm::vec3& eye, glm::vec3& look) const {
 // E39: late on he does not start up in the room the save left him in. It is
 // always the terrace, which is always further along than where he stopped
 int EventDirector::wakeRoom(int fallback) {
+  if (forest() && stage.state && stage.state->hasFlag("crash_seen")) {
+    const int foyer = findRoom("Foyer");
+    if (foyer >= 0) return foyer;
+  }
+
   return fallback; // disabled
 
   if (forest()) return forestWake(fallback);

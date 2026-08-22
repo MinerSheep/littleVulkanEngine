@@ -621,6 +621,9 @@ void RoomScene::update(float dt) {
   skinnedRenderItems.clear();
   collectSkinned(player, skinnedRenderItems);
 
+  // Anybody an event stood in the room this frame, drawn the way the player is
+  events.collectFigures(skinnedRenderItems);
+
   updateWallVisibility();
 
   renderItems.clear();

@@ -1,10 +1,12 @@
 #pragma once
 
+#include "petscop/figure.hpp"
 #include "petscop/prop.hpp"
 
 #include <glm/glm.hpp>
 
 #include <cstddef>
+#include <memory>
 #include <random>
 #include <string>
 #include <vector>
@@ -70,6 +72,11 @@ class EventDirector {
 
   // Props an event conjured, drawn by the scene and nothing else
   const std::vector<Prop>& extras() const { return spawned; }
+
+  // Anybody an event stood in the room, drawn the way the player is
+  void collectFigures(std::vector<lve::SkinnedRenderItem>& items) {
+    for (std::unique_ptr<Figure>& who : people) who->collect(items);
+  }
 
   // A room an event wants you moved to, handed over once
   bool takeWarp(int& room, int& door);
@@ -229,7 +236,8 @@ class EventDirector {
   void forestPockets();                // F06
 
   // Somebody stood in a room: a body, a head, and nothing else about him
-  void figure(const glm::vec3& at, float yaw);
+  // Stands somebody in the room for this frame, mid stride or on his feet
+  void figure(const glm::vec3& at, float yaw, bool walking = false);
 
   // A room nothing on the map leads into still needs a way out of it
   void forestDoorway(const std::string& door, const std::string& backRoom,
@@ -273,6 +281,11 @@ class EventDirector {
   glm::vec4 tint{1.f};
 
   std::vector<Prop> spawned;
+
+  // Everybody the haunting can stand in a room, grown as events ask for them
+  // Held by pointer, a growing list must not move somebody mid frame
+  std::vector<std::unique_ptr<Figure>> people;
+  std::size_t peopleUsed = 0;
 
   int warpRoom = -1;
   int warpDoor = -1;
@@ -336,9 +349,15 @@ class EventDirector {
   glm::vec3 manFrom{0.f};
   glm::vec3 manTo{0.f};
 
-  // F05: where the tree that walks after him has got to
+  // F05: where the tree that walks after him has got to, and the one room it
+  // is ever in
   glm::vec3 followerAt{0.f};
+  std::string followerRoom;
   bool followerUp = false;
+
+  // F12: where the mirror stood last frame, which is how his walk is read
+  glm::vec3 mirrorLast{0.f};
+  bool mirrorSeen = false;
 
   // F07: the blocked path and the other one have each spoken once
   bool toldAfraid = false;

@@ -22,9 +22,8 @@ namespace petscop {
 
 namespace {
 
-// How long the man takes to cross a room, and how tall he stands
+// How long the man takes to cross a room
 const float manWalk = 3.2f;
-const float manTall = 0.85f;
 
 // How long the tree that follows takes to close the gap, in units a second
 const float followerSpeed = 0.55f;
@@ -56,12 +55,11 @@ float apart(const glm::vec3& a, const glm::vec3& b) {
 
 }  // namespace
 
-// Somebody stood in the room. Nobody down here is ever more than a shape
-void EventDirector::figure(const glm::vec3& at, float yaw) {
-  conjure("cube", glm::vec3(at.x, at.y - manTall * 0.5f, at.z), glm::vec3(0.f, yaw, 0.f),
-          glm::vec3(0.16f, manTall * 0.5f, 0.13f));
-  conjure("cube", glm::vec3(at.x, at.y - manTall - 0.12f, at.z), glm::vec3(0.f, yaw, 0.f),
-          glm::vec3(0.11f, 0.12f, 0.10f));
+// Somebody stood in the room, wearing the player's model and walking his walk
+void EventDirector::figure(const glm::vec3& at, float yaw, bool walking) {
+  // One more body than the room has ever needed at once, made the first time
+  if (peopleUsed >= people.size()) people.push_back(std::unique_ptr<Figure>(new Figure()));
+  people[peopleUsed++]->place(at, yaw, walking);
 }
 
 // --- the room about to be built ---------------------------------------------
@@ -172,6 +170,9 @@ void EventDirector::enterForest() {
   // The way back is open again, until this room shuts it
   wallUp = false;
 
+  // F12: the mirror has not stood anywhere in this room yet
+  mirrorSeen = false;
+
   // F07: both prompts are ready again every time he walks in
   // The one door that stays quiet is the one he stepped out of
   if (toldAfraid)
@@ -180,7 +181,11 @@ void EventDirector::enterForest() {
   // F12: the run after the game went out opens on his face, and only that once
   if (justLaunched) {
     justLaunched = false;
-    if (stage.state && stage.state->hasFlag("crash_seen")) stareAt = 0.f;
+    if (stage.state && stage.state->hasFlag("crash_seen")) {
+      stareAt = 0.f;
+      if (stage.player && built && roomName == "Foyer")
+        stage.player->translation = glm::vec3(-built->size.x * 0.35f, 0.5f, 0.f);
+    }
   }
 
   // F06: the forest goes through his pockets on the way in
@@ -197,17 +202,26 @@ void EventDirector::enterForest() {
   if (roomName == "Deep_Trees" && roomVisits >= 2 && canFire()) {
     std::uniform_int_distribution<int> odds(0, 2);
     if (odds(rng) == 0 && built && !built->doors.empty()) {
+      int way = -1;
+      for (std::size_t i = 0; i < built->doors.size(); i++) {
+        if (static_cast<int>(i) != arrivedFrom) {
+          way = static_cast<int>(i);
+          break;
+        }
+      }
+      if (way < 0) way = 0;
+
       manAt = 0.f;
-      manFrom = glm::vec3(built->size.x * 0.42f, 0.5f, -built->size.z * 0.30f);
-      manTo = built->doors[0].translation;
+      manTo = built->doors[way].translation;
       manTo.y = 0.5f;
+      manFrom = glm::vec3(-manTo.x * 0.6f, 0.5f, -manTo.z * 0.6f);
       fired();
     }
   }
 
-  // F05: the tree comes into the room after him, wherever he went
-  if (followerUp && built) {
-    followerAt = glm::vec3(0.f, 0.5f, built->size.z * 0.5f);
+  // F05: the tree is stood in the middle of its own room, and is not in any other
+  if (followerUp && roomName == followerRoom) {
+    followerAt = glm::vec3(0.f, 0.5f, 0.f);
   }
 }
 
@@ -284,7 +298,9 @@ void EventDirector::forestMan(float dt) {
   // Nearly dark, and darker still the closer he gets to the way out
   gain = 0.22f * (1.f - along * 0.7f);
 
-  figure(at, 0.4f);
+  // Nose pointed down the walk, at the door he is leaving by
+  const glm::vec3 way = manTo - manFrom;
+  figure(at, std::atan2(way.x, way.z), true);
 }
 
 // F03: once the man has been seen the hollow stops being lit by anything but
@@ -319,8 +335,12 @@ void EventDirector::forestFollower(float dt) {
   if (!followerUp) {
     if (roomName != "Ring" || !stage.state->hasFlag("tree_walks")) return;
     followerUp = true;
+    followerRoom = roomName;
     followerAt = stage.player->translation + glm::vec3(0.f, 0.f, 5.f);
   }
+
+  // It is only ever in the room it started walking in
+  if (roomName != followerRoom) return;
 
   // Always coming, never arriving
   const glm::vec3 gap = stage.player->translation - followerAt;
@@ -501,7 +521,19 @@ void EventDirector::forestMirror() {
   if (stage.state->hasFlag("met_mirror")) return;
 
   const glm::vec3 here = stage.player->translation;
-  figure(glm::vec3(-here.x, 0.5f, here.z), glm::pi<float>());
+  const glm::vec3 mirror(-here.x, 0.5f, here.z);
+
+  // His walk is the player's read backwards, so it is measured off his own feet
+  const glm::vec3 step = mirror - mirrorLast;
+  const float went = glm::length(glm::vec2(step.x, step.z));
+  const bool walking = mirrorSeen && went > 0.002f;
+
+  // Facing his own way when he moves, and back at the player when he stops
+  const float yaw = walking ? std::atan2(step.x, step.z) : glm::pi<float>();
+  mirrorLast = mirror;
+  mirrorSeen = true;
+
+  figure(mirror, yaw, walking);
 
   if (std::fabs(here.x) > 0.45f) return;
 
@@ -525,7 +557,7 @@ void EventDirector::forestStare(float dt) {
   frozen = true;
 
   const glm::vec3 at(0.f, 0.5f, 0.f);
-  const glm::vec3 head(at.x, at.y - manTall - 0.12f, at.z);
+  const glm::vec3 head(at.x, at.y - Figure::kEyeLift, at.z);
 
   hasCam = true;
   camLook = head;
