@@ -12,6 +12,10 @@
 # Things you can stand in a room:
 #   prop     <mesh>  tx ty tz  rx ry rz  sx sy sz  name <id>
 #   interact <mesh>  tx ty tz  rx ry rz  sx sy sz  [name <id>]
+#   fence    [<mesh>] [spacing <s>] [scale <k>]
+#
+# A fence rings the room, standing sections end to end and skipping the doorways.
+# It suits an open room, where there are no walls to hold the edge in.
 #
 # An interact is a prop you can press E on. What that does is the 'do' lines
 # under it, which run top to bottom. A 'do say' waits for you to read it, the
@@ -155,6 +159,7 @@ room Yard
   light -8.0 -2.6  0.0   0.55 0.65 0.85   14
   light  8.0 -2.6  0.0   0.50 0.60 0.80   14
   door back north 11
+  fence
   props rooms/yard_grass.layout pass
 
   prop tree  -11.000 0.500  2.500   0 0.400 0   0.400 0.400 0.400
