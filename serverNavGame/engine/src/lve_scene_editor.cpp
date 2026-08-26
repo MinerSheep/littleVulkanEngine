@@ -42,7 +42,8 @@ void LveSceneEditor::loadModels() {
   presets.push_back({"tree", LveModel::createModelFromFile("models/tree.obj")});
   presets.push_back({"rock", LveModel::createModelFromFile("models/rock.obj")});
 
-
+  presets.push_back({"piano", LveModel::createModelFromFile("models/piano.obj")});
+  presets.push_back({"fence", LveModel::createModelFromFile("models/fence.obj")});
 
   groundModel = LveModel::createModelFromFile("models/quad.obj");  // scaled-out floor
   markerModel = LveModel::createModelFromFile("models/cube.obj");  // selection marker
