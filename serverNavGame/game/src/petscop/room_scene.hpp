@@ -14,6 +14,7 @@
 
 #include "petscop/map_loader.hpp"
 #include "petscop/model_cache.hpp"
+#include "petscop/texture_cache.hpp"
 
 #include "petscop/dialog_box.hpp"
 #include "petscop/events.hpp"
@@ -45,8 +46,14 @@ class RoomScene : public lve::LveScene {
   std::string mapPath = "maps/petscop.map";
 
   petscop::GameMap map;
-  petscop::ModelCache models;  // is saved between rooms
+  petscop::ModelCache models;      // is saved between rooms
+  petscop::TextureCache textures;  // and so are the pictures
   int currentRoom = -1;
+
+  // How far one width of a picture reaches, across a floor and up a wall
+  // Nothing wears a wall picture today, walltex in the mapsrc is what turns one on
+  float floorTileMetres = 3.f;
+  float wallTileMetres = 1.8f;
 
   // The room as it was actually built, which an event may have changed
   // Points either into map.rooms or at the director's own copy

@@ -71,6 +71,10 @@ struct MapObject {
   // Scenery like grass has no box, you walk straight through it
   bool solid = true;
 
+  // A picture painted over it, from textures/<name>.tex, or empty for plain colour
+  // Only floors ask for one today
+  std::string texture;
+
   std::string name;
   std::vector<MapAction> actions;
 };

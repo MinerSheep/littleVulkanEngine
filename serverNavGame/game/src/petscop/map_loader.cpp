@@ -182,6 +182,8 @@ bool loadMap(const std::string& path, GameMap& out, std::string& error) {
           if (!(ss >> object.name)) return fail("name needs a word after it");
         } else if (keyword == "pass") {
           object.solid = false;
+        } else if (keyword == "tex") {
+          if (!(ss >> object.texture)) return fail("tex needs the name of a picture after it");
         } else if (keyword == "say") {
           MapAction action;
           action.kind = ActionKind::Say;

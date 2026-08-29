@@ -64,6 +64,20 @@
 #
 #   open              outdoors -- keeps the frame around each doorway and nothing else
 #   wallheight <h>    walls shorter than the room, like a terrace you see over
+#
+# And two paint pictures on it:
+#
+#   floortex <name>   paints textures/<name>.tex across the floor, laid out by world
+#                     size so a wide room shows more boards rather than longer ones
+#   walltex  <name>   the same over every wall the room stands, climbing from the
+#                     floor. Nothing uses this yet -- the walls are all bare
+#
+# A papered wall still goes see-through when it stands between you and the room.
+# Dark boards on a wall eat most of the light though, so a room that gets one will
+# want its lights raising.
+#
+# The game reads the .tex and never the PNG. Make one with:
+#   python3 tools/png2tex.py textures/wood_flooring.png
 
 map petscop
 start Foyer
@@ -73,6 +87,7 @@ start Foyer
 room Foyer
   size 12 8
   height 3
+  floortex wood_flooring
   light  0.0 -2.2  0.0   1.00 0.95 0.85   9
   light -4.0 -1.6  2.0   0.35 0.45 0.80   5
   door hallway  north   0
@@ -100,6 +115,7 @@ room Foyer
 room Hall
   size 6 14
   height 3
+  floortex wood_flooring
   light 0.0 -2.4 -4.0   1.00 0.90 0.75   8
   light 0.0 -2.4  4.0   0.80 0.85 1.00   8
   door back    south   0
@@ -110,6 +126,7 @@ room Hall
 room Closet
   size 6 6
   height 2.6
+  floortex wood_flooring
   light 0.0 -1.8 0.0   1.00 0.60 0.30   7
   door out  west  0
   # No toggle on the turn, so every press moves it another quarter turn on
@@ -129,6 +146,7 @@ room Closet
 room Hall_Main
   size 32 6
   height 3
+  floortex wood_flooring
   light -12.0 -2.4 0.0   1.00 0.90 0.75   9
   light   0.0 -2.4 0.0   0.95 0.90 0.80   9
   light  11.0 -2.4 0.0   0.80 0.85 1.00   9
@@ -144,6 +162,7 @@ room Hall_Main
 room Hall_West
   size 6 12
   height 3
+  floortex wood_flooring
   light 0.0 -2.4 -3.0   1.00 0.90 0.75   8
   light 0.0 -2.4  3.0   0.90 0.90 0.85   8
   door yard   south  0
@@ -206,6 +225,7 @@ room Bathroom
 room Billiard_Room
   size 8 13
   height 3
+  floortex wood_flooring
   light 0.0 -2.3 -3.0   1.00 0.85 0.60   8
   light 0.0 -2.3  3.0   1.00 0.85 0.60   8
   door out south 0
@@ -241,6 +261,7 @@ room Ballroom
 room Greenhouse
   size 12 6
   height 3
+  floortex wood_flooring
   light -3.0 -2.4 0.0   0.75 1.00 0.80   8
   light  3.0 -2.4 0.0   0.75 1.00 0.80   8
   door inside south 0
@@ -272,6 +293,7 @@ room Field
 room Shed
   size 7 7
   height 2.6
+  floortex wood_flooring
   light 0.0 -1.8 0.0   1.00 0.70 0.40   6
   door out east 0
 
@@ -313,6 +335,7 @@ room Terrace
 room Building_Two
   size 9 5
   height 3
+  floortex wood_flooring
   light 0.0 -2.2 0.0   0.90 0.85 0.95   7
   door outside south 0
   door inside  north 0

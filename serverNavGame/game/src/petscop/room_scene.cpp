@@ -178,6 +178,18 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
     prop.face = object.face;
     prop.solid = object.solid;
 
+    // A picture over it, laid out by world position rather than by the mesh, so
+    // a wide room shows more of the boards instead of longer ones
+    // A wall wears them smaller than a floor does, panelling rather than planks
+    if (!object.texture.empty()) {
+      prop.texture = textures.get(object.texture);
+      if (prop.texture) {
+        const bool wall = object.face != glm::vec3(0.f);
+        const float metres = wall ? wallTileMetres : floorTileMetres;
+        prop.uvScale = glm::vec2(1.f, prop.texture->aspect()) / metres;
+      }
+    }
+
     // Objects expanded to have actions
     // Therefore we now hold default states
     prop.restTranslation = object.translation;
@@ -637,7 +649,8 @@ void RoomScene::update(float dt) {
 
     const glm::mat4 mat = prop.matrix();
     const glm::mat4 normal = glm::mat4(glm::transpose(glm::inverse(glm::mat3(mat))));
-    renderItems.push_back({mat, normal, prop.model, prop.visibility});
+    renderItems.push_back(
+        {mat, normal, prop.model, prop.visibility, prop.texture, prop.uvScale, groundY});
   }
 
   // Anything an event conjured. These have no box and nothing walks into them

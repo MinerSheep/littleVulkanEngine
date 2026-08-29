@@ -9,6 +9,10 @@
 #include <string>
 #include <vector>
 
+namespace lve {
+class LveTexture;
+}
+
 namespace petscop {
 
 // Translate, rotate then scale, the order the editor saves in
@@ -45,6 +49,12 @@ struct Prop {
 
   // Grass and the like never get a box, you walk straight through them
   bool solid = true;
+
+  // The picture painted over it, or null for the mesh's own colour
+  lve::LveTexture* texture = nullptr;
+
+  // How many times that picture repeats over a metre of floor
+  glm::vec2 uvScale{0.5f};
 
   // 0 hides it, 1 draws it
   float visibility = 1.f;
