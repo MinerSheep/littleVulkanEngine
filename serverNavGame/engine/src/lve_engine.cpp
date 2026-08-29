@@ -77,10 +77,24 @@ void LveEngine::init() {
           .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, maxBoneSets)
           .build();
 
+  // --- Texture (set = 1) infrastructure -------------------------------------
+  // One combined image sampler per picture, which the floor pipeline binds
+  textureSetLayout =
+      LveDescriptorSetLayout::Builder(lveDevice)
+          .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+          .build();
+
+  texturePool =
+      LveDescriptorPool::Builder(lveDevice)
+          .setMaxSets(MAX_TEXTURES)
+          .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_TEXTURES)
+          .build();
+
   simpleRenderSystem = std::make_unique<SimpleRenderSystem>(
       lveDevice,
       lveRenderer.getSwapChainRenderPass(),
-      globalSetLayout->getDescriptorSetLayout());
+      globalSetLayout->getDescriptorSetLayout(),
+      textureSetLayout->getDescriptorSetLayout());
 
   pointLightSystem = std::make_unique<PointLightSystem>(
       lveDevice,

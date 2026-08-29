@@ -1,5 +1,7 @@
 #include "systems/simple_render_system.hpp"
 
+#include "lve_texture.hpp"
+
 // libs
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -36,9 +38,12 @@ struct UIPushConstantData {
   float alpha;
 };
 
-SimpleRenderSystem::SimpleRenderSystem(LveDevice& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout)
+SimpleRenderSystem::SimpleRenderSystem(LveDevice& device, VkRenderPass renderPass,
+                                       VkDescriptorSetLayout globalSetLayout,
+                                       VkDescriptorSetLayout textureSetLayout)
     : lveDevice{device} {
   createPipelineLayout(globalSetLayout);
+  createTexturedPipelineLayout(globalSetLayout, textureSetLayout);
 
   // Good idea to check render pass compatibility here.  If its compatible then pipeline doesnt need
   // to be recreated Since it can use the same blueprint for submitted framebuffers and be just fine
@@ -48,6 +53,7 @@ SimpleRenderSystem::SimpleRenderSystem(LveDevice& device, VkRenderPass renderPas
 SimpleRenderSystem::~SimpleRenderSystem() {
   // Dont forget to destroy the pipeline layout in destructor, all vk objects needs to do this
   vkDestroyPipelineLayout(lveDevice.device(), pipelineLayout, nullptr);
+  vkDestroyPipelineLayout(lveDevice.device(), texturedPipelineLayout, nullptr);
 }
 
 void SimpleRenderSystem::render(
@@ -90,8 +96,10 @@ void SimpleRenderSystem::render(
   // Solids, transparent objects will blend with these
   lvePipeline->bind(frameInfo.commandBuffer);
   for (const auto& item : frameInfo.renderItems) {
-    if (item.alpha >= 1.f) drawItem(item);
+    if (item.texture == nullptr && item.alpha >= 1.f) drawItem(item);
   }
+
+  drawTextured(frameInfo);
 
   // Transparent, blends and doesn't write depth
   //
@@ -99,7 +107,72 @@ void SimpleRenderSystem::render(
   // So farther away transparent objects should be drawn first
   transparentPipeline->bind(frameInfo.commandBuffer);
   for (const auto& item : frameInfo.renderItems) {
-    if (item.alpha < 1.f) drawItem(item);
+    if (item.texture == nullptr && item.alpha < 1.f) drawItem(item);
+  }
+}
+
+// Anything carrying a picture, drawn after the plain solids
+// One descriptor bind per picture, and floors and walls of a room share theirs
+void SimpleRenderSystem::drawTextured(FrameInfo& frameInfo) {
+  bool boundGlobal = false;
+  const LveTexture* last = nullptr;
+
+  auto drawItem = [&](const RenderItem& item) {
+    if (!boundGlobal) {
+      // Set 0 comes round again, since this is a different layout to the one the
+      // solid pass bound it with
+      vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              texturedPipelineLayout, 0, 1, &frameInfo.globalDescriptorSet, 0,
+                              nullptr);
+      boundGlobal = true;
+    }
+
+    if (item.texture != last) {
+      VkDescriptorSet set = item.texture->getDescriptorSet();
+      vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              texturedPipelineLayout, 1, 1, &set, 0, nullptr);
+      last = item.texture;
+    }
+
+    SimplePushConstantData push{};
+    push.modelMatrix = item.modelMatrix;
+    push.normalMatrix = item.normalMatrix;
+
+    // The corners mat3() never reads, see the struct above
+    push.normalMatrix[3][0] = item.uvScale.x;
+    push.normalMatrix[3][1] = item.uvScale.y;
+    push.normalMatrix[3][2] = item.groundY;
+    push.normalMatrix[3][3] = item.alpha;
+
+    vkCmdPushConstants(frameInfo.commandBuffer, texturedPipelineLayout,
+                       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                       sizeof(SimplePushConstantData), &push);
+
+    if (item.model == nullptr) return;
+    item.model->bind(frameInfo.commandBuffer);
+    item.model->draw(frameInfo.commandBuffer);
+  };
+
+  // Solid ones first, the same order the plain passes go in
+  bool started = false;
+  for (const RenderItem& item : frameInfo.renderItems) {
+    if (item.texture == nullptr || item.alpha < 1.f) continue;
+    if (!started) {
+      texturedPipeline->bind(frameInfo.commandBuffer);
+      started = true;
+    }
+    drawItem(item);
+  }
+
+  // Then the ghosts, which is a textured wall standing between you and the room
+  started = false;
+  for (const RenderItem& item : frameInfo.renderItems) {
+    if (item.texture == nullptr || item.alpha >= 1.f) continue;
+    if (!started) {
+      texturedGhostPipeline->bind(frameInfo.commandBuffer);
+      started = true;
+    }
+    drawItem(item);
   }
 }
 
@@ -184,6 +257,31 @@ void SimpleRenderSystem::createPipelineLayout(VkDescriptorSetLayout globalSetLay
   }
 }
 
+// The textured layout, which is the plain one with a picture's sampler after it
+// Set 0 stays the global UBO, so the two layouts agree about everything the solid
+// pass already bound
+void SimpleRenderSystem::createTexturedPipelineLayout(VkDescriptorSetLayout globalSetLayout,
+                                                      VkDescriptorSetLayout textureSetLayout) {
+  VkPushConstantRange pushConstantRange{};
+  pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+  pushConstantRange.offset = 0;
+  pushConstantRange.size = sizeof(SimplePushConstantData);
+
+  std::vector<VkDescriptorSetLayout> descriptorSetLayouts{globalSetLayout, textureSetLayout};
+
+  VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+  pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+  pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
+  pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
+  pipelineLayoutInfo.pushConstantRangeCount = 1;
+  pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+
+  if (vkCreatePipelineLayout(lveDevice.device(), &pipelineLayoutInfo, nullptr,
+                             &texturedPipelineLayout) != VK_SUCCESS) {
+    throw std::runtime_error("failed to create the textured pipeline layout!");
+  }
+}
+
 void SimpleRenderSystem::createPipeline(VkRenderPass renderPass) {
   assert(pipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
 
@@ -219,6 +317,35 @@ void SimpleRenderSystem::createPipeline(VkRenderPass renderPass) {
       exeDir + "/../shaders/simple_shader.vert.spv",
       exeDir + "/../shaders/simple_shader.frag.spv",
       transparentConfig);
+
+  // Textured, and solid like the first pipeline
+  // The vertex stage is the plain one -- it already hands the fragment shader the
+  // world position the picture is laid out from
+  PipelineConfigInfo texturedConfig{};
+  LvePipeline::defaultPipelineConfigInfo(texturedConfig);
+  texturedConfig.renderPass = renderPass;
+  texturedConfig.pipelineLayout = texturedPipelineLayout;
+
+  texturedPipeline = std::make_unique<LvePipeline>(
+      lveDevice,
+      exeDir + "/../shaders/simple_shader.vert.spv",
+      exeDir + "/../shaders/textured_shader.frag.spv",
+      texturedConfig);
+
+  // The see-through half of it, for a papered wall the camera is looking through
+  // Depth writing is off for the same reason it is off on transparentPipeline
+  PipelineConfigInfo texturedGhostConfig{};
+  LvePipeline::defaultPipelineConfigInfo(texturedGhostConfig);
+  texturedGhostConfig.renderPass = renderPass;
+  texturedGhostConfig.pipelineLayout = texturedPipelineLayout;
+  texturedGhostConfig.depthStencilInfo.depthWriteEnable = VK_FALSE;
+  LvePipeline::enableAlphaBlending(texturedGhostConfig);
+
+  texturedGhostPipeline = std::make_unique<LvePipeline>(
+      lveDevice,
+      exeDir + "/../shaders/simple_shader.vert.spv",
+      exeDir + "/../shaders/textured_shader.frag.spv",
+      texturedGhostConfig);
 
   // UI is a 2D overlay drawn after the 3D pass. Draw it in submission order
   // (painter's algorithm) rather than depth-testing: every UI quad sits at z=0, so

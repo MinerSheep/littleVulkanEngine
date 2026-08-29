@@ -16,6 +16,9 @@ namespace lve {
   // Defined in lve_skinned_model.hpp; only referenced by pointer here.
   class LveSkinnedModel;
 
+  // Defined in lve_texture.hpp, and only ever pointed at from here
+  class LveTexture;
+
   #define MAX_LIGHTS 10
 
   // iterate through each point light and accumulate its effects on the model
@@ -38,6 +41,17 @@ namespace lve {
 
     // this needs to be initialized otherwise its corrupt data
     float alpha = 1.f;
+
+    // A picture painted across the top of the mesh, or null for a flat colour
+    // Textured items are drawn by their own pipeline, after the plain ones
+    LveTexture* texture = nullptr;
+
+    // How many times the picture repeats over a metre of world
+    glm::vec2 uvScale{0.5f};
+
+    // Where the floor of the room is, which is where a picture on a wall starts
+    // climbing from rather than halfway up a board
+    float groundY = 0.f;
   };
   struct UIRenderItem {
     glm::mat2 transform;

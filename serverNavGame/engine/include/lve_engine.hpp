@@ -55,11 +55,19 @@ namespace lve
         LveDescriptorSetLayout& getBoneSetLayout() { return *boneSetLayout; }
         LveDescriptorPool& getBonePool() { return *bonePool; }
 
+        // Every LveTexture takes one set (set = 1) out of these, the same way a
+        // skinned model takes a bone set
+        LveDescriptorSetLayout& getTextureSetLayout() { return *textureSetLayout; }
+        LveDescriptorPool& getTexturePool() { return *texturePool; }
+
     private:
         bool running = true;
 
         // Max distinct skinned models that can own a bone descriptor set at once.
         static constexpr uint32_t MAX_SKINNED_MODELS = 16;
+
+        // How many pictures may be loaded at once, one set each
+        static constexpr uint32_t MAX_TEXTURES = 16;
 
         const uint32_t globalUniformBufferSize = LveSwapChain::MAX_FRAMES_IN_FLIGHT;
         
@@ -77,6 +85,11 @@ namespace lve
         // the scene's loadModels().
         std::unique_ptr<LveDescriptorSetLayout> boneSetLayout{};
         std::unique_ptr<LveDescriptorPool> bonePool{};
+
+        // Where a texture's sampler binding is allocated from, and it must outlive
+        // every LveTexture the scenes load
+        std::unique_ptr<LveDescriptorSetLayout> textureSetLayout{};
+        std::unique_ptr<LveDescriptorPool> texturePool{};
 
         // std::unique_ptr<LveBuffer> globalUboBuffer {};
         std::vector<std::unique_ptr<LveBuffer>> uboBuffers;

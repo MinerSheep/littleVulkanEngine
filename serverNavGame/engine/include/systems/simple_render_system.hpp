@@ -13,7 +13,9 @@ namespace lve {
 class SimpleRenderSystem {
  public:
 
-  SimpleRenderSystem(LveDevice& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout);
+  SimpleRenderSystem(LveDevice& device, VkRenderPass renderPass,
+                     VkDescriptorSetLayout globalSetLayout,
+                     VkDescriptorSetLayout textureSetLayout);
   ~SimpleRenderSystem();
 
   SimpleRenderSystem(const SimpleRenderSystem&) = delete;
@@ -26,7 +28,14 @@ class SimpleRenderSystem {
 
  private:
   void createPipelineLayout(VkDescriptorSetLayout globalSetLayout);
+
+  // The same layout with a picture's sampler on set 1, for anything textured
+  void createTexturedPipelineLayout(VkDescriptorSetLayout globalSetLayout,
+                                    VkDescriptorSetLayout textureSetLayout);
   void createPipeline(VkRenderPass renderPass);
+
+  // Everything in the frame that carries a picture
+  void drawTextured(FrameInfo& frameInfo);
 
   LveDevice& lveDevice;
 
@@ -43,6 +52,14 @@ class SimpleRenderSystem {
   // Anything with an alpha below 1 is drawn with this one, after the solid pass
   std::unique_ptr<LvePipeline> transparentPipeline;
 
+  // Reads a picture off set 1 and lays it over the mesh by world position
+  std::unique_ptr<LvePipeline> texturedPipeline;
+
+  // The same, blending and leaving the depth buffer alone
+  // A textured wall turned toward the camera has to ghost like a plain one
+  std::unique_ptr<LvePipeline> texturedGhostPipeline;
+
   VkPipelineLayout pipelineLayout;
+  VkPipelineLayout texturedPipelineLayout;
 };
 }  // namespace lve
