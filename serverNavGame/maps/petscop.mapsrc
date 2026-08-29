@@ -223,7 +223,7 @@ room Bathroom
 
 # Long room off the north side of the hall
 room Billiard_Room
-  size 8 13
+  size 10 13
   height 3
   floortex wood_flooring
   light 0.0 -2.3 -3.0   1.00 0.85 0.60   8
@@ -231,9 +231,9 @@ room Billiard_Room
   door out south 0
 
   # The balls on the table are laid out by the game, not by this file
-  prop cube  0.000 0.100 1.000   0 0 0   3.000 0.400 1.400   name table
+  prop billiard  0.000 0.100 1.000   0 0 0   0.650 1.000 0.700   name table
 
-  interact cylinder  -3.400 -0.400 4.000   0 0 0.250   0.080 1.200 0.080   name cue
+  interact cue  -3.400 -0.400 4.000   0 0 0.250   1.080 1.000 1.080   name cue
     when noitem cue
     do say A CUE, STOOD AGAINST THE WALL.|IT IS LONGER THAN YOUR ARM.
     do hide self
@@ -252,7 +252,7 @@ room Ballroom
   door out west 0
 
   # Stood in the middle of an empty floor. It is not here the second time
-  interact cube  0.000 -0.300 0.000   0 0.300 0   0.900 0.800 0.500   name piano
+  interact piano  0.000 -0.300 0.000   0 0.300 0   0.700 0.600 0.400   name piano
     do say A PIANO, IN THE MIDDLE OF THE FLOOR.|NOTHING IS ARRANGED AROUND IT.
     do sound piano
 

@@ -1,0 +1,22 @@
+save 1
+room Car_Clearing
+flag saw_car
+flag welcomed
+item @runs 2
+item @seconds 112
+item @visits.Car_Clearing 3
+item @visits.Clearing_Trees 1
+item @visits.Deep_Trees 1
+item @visits.Gate_Clearing 2
+item @visits.Path_West 1
+item @visits.Shrine_Path 7
+item @visits.Start 1
+item @visits.Stump_End 2
+item @visits.Trees_West 5
+item @visits.Well_Path 3
+prop Gate_Clearing.gate  -0.072 0.600 1.594  0.000 3.142 0.000  0.224 0.248 1.990  hidden 0  flips 0 0 0 0 0 0 0 0
+prop Shrine_Path.shrine  0.000 -0.300 5.400  0.000 0.000 0.000  0.550 0.850 0.550  hidden 0  flips 0 0 0 0
+prop Shrine_Path.sorry_note  0.900 0.460 3.200  0.000 0.600 0.000  0.260 0.020 0.340  hidden 0  flips 0
+prop Stump_End.sign  -5.900 -0.400 -1.600  0.000 0.350 0.000  0.550 0.750 0.060  hidden 0  flips 0
+prop Stump_End.stump  -3.800 0.300 0.000  0.000 0.000 0.000  0.700 0.700 0.700  hidden 0  flips 0 0
+prop Well_Path.well  -1.600 0.100 0.000  0.000 0.000 0.000  0.850 0.550 0.850  hidden 0  flips 0 0 0
