@@ -1,5 +1,6 @@
 #pragma once
 
+#include "lve_canvas.hpp"
 #include "lve_frame_info.hpp"
 #include "lve_text.hpp"
 
@@ -31,12 +32,22 @@ class PauseMenu {
   // F19: one button left late on, and it does not say exit
   bool stripped = false;
 
+  // He is carrying the map, which puts a button in the list
+  bool hasMap = false;
+
+  // The house as the map draws it, which the scene hands over and still owns
+  const lve::LveCanvas* mapPicture = nullptr;
+
  private:
-  // The buttons as they stand, which the options page changes
+  // The buttons as they stand, which the pages change
   std::vector<std::string> entries() const;
+
+  // The map, fitted into a panel with its pixels still square
+  void emitMap(std::vector<lve::UIRenderItem>& out, lve::LveTextRenderer& text) const;
 
   bool open = false;
   bool options = false;
+  bool showingMap = false;
   std::size_t cursor = 0;
 
   bool escDown = false;

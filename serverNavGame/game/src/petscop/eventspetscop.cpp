@@ -48,6 +48,27 @@ const char* word[6][5] = {
 const char* quests[] = {"quest_stone", "quest_mirror", "quest_tiles", "quest_dig"};
 const int questCount = 4;
 
+// X03: the one frame, and the colours it is drawn out of
+const glm::vec3 facePalette[5] = {
+    {0.02f, 0.02f, 0.03f},  // 0 the dark around it
+    {0.08f, 0.07f, 0.09f},  // 1 the edge of the head
+    {0.62f, 0.58f, 0.54f},  // 2 the face
+    {0.01f, 0.01f, 0.01f},  // 3 the eyes and the mouth
+    {0.42f, 0.39f, 0.37f},  // 4 what little shadow it has
+};
+
+// One eye sits lower than the other, which is most of why it reads wrong
+const char* faceRows[24] = {
+    "000000000000000000000000", "000000011111111100000000", "000000111111111110000000",
+    "000001111111111111000000", "000011122222222111100000", "000011222222222241100000",
+    "000112222222222224100000", "000112222222222222100000", "000112333222222222100000",
+    "000112333222233322100000", "000112222222233322100000", "000112222222222222100000",
+    "000112222224222222100000", "000112222222222224100000", "000112222222222222100000",
+    "000112222333322222100000", "000011222222222241000000", "000001112222224410000000",
+    "000000111222244100000000", "000000011122241000000000", "000000001111110000000000",
+    "000000000111100000000000", "000000000011000000000000", "000000000000000000000000",
+};
+
 // The pale tiles across the ballroom floor, one row per 2 units of depth and one
 // letter per 2 across. They run from the west doorway to the piano, and the only
 // way through is the way they go
@@ -96,6 +117,11 @@ void EventDirector::bind(const Stage& newStage) {
     stage.models->get("cube");
     stage.models->get("sphere");
   }
+
+  // The one frame is put together once. It is the same face every time
+  inserted = lve::LveCanvas::fromRows(
+      std::vector<glm::vec3>(facePalette, facePalette + 5),
+      std::vector<std::string>(faceRows, faceRows + 24));
 }
 
 void EventDirector::reset() {
@@ -660,6 +686,7 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
   locked = false;
   sealed = -1;
   hasCam = false;
+  showInsert = false;
 
   // Standing still with nothing held down
   bool holding = false;
@@ -706,6 +733,7 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
   if (roomName == "Hall_Main") {
     hallLightBehind();
     hallFootprints();
+    oneFrame(dt);
   }
   if (roomName == "Yard") yardPath();
   if (roomName == "Bathroom") bathroomWater(dt, playing);
@@ -840,6 +868,24 @@ void EventDirector::hallFootprints() {
   for (const glm::vec3& stop : stops)
     conjure("cube", glm::vec3(stop.x, 0.470f, stop.z), glm::vec3(0.f),
             glm::vec3(0.30f, 0.02f, 0.46f));
+}
+
+// X03: one frame of a face, in the middle of an ordinary walk down the hall
+//
+// It happens once in the life of a save, nothing leads up to it and nothing marks
+// it afterwards. No sound goes with it
+void EventDirector::oneFrame(float dt) {
+  if (!stage.state || stage.state->hasFlag("saw_frame")) return;
+
+  // Not on the way in, and not while he is standing still reading something
+  if (!moved || sinceEntry < 3.f || black > 0.f) return;
+
+  // About one chance in eight a second, so it never lands on the same step twice
+  std::uniform_real_distribution<float> odds(0.f, 1.f);
+  if (odds(rng) > dt * 0.125f) return;
+
+  showInsert = true;
+  stage.state->setFlag("saw_frame", true);
 }
 
 // E14: every tuft he walks over is flattened out of sight and stays that way

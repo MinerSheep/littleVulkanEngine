@@ -148,7 +148,7 @@ room Car_Clearing
   prop tree2 -2.2 0.5  3.9   0 2.6 0   0.30 0.30 0.30
   prop tree   6.4 0.5 -3.4   0 4.1 0   0.30 0.30 0.30
 
-  interact car  2.6 0.85 1.6   0 1.42 0   0.40 0.40 0.40   name car
+  interact car  2.6 -0.85 1.6   0 1.42 0   0.40 0.40 0.40   name car
     when noflag saw_car
     do say A CAR, WITH THE DOORS SHUT AND THE GLASS STILL IN IT.
     do say THERE IS NO ROAD.

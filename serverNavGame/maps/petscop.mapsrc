@@ -98,6 +98,13 @@ room Foyer
   # Bare floor under the tree. Kept hidden until the tree goes
   interact cube  -3.000 0.470 2.000   0 0 0   0.900 0.030 0.900  name tree_hole  say SOMEBODY TOOK IT.
 
+  # The plan of the house, drawn by hand. It has rooms on it you have not been in
+  interact cube  3.200 0.470 2.600   0 0.400 0   0.220 0.020 0.160  name house_map
+    when noitem map
+    do say A FOLDED SHEET, DRAWN ON BY HAND.|IT IS THIS HOUSE, AND MORE OF IT THAN YOU HAVE WALKED.
+    do hide self
+    do give map
+
   # A slab dropped across the closet doorway, and the lever on the far side of
   # the room that lifts it. Pressing E on the lever moves something you are not
   # standing next to, which is the whole point of naming things

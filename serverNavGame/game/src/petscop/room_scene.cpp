@@ -287,6 +287,9 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
 
   currentRoom = roomIndex;
 
+  // The plan only changes when the room he is standing in does
+  houseMap = petscop::drawHouseMap(map, currentRoom);
+
   watch.placed(room.name, arriveSpawn, arrived ? "walking in through a door" : "no door at all");
 
   // Last, so an event can put props right now that they are all standing
@@ -468,6 +471,10 @@ void RoomScene::update(float dt) {
   // ESC stops the walk where it stands and puts his pockets on the screen
   GLFWwindow* window = lve::LveEngine::instance().getGLFWWindow();
   menu.stripped = events.menuStripped();
+
+  // The map is a button only while he is carrying one, and the picture stays ours
+  menu.hasMap = state.hasItem("map");
+  menu.mapPicture = &houseMap;
 
   // It does not open mid fade, with the room already going
   const petscop::PauseMenu::Choice picked =
@@ -711,6 +718,10 @@ void RoomScene::update(float dt) {
       UIrenderItems.push_back({glm::mat2(2.f, 0.f, 0.f, 2.f), glm::vec2(-1.f), glm::vec3(0.f), fade,
                                textRenderer->quad()});
     }
+
+    // X03: over the whole screen and over everything else, for this frame only
+    if (const lve::LveCanvas* frame = events.insert())
+      frame->emit(UIrenderItems, textRenderer->quad(), glm::vec2(-1.f), glm::vec2(2.f), 1.f);
   }
 
   ubo.ambientLightColor = events.ambient(glm::vec4(1.f, 1.f, 1.f, 0.15f));

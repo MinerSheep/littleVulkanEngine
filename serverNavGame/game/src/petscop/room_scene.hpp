@@ -18,6 +18,7 @@
 
 #include "petscop/dialog_box.hpp"
 #include "petscop/events.hpp"
+#include "petscop/house_map.hpp"
 #include "petscop/game_state.hpp"
 #include "petscop/pause_menu.hpp"
 #include "petscop/player_watch.hpp"
@@ -127,6 +128,9 @@ class RoomScene : public lve::LveScene {
   glm::vec3 cameraLook{0.f};
 
   std::unique_ptr<lve::LveTextRenderer> textRenderer;  // room name, and the fade quad
+
+  // The house as the pause menu draws it, redrawn whenever the room changes
+  lve::LveCanvas houseMap;
 
   // Walking into a door does a fade and swaps the room
   enum class Phase { Playing, FadingOut, FadingIn };

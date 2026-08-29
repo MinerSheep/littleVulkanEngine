@@ -1,5 +1,6 @@
 #pragma once
 
+#include "lve_canvas.hpp"
 #include "petscop/figure.hpp"
 #include "petscop/prop.hpp"
 
@@ -86,6 +87,9 @@ class EventDirector {
 
   // F03: the bars behind the room stop being drawn at all
   bool hidesBackground() const { return noBackdrop; }
+
+  // X03: the picture that goes over the screen for one frame, or null
+  const lve::LveCanvas* insert() const { return showInsert ? &inserted : nullptr; }
 
   // F08: he is grey, walks through everything and falls through nothing
   bool untethered() const;
@@ -189,6 +193,7 @@ class EventDirector {
   void closetShutIn(float dt, int startedProp);  // E07
   void hallLightBehind();                        // E09
   void hallFootprints();                         // E10
+  void oneFrame(float dt);                       // X03
   void yardPath();                               // E14
   void bathroomWater(float dt, bool playing);    // E19
   void billiardWord();                           // E21, and E22 once it is spelt
@@ -281,6 +286,10 @@ class EventDirector {
   glm::vec4 tint{1.f};
 
   std::vector<Prop> spawned;
+
+  // The face, put together once, and whether this is the frame it goes up on
+  lve::LveCanvas inserted;
+  bool showInsert = false;
 
   // Everybody the haunting can stand in a room, grown as events ask for them
   // Held by pointer, a growing list must not move somebody mid frame

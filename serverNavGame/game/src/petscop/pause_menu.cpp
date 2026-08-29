@@ -86,14 +86,16 @@ std::vector<std::string> pocketLines(const GameState& state) {
 }  // namespace
 
 std::vector<std::string> PauseMenu::entries() const {
-  if (options) return {"BACK"};
+  if (options || showingMap) return {"BACK"};
   if (stripped) return {"LEAVE"};
+  if (hasMap) return {"RESUME", "MAP", "OPTIONS", "EXIT"};
   return {"RESUME", "OPTIONS", "EXIT"};
 }
 
 void PauseMenu::close() {
   open = false;
   options = false;
+  showingMap = false;
   cursor = 0;
 }
 
@@ -109,7 +111,12 @@ PauseMenu::Choice PauseMenu::update(GLFWwindow* window) {
       cursor = 0;
       return Choice::None;
     }
-    // Backing out of the options page is not the same as putting the menu away
+    // Backing out of a page is not the same as putting the menu away
+    if (showingMap) {
+      showingMap = false;
+      cursor = 0;
+      return Choice::None;
+    }
     if (options) {
       options = false;
       cursor = 0;
@@ -147,12 +154,42 @@ PauseMenu::Choice PauseMenu::update(GLFWwindow* window) {
     cursor = 0;
     return Choice::Options;
   }
-  if (chosen == "BACK") {
-    options = false;
+  if (chosen == "MAP") {
+    showingMap = true;
     cursor = 0;
-    return Choice::Back;
+    return Choice::None;
+  }
+  if (chosen == "BACK") {
+    // Only the settings count as having been opened and shut again
+    const bool wasOptions = options;
+    options = false;
+    showingMap = false;
+    cursor = 0;
+    return wasOptions ? Choice::Back : Choice::None;
   }
   return Choice::Leave;
+}
+
+// The plan of the house, as big as it will go inside the right panel
+void PauseMenu::emitMap(std::vector<lve::UIRenderItem>& out, lve::LveTextRenderer& text) const {
+  const float shelf = rightPanel.x + padX;
+  emitFitted(out, text, "THE HOUSE", {shelf, rightPanel.y + padY}, entryDot, lit);
+
+  if (mapPicture == nullptr || mapPicture->empty()) {
+    emitFitted(out, text, "IT IS BLANK", {shelf, rightPanel.y + pocketTop}, itemDot, dim);
+    return;
+  }
+
+  const glm::vec2 room{panelSize.x - 2.f * padX, panelSize.y - pocketTop - footPad};
+
+  // A pixel only comes out square if the box leans the way the window does
+  const float wanted = mapPicture->aspect() / screenAspect();
+  glm::vec2 size{room.y * wanted, room.y};
+  if (size.x > room.x) size = {room.x, room.x / wanted};
+
+  const glm::vec2 at{shelf + (room.x - size.x) * 0.5f,
+                     rightPanel.y + pocketTop + (room.y - size.y) * 0.5f};
+  mapPicture->emit(out, text.quad(), at, size, 1.f);
 }
 
 void PauseMenu::emit(std::vector<lve::UIRenderItem>& out, lve::LveTextRenderer& text,
@@ -188,6 +225,12 @@ void PauseMenu::emit(std::vector<lve::UIRenderItem>& out, lve::LveTextRenderer& 
   for (std::size_t i = 0; i < buttons.size(); i++) {
     text.emit(out, buttons[i], {left, y}, buttonDot, i == cursor ? lit : dim);
     y += rowStep * (buttonDot / entryDot);
+  }
+
+  // The map takes the right panel over while he is reading it
+  if (showingMap) {
+    emitMap(out, text);
+    return;
   }
 
   const float shelf = rightPanel.x + padX;
