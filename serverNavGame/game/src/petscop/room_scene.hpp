@@ -24,6 +24,8 @@
 #include "petscop/player_watch.hpp"
 #include "petscop/prop.hpp"
 #include "petscop/interactions.hpp"
+#include "petscop/other.hpp"
+#include "petscop/outside.hpp"
 #include "petscop/save_file.hpp"
 
 #include <cstddef>
@@ -189,6 +191,12 @@ class RoomScene : public lve::LveScene {
 
   // Throws out the whole area and stands the next one up, map and save and all
   void enterArea(int area);
+
+  // Writes the save down, stamped with the time it was written
+  void save();
+
+  // Hands the save to somebody else for however long the game was shut
+  void letHimPlay();
 
   // The room the save left him in, or the map's own start, or wherever an event
   // would rather he woke up

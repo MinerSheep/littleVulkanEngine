@@ -72,7 +72,7 @@ void EventDirector::dressForest(MapRoom& room) {
   else if (room.name == "Tall_Trees") forestWatched(room);
 
   // Any room at all may be the one his pockets were emptied into
-  forestLost(room);
+  lostThings(room);
 }
 
 // F09: the room is stood on its head. Everything in it is mirrored across the
@@ -124,7 +124,7 @@ void EventDirector::forestNote(MapRoom& room) {
 
 // F06: whatever left his pockets on the way out of this room is lying in it,
 // and pressing E on it puts it back
-void EventDirector::forestLost(MapRoom& room) {
+void EventDirector::lostThings(MapRoom& room) {
   if (!stage.state) return;
 
   const std::string mark = "@left." + room.name + ".";
@@ -198,25 +198,32 @@ void EventDirector::enterForest() {
     stage.dialog->open("WELCOME BACK HOME.");
   }
 
-  // F02: now and then somebody is already in the room, on his way out of it
-  if (roomName == "Deep_Trees" && roomVisits >= 2 && canFire()) {
-    std::uniform_int_distribution<int> odds(0, 2);
-    if (odds(rng) == 0 && built && !built->doors.empty()) {
-      int way = -1;
-      for (std::size_t i = 0; i < built->doors.size(); i++) {
-        if (static_cast<int>(i) != arrivedFrom) {
-          way = static_cast<int>(i);
-          break;
-        }
+  // F02: somebody is already in the room, on his way out of it
+  //
+  // Not a chance any more. He has been walking this save while the game was shut,
+  // and this is the room it left him standing in -- see petscop/other.hpp
+  if (stage.state && !stage.state->other.room.empty() && stage.state->other.room == roomName &&
+      built && !built->doors.empty()) {
+    int way = -1;
+    for (std::size_t i = 0; i < built->doors.size(); i++) {
+      if (static_cast<int>(i) != arrivedFrom) {
+        way = static_cast<int>(i);
+        break;
       }
-      if (way < 0) way = 0;
-
-      manAt = 0.f;
-      manTo = built->doors[way].translation;
-      manTo.y = 0.5f;
-      manFrom = glm::vec3(-manTo.x * 0.6f, 0.5f, -manTo.z * 0.6f);
-      fired();
     }
+    if (way < 0) way = 0;
+
+    manAt = 0.f;
+    manTo = built->doors[static_cast<std::size_t>(way)].translation;
+    manTo.y = 0.5f;
+    manFrom = glm::vec3(-manTo.x * 0.6f, 0.5f, -manTo.z * 0.6f);
+
+    // He is not in here any longer, he is wherever that door comes out
+    const int next = built->doors[static_cast<std::size_t>(way)].toRoom;
+    if (stage.map && next >= 0 && next < static_cast<int>(stage.map->rooms.size()))
+      stage.state->other.room = stage.map->rooms[static_cast<std::size_t>(next)].name;
+
+    fired();
   }
 
   // F05: the tree is stood in the middle of its own room, and is not in any other

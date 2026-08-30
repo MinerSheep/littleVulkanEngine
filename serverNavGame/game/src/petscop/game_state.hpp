@@ -20,6 +20,17 @@ struct PropMemory {
   std::vector<char> flipped;
 };
 
+// Somebody else who plays this save while the game is shut
+//
+// He gets an hour for every hour you are away. What he does is written into the
+// same flags, items and prop memories everything else reads
+struct Other {
+  std::string room;                   // where he is standing now
+  std::map<std::string, int> pocket;  // what he is carrying, which is not yours
+  unsigned int seed = 0;              // the same gap always plays out the same way
+  std::vector<std::string> trace;     // what he did last time, as the board prints it
+};
+
 // What the game carries between rooms and between runs
 // Only named props are remembered, which is every prop a map can name
 struct GameState {
@@ -27,6 +38,10 @@ struct GameState {
   std::map<std::string, int> items;
   std::map<std::string, PropMemory> memories;  // keyed "<room>.<prop>"
   std::string room;                            // the room you were in when it was written
+
+  // When the save was last written, in seconds, and the man who reads it
+  long long lastPlayed = 0;
+  Other other;
 
   bool hasFlag(const std::string& name) const;
   void setFlag(const std::string& name, bool on);

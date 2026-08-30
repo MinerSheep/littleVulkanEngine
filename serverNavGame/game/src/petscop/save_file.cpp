@@ -91,6 +91,29 @@ bool readSave(const std::string& path, GameState& state) {
       int count = 0;
       if ((ss >> name >> count) && count > 0) state.items[name] = count;
 
+    } else if (key == "played") {
+      ss >> state.lastPlayed;
+
+    } else if (key == "other") {
+      // Where he is, what he has, and what he did while the game was shut
+      std::string what;
+      if (!(ss >> what)) continue;
+
+      if (what == "room") {
+        ss >> state.other.room;
+      } else if (what == "seed") {
+        ss >> state.other.seed;
+      } else if (what == "item") {
+        std::string name;
+        int count = 0;
+        if ((ss >> name >> count) && count > 0) state.other.pocket[name] = count;
+      } else if (what == "did") {
+        std::string words;
+        std::getline(ss, words);
+        if (!words.empty() && words[0] == ' ') words.erase(0, 1);
+        if (!words.empty()) state.other.trace.push_back(words);
+      }
+
     } else if (key == "prop") {
       std::string name;
       PropMemory memory;
@@ -114,6 +137,13 @@ bool writeSave(const std::string& path, const GameState& state) {
   out << std::fixed << std::setprecision(3);
   out << "save " << saveVersion << "\n";
   if (!state.room.empty()) out << "room " << state.room << "\n";
+  if (state.lastPlayed > 0) out << "played " << state.lastPlayed << "\n";
+
+  if (!state.other.room.empty()) out << "other room " << state.other.room << "\n";
+  if (state.other.seed != 0) out << "other seed " << state.other.seed << "\n";
+  for (const std::pair<const std::string, int>& held : state.other.pocket)
+    out << "other item " << held.first << " " << held.second << "\n";
+  for (const std::string& line : state.other.trace) out << "other did " << line << "\n";
 
   for (const std::string& flag : state.flags) out << "flag " << flag << "\n";
 

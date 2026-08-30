@@ -348,6 +348,9 @@ const MapRoom& EventDirector::dress(const MapRoom& source, int index) {
   else if (source.name == "Greenhouse") greenhousePanes(dressed);
   else if (source.name == "Shed") shedSeam(dressed);
 
+  // Any room at all may be the one he put your things down in
+  lostThings(dressed);
+
   built = &dressed;
   return dressed;
 }
@@ -466,6 +469,20 @@ const Pickup pickups[] = {
     {"Tent_Camp", "key", "key", "gate_opened"},
 };
 
+// Whether the thing is already lying on the floor of some room
+// Somebody who walked off with it and put it down again counts as it being out
+// in the world, or the shed would grow a second spade behind him
+bool lyingAbout(const GameState& state, const std::string& item) {
+  const std::string tail = "." + item;
+
+  for (const std::pair<const std::string, int>& held : state.items) {
+    if (held.second <= 0 || held.first.rfind("@left.", 0) != 0) continue;
+    if (held.first.size() <= tail.size()) continue;
+    if (held.first.compare(held.first.size() - tail.size(), tail.size(), tail) == 0) return true;
+  }
+  return false;
+}
+
 }  // namespace
 
 // Whether a pickup is lying in the room, worked out again every time he walks in
@@ -479,7 +496,8 @@ void EventDirector::standPickups() {
     Prop* lying = prop(pick.prop);
     if (!lying) continue;
 
-    const bool gone = stage.state->hasItem(pick.item) || stage.state->hasFlag(pick.spent);
+    const bool gone = stage.state->hasItem(pick.item) || stage.state->hasFlag(pick.spent) ||
+                      lyingAbout(*stage.state, pick.item);
     lying->disappeared = gone;
     lying->collider.enabled = !gone && lying->solid;
   }

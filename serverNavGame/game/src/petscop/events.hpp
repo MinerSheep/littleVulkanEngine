@@ -176,6 +176,11 @@ class EventDirector {
   void greenhousePanes(MapRoom& room);  // E28
   void shedSeam(MapRoom& room);         // E35
 
+  // Anything lying on the floor of a room that nobody meant to leave there
+  // F06 empties his pockets into a clearing, and X07 puts down whatever he was
+  // carrying the moment you come back. Every room is dressed with this
+  void lostThings(MapRoom& room);
+
   // E12: sends a door out of the hall back into the hall, once
   bool hallGivesBack(int& toRoom, int& toDoor);
 
@@ -222,7 +227,6 @@ class EventDirector {
   void forestBlocked();               // F11
   void forestSign(MapRoom& room);     // F04
   void forestNote(MapRoom& room);     // F17
-  void forestLost(MapRoom& room);     // F06
   void forestWatched(MapRoom& room);  // F12 stands the camera further back
 
   // Forest events worked out again every frame

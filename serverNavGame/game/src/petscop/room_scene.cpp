@@ -85,6 +85,9 @@ void RoomScene::loadModels() {
     std::cout << "[petscop] loaded save '" << savePath << "': " << state.items.size()
               << " item(s), " << state.flags.size() << " flag(s)" << std::endl;
 
+  // Before a single room is built, because none of it happens in front of you
+  letHimPlay();
+
   textRenderer = std::make_unique<lve::LveTextRenderer>(lve::LveEngine::instance().getDevice());
 
   // --- the character ---------------------------------------------------------
@@ -297,10 +300,29 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
 
   // Walking through a door is the autosave
   state.room = room.name;
-  petscop::writeSave(savePath, state);
+  save();
 
   std::cout << "[petscop] entered " << room.name << ": " << props.size() << " prop(s), "
             << doors.size() << " door(s)" << std::endl;
+}
+
+// The save, stamped with the time, so he knows how long you were gone
+void RoomScene::save() {
+  state.lastPlayed = petscop::nowSeconds();
+  petscop::writeSave(savePath, state);
+}
+
+// He gets an hour for every hour the game was shut
+// Nothing of it is drawn -- it is all in the save before the first room is built
+void RoomScene::letHimPlay() {
+  const int hours = petscop::hoursBetween(state.lastPlayed, petscop::nowSeconds());
+  if (hours <= 0) return;
+
+  const int turns = petscop::runOffline(map, state, hours, state.room);
+  std::cout << "[petscop] away " << hours << " hour(s), he took " << turns << ":" << std::endl;
+  for (const std::string& line : state.other.trace)
+    std::cout << "[petscop]   " << line << std::endl;
+  std::cout << "[petscop]   and he is in " << state.other.room << std::endl;
 }
 
 // Swaps one area for the next, and writes down that it happened
@@ -310,7 +332,7 @@ void RoomScene::enterArea(int area) {
   // Write the area he is leaving down before any of it is thrown away
   if (currentRoom >= 0) {
     state.rememberRoom(map.rooms[currentRoom].name, props);
-    petscop::writeSave(savePath, state);
+    save();
   }
   currentRoom = -1;
 
@@ -333,9 +355,10 @@ void RoomScene::enterArea(int area) {
   // The new area starts from its own save, never the last one's flags
   state = petscop::GameState{};
   petscop::readSave(savePath, state);
+  letHimPlay();
 
   // Save and marker land together, so the two can never disagree about where he is
-  petscop::writeSave(savePath, state);
+  save();
   writeProgressArea(progressPath, area);
 
   std::cout << "[petscop] area '" << kAreas[area].name << "' from " << mapPath << std::endl;
@@ -625,7 +648,7 @@ void RoomScene::update(float dt) {
   // An event can end the run here, with the room and the save written down first
   if (events.fakesCrash()) {
     if (currentRoom >= 0) state.rememberRoom(map.rooms[currentRoom].name, props);
-    petscop::writeSave(savePath, state);
+    save();
     std::cerr << "vkQueueSubmit: VK_ERROR_DEVICE_LOST" << std::endl;
     std::_Exit(3);
   }
@@ -734,7 +757,7 @@ void RoomScene::cleanup() {
   // Last chance to write down the room he was standing in
   if (currentRoom >= 0) {
     state.rememberRoom(map.rooms[currentRoom].name, props);
-    petscop::writeSave(savePath, state);
+    save();
     currentRoom = -1;
   }
 
