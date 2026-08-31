@@ -132,9 +132,9 @@ wall 0  -3.000 -2.600 5.000  0.000 0.000 0.000  0.250 0.900 0.800  face -1.000 -
 obj 2  -1.900 0.500 7.000  0.000 0.600 0.000  0.300 0.300 0.300
 obj 2  1.700 0.500 7.200  0.000 2.900 0.000  0.280 0.280 0.280
 interact 4  -1.600 0.100 0.000  0.000 0.000 0.000  0.850 0.550 0.850  name well
-do say A WELL, WITH THE LID STILL ON IT.
+do say A well, with the lid still on it.
 do sound stone
-do say IT HAS NOT BEEN OPENED IN A LONG TIME.
+do say It has not been opened in a long time.
 door south  0.000 -0.600 -8.000  0.000 0.000 0.000  0.800 1.100 0.500  to 3 1  spawn 0.000 0.500 -6.500 0.000
 door east  3.000 -0.600 5.000  0.000 0.000 0.000  0.500 1.100 0.800  to 6 0  spawn 1.500 0.500 5.000 -1.571
 door west  -3.000 -0.600 5.000  0.000 0.000 0.000  0.500 1.100 0.800  to 5 0  spawn -1.500 0.500 5.000 1.571
@@ -157,15 +157,15 @@ obj 1  -6.400 0.500 -1.400  0.000 1.300 0.000  0.360 0.360 0.360
 obj 2  -4.932 0.500 -2.100  0.000 3.400 0.000  0.320 0.320 0.320
 interact 5  -0.072 0.600 1.594  0.000 3.142 0.000  0.224 0.248 1.990  name gate
 when noflag gate_opened
-do say A GATE, AND NO FENCE ON EITHER SIDE OF IT.|IT WILL NOT MOVE WITHOUT A KEY.
+do say A gate, and no fence on either side of it.|It will not move without a key.
 do take key 1
-do say THE KEY FROM THE TENT TURNS IN IT.
+do say The key from the tent turns in it.
 do flag gate_opened
 when flag gate_opened
 do sound lever
 do move gate  -0.072 0.231 4.126  over 1.100  toggle
 do rotate gate  0.000 1.519 0.000  over 0.600  toggle
-do say IT SWINGS. NOTHING ABOUT THE WALK CHANGES.
+do say It swings. Nothing about the walk changes.
 obj 0  -0.177 -0.805 -1.804  0.000 0.000 0.000  1.316 1.316 1.316
 door east  8.000 -0.600 1.000  0.000 0.000 0.000  0.500 1.100 0.800  to 4 2  spawn 6.500 0.500 1.000 -1.571
 door north  -5.000 -0.600 3.000  0.000 0.000 0.000  0.800 1.100 0.500  to 21 2  spawn -5.000 0.500 1.500 3.142
@@ -187,13 +187,13 @@ wall 0  -7.500 -2.600 2.000  0.000 0.000 0.000  0.250 0.900 0.800  face -1.000 -
 obj 1  -5.400 0.500 -3.600  0.000 0.900 0.000  0.340 0.340 0.340
 obj 2  -2.200 0.500 3.900  0.000 2.600 0.000  0.300 0.300 0.300
 obj 1  6.400 0.500 -3.400  0.000 4.100 0.000  0.300 0.300 0.300
-interact 6  2.600 0.850 1.600  0.000 1.420 0.000  0.400 0.400 0.400  name car
+interact 6  2.600 -0.850 1.600  0.000 1.420 0.000  0.400 0.400 0.400  name car
 when noflag saw_car
-do say A CAR, WITH THE DOORS SHUT AND THE GLASS STILL IN IT.
-do say THERE IS NO ROAD.
+do say A car, with the doors shut and the glass still in it.
+do say There is no road.
 do flag saw_car
 when flag saw_car
-do say THERE IS STILL NO ROAD.
+do say There is still no road.
 door west  -7.500 -0.600 2.000  0.000 0.000 0.000  0.500 1.100 0.800  to 4 1  spawn -6.000 0.500 2.000 1.571
 door south  4.000 -0.600 -5.000  0.000 0.000 0.000  0.800 1.100 0.500  to 7 0  spawn 4.000 0.500 -3.500 0.000
 endroom
@@ -261,17 +261,17 @@ obj 1  5.400 0.500 4.600  0.000 1.100 0.000  0.420 0.420 0.420
 obj 2  7.000 0.500 3.800  0.000 3.300 0.000  0.380 0.380 0.380
 obj 1  -7.400 0.500 -3.600  0.000 0.800 0.000  0.360 0.360 0.360
 interact 0  -1.000 -0.100 0.600  0.000 0.300 0.000  1.400 1.000 1.300  name tent
-do say A TENT, STILL PEGGED OUT AND STILL DRY INSIDE.
-do say WHOEVER PUT IT UP MEANT TO COME BACK.
+do say A tent, still pegged out and still dry inside.
+do say Whoever put it up meant to come back.
 interact 0  -3.509 0.440 -4.116  0.000 0.850 0.000  0.220 0.060 0.090  name key
 when noitem key
-do say A KEY, LYING WHERE IT WAS DROPPED.
+do say A key, lying where it was dropped.
 do sound stone
 do hide self
 do flag took_key
 do give key 1
 when item key
-do say THE GRASS IS STILL FLAT WHERE IT WAS.
+do say The grass is still flat where it was.
 obj 2  -7.954 0.500 -0.799  0.000 0.000 0.000  0.353 0.353 0.353
 obj 1  -8.146 0.500 2.546  0.000 0.000 0.000  0.357 0.357 0.357
 obj 1  -2.607 0.500 6.219  0.000 0.000 0.000  0.358 0.358 0.358
@@ -354,10 +354,10 @@ obj 4  1.800 0.440 -0.870  0.000 0.000 0.000  0.180 0.100 0.180
 obj 4  0.620 0.440 -1.900  0.000 0.000 0.000  0.180 0.100 0.180
 obj 4  -1.240 0.440 -1.570  0.000 0.000 0.000  0.180 0.100 0.180
 interact 4  0.000 0.440 0.000  0.000 0.000 0.000  0.180 0.100 0.180  name mushrooms
-do say MUSHROOMS, GROWN IN A RING.
-do say THE ONE IN THE MIDDLE IS THE ONE THAT SHOULD NOT BE THERE.
+do say Mushrooms, grown in a ring.
+do say The one in the middle is the one that should not be there.
 interact 1  -4.800 0.500 4.200  0.000 0.900 0.000  0.340 0.340 0.340  name walker
-do say IT IS A TREE.
+do say It is a tree.
 do flag tree_walks
 door north  -3.000 -0.600 7.500  0.000 0.000 0.000  0.800 1.100 0.500  to 11 1  spawn -3.000 0.500 6.000 3.142
 door west  -7.000 -0.600 -3.000  0.000 0.000 0.000  0.500 1.100 0.800  to 13 0  spawn -5.500 0.500 -3.000 1.571
@@ -471,8 +471,8 @@ wall 0  -7.000 -1.500 1.150  0.000 0.000 0.000  0.250 2.000 0.350  face -1.000 -
 wall 0  -7.000 -2.600 0.000  0.000 0.000 0.000  0.250 0.900 0.800  face -1.000 -0.000 -0.000
 obj 0  0.000 0.300 2.801  0.000 0.000 0.000  7.000 0.220 1.100  name water_north
 interact 0  0.000 0.300 -2.970  0.000 0.000 0.000  7.000 0.220 1.100  name water_south
-do say THE WATER IS NOT MOVING.
-do say IT IS THE ONLY THING DOWN HERE THAT IS NOT.
+do say The water is not moving.
+do say It is the only thing down here that is not.
 obj 8  0.000 0.869 0.000  0.000 0.000 0.000  10.056 10.056 10.056
 obj 3  -2.606 0.500 0.000  0.000 0.000 0.000  1.000 1.000 1.000
 obj 3  0.000 0.500 0.000  0.000 0.584 0.000  1.000 1.000 1.000
@@ -498,9 +498,9 @@ obj 2  -3.600 0.500 1.400  0.000 2.100 0.000  0.320 0.320 0.320
 obj 3  3.200 0.170 -1.200  0.000 0.700 0.000  0.440 0.440 0.440
 interact 0  5.000 -0.700 1.600  0.000 0.000 0.000  0.300 1.200 0.100  name front_door
 when noflag took_key
-do say THE DOOR IS SHUT, AND IT IS THE ONLY SHUT DOOR IN THE FOREST.
+do say The door is shut, and it is the only shut door in the forest.
 when flag took_key
-do say THE KEY FROM THE TENT TURNS IN IT.
+do say The key from the tent turns in it.
 do sound lever
 do flag opened_house
 obj 2  -1.484 0.500 1.677  0.000 0.000 0.000  0.300 0.300 0.300
@@ -592,11 +592,11 @@ wall 0  -3.000 -1.500 0.150  0.000 0.000 0.000  0.250 2.000 0.350  face -1.000 -
 wall 0  -3.000 -2.600 -1.000  0.000 0.000 0.000  0.250 0.900 0.800  face -1.000 -0.000 -0.000
 interact 0  0.000 -0.300 5.400  0.000 0.000 0.000  0.550 0.850 0.550  name shrine
 when noflag saw_shrine
-do say A SHRINE, KEPT CLEAN.
-do say SOMETHING HAS BEEN LEFT ON IT AND TAKEN AWAY AGAIN.
+do say A shrine, kept clean.
+do say Something has been left on it and taken away again.
 do flag saw_shrine
 when flag saw_shrine
-do say IT HAS BEEN KEPT CLEAN SINCE YOU WERE LAST HERE.
+do say It has been kept clean since you were last here.
 door east  3.000 -0.600 -1.000  0.000 0.000 0.000  0.500 1.100 0.800  to 20 1  spawn 1.500 0.500 -1.000 -1.571
 door west  -3.000 -0.600 -1.000  0.000 0.000 0.000  0.500 1.100 0.800  to 22 0  spawn -1.500 0.500 -1.000 1.571
 door south  0.000 -0.600 -8.000  0.000 0.000 0.000  0.800 1.100 0.500  to 5 1  spawn 0.000 0.500 -6.500 0.000
@@ -615,8 +615,8 @@ wall 0  6.500 -2.600 0.000  0.000 0.000 0.000  0.250 0.900 0.800  face 1.000 -0.
 obj 1  0.839 0.500 2.068  0.000 1.900 0.000  0.340 0.340 0.340
 obj 2  3.521 0.500 -2.067  0.000 4.400 0.000  0.300 0.300 0.300
 interact 10  -3.800 0.300 0.000  0.000 0.000 0.000  0.700 0.700 0.700  name stump
-do say A STUMP, CUT FLAT.
-do say THE RINGS DO NOT GO ALL THE WAY ROUND.
+do say A stump, cut flat.
+do say The rings do not go all the way round.
 obj 7  -2.005 0.500 0.000  0.000 0.000 0.000  1.000 1.000 1.000
 obj 7  -2.498 0.500 1.187  0.000 0.000 0.000  1.000 1.000 1.000
 obj 7  -3.367 0.500 -1.456  0.000 0.000 0.000  1.000 1.000 1.000
@@ -641,19 +641,19 @@ wall 0  0.000 -2.100 -4.000  0.000 0.000 0.000  0.800 0.400 0.250  face -0.000 -
 wall 0  6.000 -1.000 0.000  0.000 0.000 0.000  0.250 1.500 4.000  face 1.000 -0.000 -0.000
 wall 0  -6.000 -1.000 0.000  0.000 0.000 0.000  0.250 1.500 4.000  face -1.000 -0.000 -0.000
 interact 1  3.400 0.500 -2.200  0.000 2.400 0.000  0.300 0.300 0.300  name tree
-do say THE TREE IS ON THE WRONG SIDE OF THE ROOM.
-do say NOBODY REMEMBERS MOVING IT.
+do say The tree is on the wrong side of the room.
+do say Nobody remembers moving it.
 obj 0  0.000 -0.650 -4.000  0.000 0.000 0.000  0.900 1.150 0.250  name gate
 interact 0  1.400 0.100 1.500  0.000 0.000 0.000  0.150 0.400 0.150  name lever
 when noflag foyer_open
-do say A LEVER, SET INTO THE FLOOR.
+do say A lever, set into the floor.
 do sound lever
 do rotate self  -0.559 0.000 0.000  over 0.250
 do move gate  0.000 -2.600 0.000  over 1.100
 do flag foyer_open
-do say SOMETHING LIFTS BY THE SOUTH WALL.
+do say Something lifts by the south wall.
 when flag foyer_open
-do say IT HAS BEEN PULLED.
+do say It has been pulled.
 door out  0.000 -0.600 -4.000  0.000 0.000 0.000  0.800 1.100 0.500  to -1 -1  spawn 0.000 0.500 -2.500 0.000
 endroom
 
@@ -670,7 +670,7 @@ wall 0  4.500 -1.000 0.000  0.000 0.000 0.000  0.250 1.500 4.500  face 1.000 -0.
 wall 0  -4.500 -1.000 0.000  0.000 0.000 0.000  0.250 1.500 4.500  face -1.000 -0.000 -0.000
 obj 0  0.000 -0.400 3.400  0.000 0.000 0.000  0.400 0.900 0.400
 interact 4  0.000 0.300 0.000  0.000 0.000 0.000  0.700 0.300 0.700  name stump
-do say THE STUMP FROM THE END OF THE PATH WEST.
-do say IT IS NOT CUT FLAT ANY MORE.
+do say The stump from the end of the path west.
+do say It is not cut flat any more.
 door out  0.000 -0.600 -4.500  0.000 0.000 0.000  0.800 1.100 0.500  to -1 -1  spawn 0.000 0.500 -3.000 0.000
 endroom

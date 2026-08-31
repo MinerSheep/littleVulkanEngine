@@ -409,7 +409,7 @@ void EventDirector::yardEarth(MapRoom& room) {
   for (int i = 0; i < digs; i++) {
     addObject(room, glm::vec3(digSpots[i][0], 0.470f, digSpots[i][1]), glm::vec3(0.f),
               glm::vec3(0.6f, 0.03f, 0.6f), "dig_old_" + std::to_string(i),
-              "THIS ONE IS ALREADY EMPTY.");
+              "This one is already empty.");
   }
 }
 
@@ -419,7 +419,7 @@ void EventDirector::bathroomSink(MapRoom& room) {
   if (!settled("sink_found", stage.state && stage.state->itemCount("@water.heard") >= 3)) return;
 
   addObject(room, glm::vec3(3.600f, -0.350f, 0.500f), glm::vec3(0.f),
-            glm::vec3(0.30f, 0.30f, 0.55f), "sink", "IT IS DRY.");
+            glm::vec3(0.30f, 0.30f, 0.55f), "sink", "The sink is dry.");
 }
 
 // E28: after the shape went over, a pane of glass is leaning on the north wall,
@@ -438,7 +438,7 @@ void EventDirector::greenhousePanes(MapRoom& room) {
     const float lean = 0.200f + 0.040f * out;
     addObject(room, glm::vec3(-3.400f, 0.500f - tall * std::cos(lean), 2.500f - 0.300f * out),
               glm::vec3(-lean, 0.f, 0.f), glm::vec3(1.35f, tall, 0.05f),
-              i == 0 ? "panes" : "", i == 0 ? "SOMETHING HAS TO BE REPLACED." : "");
+              i == 0 ? "panes" : "", i == 0 ? "Something has to be replaced." : "");
   }
 }
 
@@ -449,7 +449,7 @@ void EventDirector::shedSeam(MapRoom& room) {
 
   addObject(room, glm::vec3(0.900f, 0.470f, 0.800f), glm::vec3(0.f, 0.350f, 0.f),
             glm::vec3(1.2f, 0.02f, 0.22f), "seam",
-            under ? "THE CLOSET IS UNDER HERE." : "", false);
+            under ? "The closet is under here." : "", false);
 }
 
 // The things you only ever pick up once, and the flag that spends them for good
@@ -596,7 +596,7 @@ void EventDirector::ballroomStage() {
   if (pianoBack) {
     piano->disappeared = false;
     piano->collider.enabled = true;
-    rewrite("piano", "IT HAS BEEN MOVED.");
+    rewrite("piano", "It has been moved.");
     return;
   }
 
@@ -651,7 +651,7 @@ void EventDirector::yardTuft() {
 
   MapAction say;
   say.kind = ActionKind::Say;
-  say.text = "ELEANOR.";
+  say.text = "Eleanor.";
 
   MapAction remember;
   remember.kind = ActionKind::Flag;
@@ -665,7 +665,7 @@ void EventDirector::yardTuft() {
 
 // E36: the board in the shed reads your own save back, and is one line ahead
 void EventDirector::shedBoard() {
-  std::string words = "THE BOARD IS A LIST.";
+  std::string words = "The board is a list.";
 
   int onPage = 0;
   for (const std::string& flag : stage.state->flags) {
@@ -674,7 +674,7 @@ void EventDirector::shedBoard() {
     if (++onPage == 3) onPage = 0;
   }
 
-  words += "|SAW YOU READING THIS";
+  words += "|Saw you reading this";
   rewrite("board", words);
 }
 
@@ -1172,7 +1172,7 @@ void EventDirector::stoneAndGate() {
   if (std::fabs(gateAt.y - gateRest->translation.y) > 0.1f) return;
 
   stage.state->setFlag("quest_stone", true);
-  if (stage.dialog) stage.dialog->open("SOMETHING GIVES, TWO ROOMS AWAY.");
+  if (stage.dialog) stage.dialog->open("Something gives, two rooms away.");
 }
 
 // Quest 3: the pale tiles are the only floor that counts. Step off them and the
@@ -1205,7 +1205,7 @@ void EventDirector::ballroomTiles(bool playing) {
   if (!tileRun || column != 3 || row != 3) return;
 
   stage.state->setFlag("quest_tiles", true);
-  if (stage.dialog) stage.dialog->open("YOU REACH THE MIDDLE WITHOUT TOUCHING THE FLOOR.");
+  if (stage.dialog) stage.dialog->open("You reach the middle without touching the floor.");
 }
 
 // The way into building two, plugged until all four are done
@@ -1229,9 +1229,9 @@ void EventDirector::terraceDoor() {
   if (toldDoor || !stage.dialog) return;
   toldDoor = true;
 
-  const char* counted[] = {"", "ONE THING IS", "TWO THINGS ARE", "THREE THINGS ARE",
-                           "FOUR THINGS ARE"};
-  stage.dialog->open("THE DOOR DOES NOT OPEN.|" + std::string(counted[left]) + " UNFINISHED.");
+  const char* counted[] = {"", "One thing is", "Two things are", "Three things are",
+                           "Four things are"};
+  stage.dialog->open("The door does not open.|" + std::string(counted[left]) + " unfinished.");
 }
 
 // --- what the scene reads back ----------------------------------------------

@@ -37,12 +37,12 @@ const float stareFor = 1.8f;
 // How close to a doorway counts as standing in it
 const float doorReach = 1.1f;
 
-// An item name the way a note about it would be printed
-std::string shout(const std::string& name) {
+// An item name the way a note about it would be written, mid sentence
+std::string plainly(const std::string& name) {
   std::string out;
   for (char letter : name) {
     if (letter == '_') out += ' ';
-    else if (letter >= 'a' && letter <= 'z') out += static_cast<char>(letter - 'a' + 'A');
+    else if (letter >= 'A' && letter <= 'Z') out += static_cast<char>(letter - 'A' + 'a');
     else out += letter;
   }
   return out;
@@ -95,7 +95,7 @@ void EventDirector::forestBridge(MapRoom& room) {
   if (!stage.state || stage.state->itemCount("@runs") < 3) return;
 
   addObject(room, glm::vec3(0.f, 0.430f, 0.f), glm::vec3(0.f), glm::vec3(3.4f, 0.06f, 1.1f),
-            "deck", "THE PLANKS ARE NEW. NOBODY CARRIED THEM DOWN HERE.");
+            "deck", "The planks are new. Nobody carried them down here.");
 }
 
 // F04: a sign at the end of the line west, counting off how long it waited
@@ -106,7 +106,7 @@ void EventDirector::forestSign(MapRoom& room) {
   const int waited = stage.state->itemCount("@seconds");
   addObject(room, glm::vec3(-5.900f, -0.400f, -1.600f), glm::vec3(0.f, 0.35f, 0.f),
             glm::vec3(0.55f, 0.75f, 0.06f), "sign",
-            "YOU LEFT ME HERE " + std::to_string(waited) + " SECONDS AGO.");
+            "You left me here " + std::to_string(waited) + " seconds ago.");
 }
 
 // F17: come back to the game and there is a note by the shrine that was not
@@ -117,8 +117,8 @@ void EventDirector::forestNote(MapRoom& room) {
 
   addObject(room, glm::vec3(0.900f, 0.460f, 3.200f), glm::vec3(0.f, 0.6f, 0.f),
             glm::vec3(0.26f, 0.02f, 0.34f), "sorry_note",
-            "I AM SORRY FOR WHAT HAPPENED HERE.|"
-            "I UNDERSTAND IF YOU DO NOT WANT TO SEE ME AGAIN.",
+            "I am sorry for what happened here.|"
+            "I understand if you do not want to see me again.",
             false);
 }
 
@@ -136,7 +136,7 @@ void EventDirector::lostThings(MapRoom& room) {
     const std::string item = held.first.substr(mark.size());
     addObject(room, glm::vec3(along, 0.440f, -1.400f), glm::vec3(0.f, 0.85f, 0.f),
               glm::vec3(0.180f, 0.060f, 0.110f), item,
-              "YOUR " + shout(item) + ", LYING WHERE YOU DID NOT PUT IT.");
+              "Your " + plainly(item) + ", lying where you did not put it.");
     along += 0.8f;
 
     // Back in his pocket, off the ground, and the room forgets it was ever here
@@ -195,7 +195,7 @@ void EventDirector::enterForest() {
   if (stage.state && stage.state->itemCount("@runs") >= 2 &&
       !stage.state->hasFlag("welcomed") && stage.dialog) {
     stage.state->setFlag("welcomed", true);
-    stage.dialog->open("WELCOME BACK HOME.");
+    stage.dialog->open("Welcome back home.");
   }
 
   // F02: somebody is already in the room, on his way out of it
@@ -380,13 +380,13 @@ void EventDirector::forestAfraid() {
   if (toShut < 2.2f) {
     if (!toldAfraid) {
       toldAfraid = true;
-      stage.dialog->open("YOU ARE AFRAID TO GO THIS WAY.");
+      stage.dialog->open("You are afraid to go this way.");
     }
   }
 
   if (toOther < 2.2f) {
     if (toldAfraid) {
-      stage.dialog->open("YOU WOULD RATHER GO THE OTHER WAY.");
+      stage.dialog->open("You would rather go the other way.");
       stage.state->setFlag("forest_afraid", true);
     }
   }

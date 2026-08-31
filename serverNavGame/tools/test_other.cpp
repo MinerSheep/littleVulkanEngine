@@ -8,9 +8,15 @@
 // Build and run from the repo root:
 //   g++ -std=c++17 -O2 -Iengine/include -Iengine/libs -Igame/src \
 //       tools/test_other.cpp game/src/petscop/other.cpp \
-//       game/src/petscop/game_state.cpp game/src/petscop/map_loader.cpp \
-//       game/src/petscop/save_file.cpp -o /tmp/test_other
-//   /tmp/test_other maps/petscop.map
+//       game/src/petscop/outside.cpp game/src/petscop/game_state.cpp \
+//       game/src/petscop/map_loader.cpp game/src/petscop/save_file.cpp \
+//       game/src/petscop/prop.cpp game/src/collider_component.cpp \
+//       game/src/lve_game_object.cpp -o /tmp/test_other
+//
+//   /tmp/test_other maps/petscop.map 300
+//   /tmp/test_other maps/forest.map 300
+//
+// It says "all good" and exits 0, or prints what went wrong and exits 1
 
 #include "petscop/other.hpp"
 #include "petscop/outside.hpp"
