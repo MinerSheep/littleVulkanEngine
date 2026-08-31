@@ -199,6 +199,7 @@ class EventDirector {
   void hallLightBehind();                        // E09
   void hallFootprints();                         // E10
   void oneFrame(float dt);                       // X03
+  void footsteps(float dt, bool playing);        // his own feet, every room
   void yardPath();                               // E14
   void bathroomWater(float dt, bool playing);    // E19
   void billiardWord();                           // E21, and E22 once it is spelt
@@ -333,7 +334,7 @@ class EventDirector {
   bool pianoPlayed = false;
   bool pianoBack = false;
 
-  // The walker a beat behind him: time to his next step, and to its late one
+  // Time to his next footfall, and to the ballroom's late answer to it
   float stepAt = 0.f;
   float echoAt = -1.f;
 

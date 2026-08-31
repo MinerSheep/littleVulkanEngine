@@ -21,6 +21,10 @@ namespace {
 // max amount of sounds that can be playing
 constexpr std::size_t MAX_VOICES = 8;
 constexpr ma_uint32 CLIP_FLAGS = MA_SOUND_FLAG_DECODE | MA_SOUND_FLAG_NO_SPATIALIZATION;
+
+// A bed is read off the disk as it plays. Decoding one would mean holding the
+// whole recording in memory, and these run for minutes
+constexpr ma_uint32 BED_FLAGS = MA_SOUND_FLAG_STREAM | MA_SOUND_FLAG_NO_SPATIALIZATION;
 const char* const EXTENSIONS[] = {".wav", ".ogg", ".mp3", ".flac"};
 
 // This is a necessary check before failing
@@ -43,6 +47,9 @@ struct LveAudio::Impl {
   float masterVolume = 1.f;
   std::string searchPath = "sounds";
   std::unordered_map<std::string, Clip> clips;
+
+  // One voice each, kept apart from the one-shots because they are streamed
+  std::unordered_map<std::string, std::unique_ptr<ma_sound>> beds;
 
   ma_sound* freeVoice(Clip& clip) {
     for (std::unique_ptr<ma_sound>& voice : clip.voices) {
@@ -109,6 +116,9 @@ void LveAudio::shutdown() {
     for (std::unique_ptr<ma_sound>& voice : entry.second.voices) ma_sound_uninit(voice.get());
   }
   impl->clips.clear();
+
+  for (auto& entry : impl->beds) ma_sound_uninit(entry.second.get());
+  impl->beds.clear();
 
   ma_engine_uninit(&impl->engine);
   impl->started = false;
@@ -216,11 +226,64 @@ void LveAudio::play(const std::string& name, float volume, float pitch) {
   ma_sound_start(voice);
 }
 
+bool LveAudio::loadLoop(const std::string& name, const std::string& path) {
+  if (!impl->tried) init();
+  if (!impl->started) return false;
+  if (impl->beds.count(name)) return true;
+
+  if (!fileExists(path)) {
+    std::cout << "[audio] no loop at '" << path << "'" << std::endl;
+    return false;
+  }
+
+  auto bed = std::unique_ptr<ma_sound>(new ma_sound());
+  if (ma_sound_init_from_file(&impl->engine, path.c_str(), BED_FLAGS, nullptr, nullptr,
+                              bed.get()) != MA_SUCCESS) {
+    std::cout << "[audio] could not open the loop at '" << path << "'" << std::endl;
+    return false;
+  }
+
+  ma_sound_set_looping(bed.get(), MA_TRUE);
+  impl->beds.emplace(name, std::move(bed));
+  return true;
+}
+
+void LveAudio::loop(const std::string& name, float volume) {
+  if (!impl->started || name.empty()) return;
+
+  std::unordered_map<std::string, std::unique_ptr<ma_sound>>::iterator found =
+      impl->beds.find(name);
+  if (found == impl->beds.end()) return;
+
+  ma_sound* bed = found->second.get();
+  ma_sound_set_volume(bed, std::max(0.f, volume));
+
+  // Already going round. Starting it again would drag it back to the top
+  if (ma_sound_is_playing(bed)) return;
+
+  ma_sound_seek_to_pcm_frame(bed, 0);
+  ma_sound_start(bed);
+}
+
+void LveAudio::stop(const std::string& name) {
+  if (!impl->started) return;
+
+  std::unordered_map<std::string, std::unique_ptr<ma_sound>>::iterator bed =
+      impl->beds.find(name);
+  if (bed != impl->beds.end()) ma_sound_stop(bed->second.get());
+
+  std::unordered_map<std::string, Impl::Clip>::iterator clip = impl->clips.find(name);
+  if (clip == impl->clips.end()) return;
+  for (std::unique_ptr<ma_sound>& voice : clip->second.voices) ma_sound_stop(voice.get());
+}
+
+// Everything at once, beds included. A room puts its own bed back the next frame
 void LveAudio::stopAll() {
   if (!impl->started) return;
   for (auto& entry : impl->clips) {
     for (std::unique_ptr<ma_sound>& voice : entry.second.voices) ma_sound_stop(voice.get());
   }
+  for (auto& entry : impl->beds) ma_sound_stop(entry.second.get());
 }
 
 // TEMP diagnostic: one line a frame, mixer clock against the wall clock

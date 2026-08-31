@@ -3,6 +3,7 @@
 #include "petscop/dialog_box.hpp"  // emitPanel, wrapText
 #include "petscop/game_state.hpp"
 
+#include <lve_audio.hpp>
 #include <lve_engine.hpp>  // the window's shape
 #include <lve_window.hpp>  // GLFW keys
 
@@ -109,20 +110,24 @@ PauseMenu::Choice PauseMenu::update(GLFWwindow* window) {
       open = true;
       options = false;
       cursor = 0;
+      lve::LveAudio::instance().play("menu_toggle");
       return Choice::None;
     }
     // Backing out of a page is not the same as putting the menu away
     if (showingMap) {
       showingMap = false;
       cursor = 0;
+      lve::LveAudio::instance().play("menu_accept");
       return Choice::None;
     }
     if (options) {
       options = false;
       cursor = 0;
+      lve::LveAudio::instance().play("menu_accept");
       return Choice::Back;
     }
     close();
+    lve::LveAudio::instance().play("menu_toggle");
     return Choice::Resume;
   }
   if (!open) return Choice::None;
@@ -144,19 +149,23 @@ PauseMenu::Choice PauseMenu::update(GLFWwindow* window) {
   pickDown = pick;
   if (!pressed || cursor >= list.size()) return Choice::None;
 
+  // Putting the menu up or away is one sound, moving about inside it another
   const std::string& chosen = list[cursor];
   if (chosen == "RESUME") {
     close();
+    lve::LveAudio::instance().play("menu_toggle");
     return Choice::Resume;
   }
   if (chosen == "OPTIONS") {
     options = true;
     cursor = 0;
+    lve::LveAudio::instance().play("menu_accept");
     return Choice::Options;
   }
   if (chosen == "MAP") {
     showingMap = true;
     cursor = 0;
+    lve::LveAudio::instance().play("menu_accept");
     return Choice::None;
   }
   if (chosen == "BACK") {
@@ -165,6 +174,7 @@ PauseMenu::Choice PauseMenu::update(GLFWwindow* window) {
     options = false;
     showingMap = false;
     cursor = 0;
+    lve::LveAudio::instance().play("menu_accept");
     return wasOptions ? Choice::Back : Choice::None;
   }
   return Choice::Leave;

@@ -1,5 +1,6 @@
 #include "petscop/room_scene.hpp"
 
+#include <lve_audio.hpp>
 #include <lve_engine.hpp>
 #include <lve_skinned_model.hpp>
 
@@ -306,6 +307,33 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
             << doors.size() << " door(s)" << std::endl;
 }
 
+// What a room keeps running under everything else
+//
+// The clock is only ever heard in the hall it stands in, and the wind only where
+// there is no roof. Everywhere else runs dry
+void RoomScene::keepRoomBed() {
+  const char* want = nullptr;
+  float level = 0.f;
+
+  if (currentRoom >= 0) {
+    const std::string& here = map.rooms[currentRoom].name;
+    if (here == "Hall_Main") {
+      want = "clock_tick";
+      level = 0.55f;
+    } else if (here == "Yard" || here == "Field" || here == "Field_Red") {
+      want = "wind";
+      level = 0.40f;
+    }
+  }
+
+  const std::string next = want ? want : std::string();
+  if (next != roomBed) {
+    if (!roomBed.empty()) lve::LveAudio::instance().stop(roomBed);
+    roomBed = next;
+  }
+  if (!roomBed.empty()) lve::LveAudio::instance().loop(roomBed, level);
+}
+
 // The save, stamped with the time, so he knows how long you were gone
 void RoomScene::save() {
   state.lastPlayed = petscop::nowSeconds();
@@ -490,6 +518,9 @@ void RoomScene::emitBackground() {
 
 void RoomScene::update(float dt) {
   clock += dt;
+
+  // Runs whatever the phase, so the ambience carries through a fade and a menu
+  keepRoomBed();
 
   // ESC stops the walk where it stands and puts his pockets on the screen
   GLFWwindow* window = lve::LveEngine::instance().getGLFWWindow();
@@ -759,6 +790,12 @@ void RoomScene::cleanup() {
     state.rememberRoom(map.rooms[currentRoom].name, props);
     save();
     currentRoom = -1;
+  }
+
+  // The room is going, and so is whatever it was keeping running
+  if (!roomBed.empty()) {
+    lve::LveAudio::instance().stop(roomBed);
+    roomBed.clear();
   }
 
   // Drop the boxes before the vectors holding them go

@@ -192,6 +192,13 @@ class RoomScene : public lve::LveScene {
   // Throws out the whole area and stands the next one up, map and save and all
   void enterArea(int area);
 
+  // The bed running under the room he is in, or empty where a room keeps quiet
+  std::string roomBed;
+
+  // Starts the room's bed and stops the last one. Called every frame, so a bed
+  // something else silenced comes back on its own
+  void keepRoomBed();
+
   // Writes the save down, stamped with the time it was written
   void save();
 

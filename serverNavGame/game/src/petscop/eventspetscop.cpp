@@ -732,6 +732,10 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
 
   blackout(dt);
 
+  // His own feet, in every room of every map, which is why this is above the
+  // point the forest leaves
+  footsteps(dt, playing);
+
   if (forest()) {
     updateForest(dt, playing, startedProp);
     return;
@@ -1005,23 +1009,37 @@ void EventDirector::ballroomPiano(float dt, bool playing) {
   pianoPlayed = true;
 }
 
-// E27: somebody walks the ballroom a beat behind him. The late set takes one
-// more step after he has already stopped
-void EventDirector::ballroomWalker(float dt, bool playing) {
+// His feet, wherever he is. One step every stride of walking, and nothing at all
+// while he is stood still
+//
+// The ballroom is the one room that answers a step, and it is answered off this
+// beat rather than a beat of its own, so the late one is genuinely behind him
+void EventDirector::footsteps(float dt, bool playing) {
   const float stride = 0.44f;
   const float behind = 0.36f;
 
-  if (!playing) {
-    echoAt = -1.f;
+  if (!playing || !moved) {
+    // The next one lands the moment he sets off again
+    stepAt = 0.f;
     return;
   }
 
-  if (moved) {
-    stepAt -= dt;
-    if (stepAt <= 0.f) {
-      stepAt = stride;
-      echoAt = behind;
-    }
+  stepAt -= dt;
+  if (stepAt > 0.f) return;
+  stepAt = stride;
+
+  lve::LveAudio::instance().play("step", 0.50f, 1.f);
+
+  if (roomName == "Ballroom") echoAt = behind;
+}
+
+// E27: somebody walks the ballroom a beat behind him. The late set takes one
+// more step after he has already stopped, which is why this keeps counting down
+// once footsteps has gone quiet
+void EventDirector::ballroomWalker(float dt, bool playing) {
+  if (!playing) {
+    echoAt = -1.f;
+    return;
   }
 
   if (echoAt < 0.f) return;
@@ -1029,7 +1047,9 @@ void EventDirector::ballroomWalker(float dt, bool playing) {
   if (echoAt > 0.f) return;
 
   echoAt = -1.f;
-  if (canFire()) lve::LveAudio::instance().play("step");
+
+  // Quieter than his own, so it reads as somebody further off
+  if (canFire()) lve::LveAudio::instance().play("step", 0.38f, 0.94f);
 }
 
 // E30: the greenhouse lights go out, and something far too big passes over
@@ -1172,6 +1192,7 @@ void EventDirector::stoneAndGate() {
   if (std::fabs(gateAt.y - gateRest->translation.y) > 0.1f) return;
 
   stage.state->setFlag("quest_stone", true);
+  lve::LveAudio::instance().play("quest_done");
   if (stage.dialog) stage.dialog->open("Something gives, two rooms away.");
 }
 
@@ -1205,6 +1226,7 @@ void EventDirector::ballroomTiles(bool playing) {
   if (!tileRun || column != 3 || row != 3) return;
 
   stage.state->setFlag("quest_tiles", true);
+  lve::LveAudio::instance().play("quest_done");
   if (stage.dialog) stage.dialog->open("You reach the middle without touching the floor.");
 }
 

@@ -57,7 +57,15 @@ bool InteractionRunner::applyAction(const MapAction& action, int owner, bool bac
 
   // MEMORY
   if (action.kind == ActionKind::Flag || action.kind == ActionKind::Unflag) {
-    if (state) state->setFlag(action.text, action.kind == ActionKind::Flag);
+    if (!state) return false;
+
+    // One of the four steps of the poem landing is worth hearing, and only the
+    // first time it lands
+    const bool already = state->hasFlag(action.text);
+    state->setFlag(action.text, action.kind == ActionKind::Flag);
+
+    if (action.kind == ActionKind::Flag && !already && action.text.rfind("quest_", 0) == 0)
+      lve::LveAudio::instance().play("quest_done");
     return false;
   }
 

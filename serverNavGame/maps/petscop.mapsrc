@@ -167,6 +167,14 @@ room Hall_Main
   door billiard   north     8
   door ballroom   east      0
 
+  # A grandfather clock stood against the south wall, well clear of both doors
+  # Three boxes stacked into the shape: a plinth, the case, and the hood on top.
+  # 2.15 m from the floor to the top of it, and the case is the half you press
+  prop cube      5.000  0.350 -2.500   0 0 0   0.330 0.150 0.220
+  prop cube      5.000 -1.400 -2.500   0 0 0   0.320 0.250 0.210
+  interact cube  5.000 -0.475 -2.500   0 0 0   0.260 0.675 0.170   name clock
+    do say A grandfather clock, stood against the wall.|It is not ticking.
+
 
 # The corridor down to the back door, and out into the yard
 room Hall_West
