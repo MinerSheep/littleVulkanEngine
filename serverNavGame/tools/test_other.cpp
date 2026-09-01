@@ -25,6 +25,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <map>
 #include <random>
 #include <string>
 #include <vector>
@@ -69,6 +70,13 @@ bool obtainable(const petscop::GameMap& map, const petscop::GameState& state,
     }
   }
   return false;
+}
+
+// The room named in an "@left.<room>.<item>" key
+std::string leftIn(const std::string& key) {
+  const std::size_t start = std::string("@left.").size();
+  const std::size_t dot = key.find('.', start);
+  return dot == std::string::npos ? std::string() : key.substr(start, dot - start);
 }
 
 // Everything the four steps run through is still there to be walked up to
@@ -133,6 +141,7 @@ int main(int argc, char** argv) {
 
   int turnsTaken = 0;
   int roomsMoved = 0;
+  int strandedDrops = 0;
 
   for (int trial = 0; trial < trials; trial++) {
     petscop::GameState state;
@@ -145,6 +154,12 @@ int main(int argc, char** argv) {
     state.addItem("map", 1);
     state.addItem("lantern", 1);
 
+    // Rooms you have walked into yourself. The one you are standing in always
+    // counts, and a few others you got to before you shut the game
+    state.addItem("@visits." + state.room, 1);
+    for (int walked = 0, want = 1 + static_cast<int>(anyRoom(rng) % 4); walked < want; walked++)
+      state.addItem("@visits." + map.rooms[anyRoom(rng)].name, 1);
+
     const int runs = sessions(rng);
     for (int run = 0; run < runs; run++) {
       const long long then = state.lastPlayed;
@@ -152,6 +167,13 @@ int main(int argc, char** argv) {
 
       const int hours = petscop::hoursBetween(then, now);
       const std::string was = state.other.room;
+
+      // What is already on the floor before he starts, so the check below only
+      // reads what he put down in this gap
+      std::map<std::string, int> lay;
+      for (const std::pair<const std::string, int>& held : state.items)
+        if (held.first.rfind("@left.", 0) == 0) lay[held.first] = held.second;
+
       turnsTaken += petscop::runOffline(map, state, hours, state.room);
       if (!was.empty() && was != state.other.room) roomsMoved++;
 
@@ -162,6 +184,19 @@ int main(int argc, char** argv) {
       }
 
       checkQuestsReachable(map, state, "trial " + std::to_string(trial));
+
+      // What he put down is lying in a room you have been in. The one way out of
+      // that is a corner he cannot walk to one from, and then it is at his feet
+      for (const std::pair<const std::string, int>& held : state.items) {
+        if (held.second <= 0 || held.first.rfind("@left.", 0) != 0) continue;
+        if (held.second <= lay[held.first]) continue;
+        const std::string where = leftIn(held.first);
+        if (state.itemCount("@visits." + where) > 0) continue;
+
+        if (where == state.other.room) strandedDrops++;
+        else complain("trial " + std::to_string(trial) + ": " + held.first +
+                      " is in a room you have never been in");
+      }
 
       // He always ends up somewhere the map actually has
       bool real = state.other.room.empty();
@@ -197,8 +232,8 @@ int main(int argc, char** argv) {
       complain("a fortnight away was not capped");
   }
 
-  printf("%d trial(s), %d turn(s) taken, he changed room %d time(s)\n", trials, turnsTaken,
-         roomsMoved);
+  printf("%d trial(s), %d turn(s) taken, he changed room %d time(s), %d drop(s) at his feet\n", trials, turnsTaken,
+         roomsMoved, strandedDrops);
   printf("%s\n", failures == 0 ? "all good" : "SOMETHING IS WRONG");
   return failures == 0 ? 0 : 1;
 }

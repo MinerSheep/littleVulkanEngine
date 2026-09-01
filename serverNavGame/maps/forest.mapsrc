@@ -20,6 +20,7 @@ hidenames
 room Start
   size 8 12
   height 4
+  floortex forest_grass_lush
   open
   light 0.0 -2.8 -2.0   0.30 0.38 0.48   12
   light 0.0 -2.8  3.0   0.26 0.34 0.44   12
@@ -33,6 +34,7 @@ room Start
 room Clearing_Trees
   size 14 10
   height 4
+  floortex forest_grass_lush
   open
   light -3.0 -2.8 0.0   0.30 0.38 0.48   13
   light  4.0 -2.8 1.0   0.24 0.32 0.42   13
@@ -50,6 +52,7 @@ room Clearing_Trees
 room Path_West
   size 14 6
   height 4
+  floortex forest_grass_dry
   open
   light -3.0 -2.8 0.0   0.28 0.36 0.46   12
   light  3.0 -2.8 0.0   0.24 0.32 0.42   12
@@ -64,6 +67,7 @@ room Path_West
 room Deep_Trees
   size 24 16
   height 4
+  floortex forest_grass_lush
   open
   light -7.0 -3.0  2.0   0.28 0.36 0.46   17
   light  6.0 -3.0 -2.0   0.22 0.30 0.40   17
@@ -94,6 +98,7 @@ room Deep_Trees
 room Well_Path
   size 6 16
   height 4
+  floortex forest_grass_lush
   open
   light 0.0 -2.8 -4.0   0.30 0.38 0.48   13
   light 0.0 -2.8  4.0   0.24 0.32 0.42   13
@@ -111,6 +116,7 @@ room Well_Path
 room Gate_Clearing
   size 16 6
   height 4
+  floortex forest_grass_dry
   open
   light -4.0 -2.8 0.0   0.28 0.36 0.46   13
   light  4.0 -2.8 0.0   0.24 0.32 0.42   13
@@ -137,6 +143,7 @@ room Gate_Clearing
 room Car_Clearing
   size 15 10
   height 4
+  floortex forest_grass_dry
   open
   light -4.0 -2.8 1.0   0.30 0.38 0.48   13
   light  4.0 -2.8 0.0   0.24 0.32 0.42   13
@@ -159,6 +166,7 @@ room Car_Clearing
 room Car_South
   size 14 7
   height 4
+  floortex forest_grass_dry
   open
   light -3.0 -2.8 0.0   0.28 0.36 0.46   12
   light  3.5 -2.8 0.0   0.22 0.30 0.40   12
@@ -173,6 +181,7 @@ room Car_South
 room Ridge
   size 6 15
   height 4
+  floortex forest_grass_dry
   open
   light 0.0 -2.8 -4.0   0.28 0.36 0.46   13
   light 0.0 -2.8  4.0   0.22 0.30 0.40   13
@@ -190,6 +199,7 @@ room Ridge
 room Tent_Camp
   size 18 13
   height 4
+  floortex forest_grass_lush
   open
   light -4.0 -3.0  1.0   0.34 0.40 0.46   15
   light  5.0 -3.0 -1.0   0.24 0.32 0.42   15
@@ -226,6 +236,7 @@ room Tent_Camp
 room Camp_East
   size 14 5
   height 4
+  floortex forest_grass_dry
   open
   light -3.0 -2.8 0.0   0.26 0.34 0.44   12
   light  3.0 -2.8 0.0   0.22 0.30 0.40   12
@@ -245,6 +256,7 @@ room Camp_East
 room Camp_South
   size 14 6
   height 4
+  floortex forest_grass_dry
   open
   light -3.0 -2.8 0.0   0.26 0.34 0.44   12
   light  3.0 -2.8 0.0   0.22 0.30 0.40   12
@@ -263,6 +275,7 @@ room Camp_South
 room Ring
   size 14 15
   height 4
+  floortex forest_grass_lush
   open
   light -3.0 -3.0  0.0   0.30 0.34 0.40   14
   light  3.0 -3.0  0.0   0.22 0.26 0.34   14
@@ -294,6 +307,7 @@ room Ring
 room Hollow
   size 14 15
   height 4
+  floortex forest_grass_lush
   open
   light -3.0 -3.0  2.0   0.28 0.36 0.46   14
   light  3.0 -3.0 -2.0   0.22 0.30 0.40   14
@@ -313,11 +327,11 @@ room Hollow
   prop tree2 3.568 0.500 6.898   0.000 0.000 0.000   0.345 0.345 0.345
   prop tree  -5.891 0.500 -3.793   0.000 0.000 0.000   0.343 0.343 0.343
   prop tree2 -3.728 0.500 -5.363   0.000 0.000 0.000   0.294 0.294 0.294
-  prop grass  -1.197 0.500 1.339   0.000 0.000 0.000   1.000 1.000 1.000
-  prop grass  -0.368 0.500 1.618   0.000 0.000 0.000   1.000 1.000 1.000
-  prop grass  -1.275 0.500 -0.121   0.000 0.406 0.000   1.000 1.000 1.000
-  prop grass  0.461 0.500 0.237   0.000 0.000 0.000   1.000 1.000 1.000
-  prop grass  1.043 0.500 1.788   0.000 0.000 0.000   1.000 1.000 1.000
+  prop grass  -1.197 0.500 1.339   0.000 0.000 0.000   1.000 1.000 1.000  pass
+  prop grass  -0.368 0.500 1.618   0.000 0.000 0.000   1.000 1.000 1.000  pass
+  prop grass  -1.275 0.500 -0.121   0.000 0.406 0.000   1.000 1.000 1.000  pass
+  prop grass  0.461 0.500 0.237   0.000 0.000 0.000   1.000 1.000 1.000  pass
+  prop grass  1.043 0.500 1.788   0.000 0.000 0.000   1.000 1.000 1.000  pass
   prop rock  3.026 0.500 -5.225   0.000 0.000 0.000   1.000 1.000 1.000
 
 
@@ -325,6 +339,7 @@ room Hollow
 room Tall_Trees
   size 16 10
   height 4
+  floortex forest_grass_lush
   open
   light -4.0 -3.0  0.0   0.28 0.36 0.46   14
   light  4.0 -3.0  0.0   0.22 0.30 0.40   14
@@ -349,6 +364,7 @@ room Tall_Trees
 room Bank_West
   size 14 5
   height 4
+  floortex forest_grass_lush
   open
   light -3.0 -2.8 0.0   0.28 0.36 0.46   12
   light  3.0 -2.8 0.0   0.24 0.32 0.42   12
@@ -366,6 +382,7 @@ room Bank_West
 room Bridge
   size 14 9
   height 4
+  floortex wood_flooring
   open
   light -3.0 -2.8 0.0   0.32 0.40 0.50   13
   light  3.0 -2.8 0.0   0.26 0.34 0.46   13
@@ -386,6 +403,7 @@ room Bridge
 room Bank_East
   size 14 5
   height 4
+  floortex forest_grass_lush
   open
   light -3.0 -2.8 0.0   0.26 0.34 0.44   12
   light  3.0 -2.8 0.0   0.22 0.30 0.40   12
@@ -412,6 +430,7 @@ room Bank_East
 room House
   size 17 16
   height 4
+  floortex wood_flooring
   showname
   light -4.0 -3.0  3.0   0.55 0.50 0.42   14
   light  4.0 -3.0 -3.0   0.32 0.34 0.44   14
@@ -426,6 +445,7 @@ room House
 room False_Path
   size 6 16
   height 4
+  floortex forest_grass_dry
   open
   light 0.0 -2.8 -4.0   0.26 0.34 0.44   13
   light 0.0 -2.8  4.0   0.22 0.30 0.40   13
@@ -440,6 +460,7 @@ room False_Path
 room Trees_West
   size 14 5
   height 4
+  floortex forest_grass_dry
   open
   light -3.0 -2.8 0.0   0.26 0.34 0.44   12
   light  3.0 -2.8 0.0   0.22 0.30 0.40   12
@@ -453,6 +474,7 @@ room Trees_West
 room Shrine_Path
   size 6 16
   height 4
+  floortex forest_grass_dry
   open
   light 0.0 -2.8 -4.0   0.34 0.32 0.36   13
   light 0.0 -2.8  4.0   0.22 0.28 0.38   13
@@ -461,18 +483,19 @@ room Shrine_Path
   door south  south  0
 
   interact cube  0.0 -0.30 5.4   0 0 0   0.55 0.85 0.55   name shrine
+    when flag saw_shrine
+    do say It has been kept clean since you were last here.
     when noflag saw_shrine
     do say This shrine appears to hold sentimental value.
     do say Something was left on it and taken away again.
     do flag saw_shrine
-    when flag saw_shrine
-    do say It has been kept clean since you were last here.
 
 
 # The end of the line west. There is nothing past the stump
 room Stump_End
   size 13 5
   height 4
+  floortex forest_grass_dry
   open
   light -3.0 -2.8 0.0   0.26 0.34 0.44   12
   light  3.0 -2.8 0.0   0.20 0.28 0.38   12
@@ -482,10 +505,10 @@ room Stump_End
   interact stump  -3.800 0.300 0.000   0.000 0.000 0.000   0.700 0.700 0.700  name stump
     do say A rather round stump.|It's long enough to seat several people.
     do say The rings do not go all the way around.
-  prop grass  -2.005 0.500 0.000   0.000 0.000 0.000   1.000 1.000 1.000
-  prop grass  -2.498 0.500 1.187   0.000 0.000 0.000   1.000 1.000 1.000
-  prop grass  -3.367 0.500 -1.456   0.000 0.000 0.000   1.000 1.000 1.000
-  prop grass  -4.351 0.500 1.288   0.000 0.000 0.000   1.000 1.000 1.000
+  prop grass  -2.005 0.500 0.000   0.000 0.000 0.000   1.000 1.000 1.000  pass
+  prop grass  -2.498 0.500 1.187   0.000 0.000 0.000   1.000 1.000 1.000  pass
+  prop grass  -3.367 0.500 -1.456   0.000 0.000 0.000   1.000 1.000 1.000  pass
+  prop grass  -4.351 0.500 1.288   0.000 0.000 0.000   1.000 1.000 1.000  pass
   prop tree2 -1.517 0.500 2.199   0.000 0.000 0.000   0.329 0.329 0.329
   prop tree  -3.665 0.500 2.673   0.000 0.000 0.000   0.359 0.359 0.359
   prop tree2 -5.909 0.500 1.642   0.000 0.000 0.000   0.364 0.364 0.364
@@ -499,6 +522,7 @@ room Stump_End
 room Foyer
   size 12 8
   height 3
+  floortex forest_grass_dry
   showname
   light 0.0 -2.2 0.0   0.30 0.27 0.24   6
   door out  south  0
@@ -509,6 +533,8 @@ room Foyer
   # The slab across the way out, and the lever on the far side that lifts it
   prop cube  0.000 -0.650 -4.000   0.000 0.000 0.000   0.900 1.150 0.250  name gate
   interact cube  1.400 0.100 1.500   0.000 0.000 0.000   0.150 0.400 0.150  name lever
+    when flag foyer_open
+    do say If you pulled it again...|You would never leave.
     when noflag foyer_open
     do say A lever...
     do sound lever
@@ -516,8 +542,6 @@ room Foyer
     do move gate  0 -2.600 0  over 1.10
     do flag foyer_open
     do say Something lifts by the south wall.
-    when flag foyer_open
-    do say If you pulled it again...|You would never leave.
 
 
 # F10: where a run starts when the game has stopped agreeing about where he is.
@@ -525,6 +549,7 @@ room Foyer
 room NOT_HERE_NOT_ANYWHERE
   size 9 9
   height 3
+  floortex forest_grass_dry
   showname
   light 0.0 -2.4 0.0   0.20 0.20 0.26   6
   door out  south  0

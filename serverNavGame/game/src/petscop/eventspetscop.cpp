@@ -527,6 +527,7 @@ void EventDirector::onEnterRoom(int index, int arriveDoor) {
   waterAt = -1.f;
   echoAt = -1.f;
   stepAt = 0.f;
+  banged = false;
   onEdge = true;  // you have to step off a corner before leaning on it counts
 
   // Nothing about the last room's walking carries into this one
@@ -752,6 +753,7 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
     foyerCamera(dt);
   }
   if (roomName == "Closet") closetShutIn(dt, startedProp);
+  if (roomName == "Hall_West") hallWestBang(dt);
   if (roomName == "Hall_Main") {
     hallLightBehind();
     hallFootprints();
@@ -821,6 +823,8 @@ void EventDirector::foyerCamera(float dt) {
 // E07: now and then, turning the rock shuts you in for twenty seconds
 void EventDirector::closetShutIn(float dt, int startedProp) {
   if (shutIn < 0.f) {
+    // It shuts him in once in the life of a save and never again
+    if (!stage.state || stage.state->hasFlag("closet_shut")) return;
     if (startedProp < 0 || !stage.props) return;
     if (startedProp >= static_cast<int>(stage.props->size())) return;
     if ((*stage.props)[startedProp].name != "rock") return;
@@ -828,6 +832,8 @@ void EventDirector::closetShutIn(float dt, int startedProp) {
 
     std::uniform_int_distribution<int> odds(0, 2);
     if (odds(rng) != 0) return;
+
+    stage.state->setFlag("closet_shut", true);
     shutIn = 0.f;
     fired();
     return;
@@ -908,6 +914,19 @@ void EventDirector::oneFrame(float dt) {
 
   showInsert = true;
   stage.state->setFlag("saw_frame", true);
+}
+
+// The yard is through the door at the end of this corridor, and now and then
+// something out there gets hit. Quiet and flat, so it reads as being outside
+void EventDirector::hallWestBang(float dt) {
+  if (banged || sinceEntry < 2.f) return;
+
+  // About one chance in eight a second, and at most one a visit
+  std::uniform_real_distribution<float> odds(0.f, 1.f);
+  if (odds(rng) > dt * 0.125f) return;
+
+  banged = true;
+  lve::LveAudio::instance().play("yard_bang", 0.30f, 0.90f);
 }
 
 // E14: every tuft he walks over is flattened out of sight and stays that way
@@ -1116,8 +1135,9 @@ void EventDirector::fieldEdge(bool playing) {
   if (onEdge) return;
   onEdge = true;
 
+  // The note in the closet reads NW FIELD backwards, and this is that corner
   stage.state->addItem("@edge.field", 1);
-  if (stage.state->itemCount("@edge.field") < 5) return;
+  if (stage.state->itemCount("@edge.field") < 3) return;
 
   const int red = findRoom("Field_Red");
   if (red < 0 || !canFire()) return;

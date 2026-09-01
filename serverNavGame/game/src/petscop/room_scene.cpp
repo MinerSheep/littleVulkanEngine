@@ -317,12 +317,18 @@ void RoomScene::keepRoomBed() {
 
   if (currentRoom >= 0) {
     const std::string& here = map.rooms[currentRoom].name;
-    if (here == "Hall_Main") {
+
+    // The whole forest hums, wherever you are standing in it
+    if (map.name == "forest") {
+      want = "forest_bed";
+      level = 0.20f;
+    } else if (here == "Hall_Main") {
       want = "clock_tick";
       level = 0.55f;
-    } else if (here == "Yard" || here == "Field" || here == "Field_Red") {
+    } else if (here == "Yard" || here == "Field") {
+      // Field_Red is the field with everything taken out of it, wind included
       want = "wind";
-      level = 0.40f;
+      level = 0.24f;
     }
   }
 

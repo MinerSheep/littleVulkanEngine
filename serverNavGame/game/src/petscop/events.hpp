@@ -196,6 +196,7 @@ class EventDirector {
   void foyerLight();                             // E05
   void foyerCamera(float dt);                    // E03
   void closetShutIn(float dt, int startedProp);  // E07
+  void hallWestBang(float dt);                   // something hit out in the yard
   void hallLightBehind();                        // E09
   void hallFootprints();                         // E10
   void oneFrame(float dt);                       // X03
@@ -317,6 +318,9 @@ class EventDirector {
 
   // How long the closet has had you, and whether it is going to
   float shutIn = -1.f;
+
+  // Whether the yard has already been heard from this visit to the west hall
+  bool banged = false;
 
   // Doors taken in quick succession, and how long since the last one
   int mash = 0;

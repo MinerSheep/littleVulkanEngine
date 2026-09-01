@@ -222,18 +222,51 @@ bool steal(GameState& state, unsigned int& seed, std::string& taken) {
   return true;
 }
 
-// Everything in his hands goes on the floor where he stands, the moment you are
+// The nearest room you have walked into yourself, starting from where he stands
+// Yours is skipped, and -1 means there is no room of yours he can reach
+int nearestKnown(const GameMap& map, const std::vector<std::vector<int>>& graph,
+                 const GameState& state, int from, const std::string& playerRoom) {
+  std::vector<bool> seen(graph.size(), false);
+  std::deque<int> queue;
+  seen[static_cast<std::size_t>(from)] = true;
+  queue.push_back(from);
+
+  while (!queue.empty()) {
+    const int here = queue.front();
+    queue.pop_front();
+
+    const std::string& name = map.rooms[static_cast<std::size_t>(here)].name;
+    if (name != playerRoom && state.itemCount("@visits." + name) > 0) return here;
+
+    for (int next : graph[static_cast<std::size_t>(here)]) {
+      if (seen[static_cast<std::size_t>(next)]) continue;
+      seen[static_cast<std::size_t>(next)] = true;
+      queue.push_back(next);
+    }
+  }
+  return -1;
+}
+
+// Everything in his hands goes on a floor you have walked, the moment you are
 // back at the controls
 //
 // This is the whole of his honesty. He can walk off with a step of the poem, and
-// he can lift one out of your own pocket, but he cannot keep either -- it is left
-// lying in whatever room he happened to stop in, and lostThings stands it up
-void dropPocket(GameState& state) {
-  if (state.other.room.empty() || state.other.pocket.empty()) return;
+// he can lift one out of your own pocket, but he cannot keep either -- he carries
+// it back to a room you know and leaves it there, and lostThings stands it up
+//
+// Somewhere you have never been would be the same as gone. If there is no such
+// room to reach he puts it down where he stands rather than keep hold of it
+void dropPocket(const GameMap& map, const std::vector<std::vector<int>>& graph, GameState& state,
+                int here, const std::string& playerRoom) {
+  if (state.other.pocket.empty()) return;
+
+  const int known = nearestKnown(map, graph, state, here, playerRoom);
+  const std::string& where =
+      map.rooms[static_cast<std::size_t>(known >= 0 ? known : here)].name;
 
   for (const std::pair<const std::string, int>& held : state.other.pocket) {
     if (held.second <= 0) continue;
-    state.addItem("@left." + state.other.room + "." + held.first, held.second);
+    state.addItem("@left." + where + "." + held.first, held.second);
   }
   state.other.pocket.clear();
 }
@@ -342,8 +375,8 @@ int runOffline(const GameMap& map, GameState& state, int hours, const std::strin
   state.other.room = map.rooms[static_cast<std::size_t>(here)].name;
   state.other.seed = seed;
 
-  // You are back, so he puts down everything he was carrying, right where he is
-  dropPocket(state);
+  // You are back, so he puts down everything he was carrying
+  dropPocket(map, graph, state, here, playerRoom);
   return turns;
 }
 
