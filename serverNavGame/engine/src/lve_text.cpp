@@ -24,6 +24,9 @@ const GlyphRows* glyphFor(char c) {
   return it != table.end() ? &it->second : nullptr;
 }
 
+// The hook a lowercase y hangs below the line, where the 5x7 cell runs out
+constexpr uint8_t kTailY = 0b01110;
+
 }  // namespace
 
 LveTextRenderer::LveTextRenderer(LveDevice& device) {
@@ -61,6 +64,25 @@ void LveTextRenderer::emit(std::vector<UIRenderItem>& out,
   float penX = originNdc.x;
   float penY = originNdc.y;
 
+  // Lays one row of a glyph's bitmap down as dots
+  auto inkRow = [&](uint8_t bits, int row) {
+    for (int col = 0; col < kGlyphCols; ++col) {
+
+      // Check if bit is enabled
+      if (!(bits & (1 << (kGlyphCols - 1 - col)))) continue;
+
+      UIRenderItem dot{};
+      dot.transform = cellTransform;
+      dot.offset = glm::vec2(penX + col * dotW, penY + row * dotH);
+      dot.color = color;
+      dot.alpha = alpha;
+      dot.model = quadModel.get();
+
+      // ADD to render list
+      out.push_back(dot);
+    }
+  };
+
   // Loop through each character
   for (char rawc : text) {
 
@@ -78,26 +100,10 @@ void LveTextRenderer::emit(std::vector<UIRenderItem>& out,
       const GlyphRows& rows = *glyph;
 
       // Loop through row
-      for (int row = 0; row < kGlyphRows; ++row) {
-        uint8_t bits = rows[row];
+      for (int row = 0; row < kGlyphRows; ++row) inkRow(rows[row], row);
 
-        // Loop through col
-        for (int col = 0; col < kGlyphCols; ++col) {
-
-          // Check if bit is enabled
-          if (bits & (1 << (kGlyphCols - 1 - col))) {
-            UIRenderItem dot{};
-            dot.transform = cellTransform;
-            dot.offset = glm::vec2(penX + col * dotW, penY + row * dotH);
-            dot.color = color;
-            dot.alpha = alpha;
-            dot.model = quadModel.get();
-
-            // ADD to render list
-            out.push_back(dot);
-          }
-        }
-      }
+      // The tail of a y carries on into the gap under the line
+      if (rawc == 'y') inkRow(kTailY, kGlyphRows);
     }
 
     // Move pen to the right for the next character.
