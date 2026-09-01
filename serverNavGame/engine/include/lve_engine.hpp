@@ -73,7 +73,7 @@ namespace lve
         
         // ORDER MATTERS!
         // Initialize from top to bottom, DESTROY from bottom to top
-        LveWindow lveWindow{WIDTH, HEIGHT, "Hello Vulkan!"};
+        LveWindow lveWindow{WIDTH, HEIGHT, ""};
         LveDevice lveDevice{lveWindow};
         LveRenderer lveRenderer{lveWindow, lveDevice};
         

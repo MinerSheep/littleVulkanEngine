@@ -419,7 +419,7 @@ void EventDirector::bathroomSink(MapRoom& room) {
   if (!settled("sink_found", stage.state && stage.state->itemCount("@water.heard") >= 3)) return;
 
   addObject(room, glm::vec3(3.600f, -0.350f, 0.500f), glm::vec3(0.f),
-            glm::vec3(0.30f, 0.30f, 0.55f), "sink", "The sink is dry.");
+            glm::vec3(0.30f, 0.30f, 0.55f), "sink", "The sink is dried up now.");
 }
 
 // E28: after the shape went over, a pane of glass is leaning on the north wall,
@@ -438,7 +438,7 @@ void EventDirector::greenhousePanes(MapRoom& room) {
     const float lean = 0.200f + 0.040f * out;
     addObject(room, glm::vec3(-3.400f, 0.500f - tall * std::cos(lean), 2.500f - 0.300f * out),
               glm::vec3(-lean, 0.f, 0.f), glm::vec3(1.35f, tall, 0.05f),
-              i == 0 ? "panes" : "", i == 0 ? "Something has to be replaced." : "");
+              i == 0 ? "panes" : "", i == 0 ? "The room is coming apart." : "");
   }
 }
 
@@ -596,7 +596,7 @@ void EventDirector::ballroomStage() {
   if (pianoBack) {
     piano->disappeared = false;
     piano->collider.enabled = true;
-    rewrite("piano", "It has been moved.");
+    rewrite("piano", "It isn't here anymore.");
     return;
   }
 
@@ -1193,7 +1193,7 @@ void EventDirector::stoneAndGate() {
 
   stage.state->setFlag("quest_stone", true);
   lve::LveAudio::instance().play("quest_done");
-  if (stage.dialog) stage.dialog->open("Something gives, two rooms away.");
+  if (stage.dialog) stage.dialog->open("Something changed, a sound from the Terrace.");
 }
 
 // Quest 3: the pale tiles are the only floor that counts. Step off them and the

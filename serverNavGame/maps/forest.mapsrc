@@ -104,9 +104,7 @@ room Well_Path
   prop tree2  1.7 0.5  7.2   0 2.9 0   0.28 0.28 0.28
 
   interact cylinder  -1.6 0.10 0.0   0 0 0   0.85 0.55 0.85   name well
-    do say A well, with the lid still on it.
-    do sound stone
-    do say It has not been opened in a long time.
+    do say A well.|You can't see the bottom.
 
 
 # A gate standing on its own, with nothing either side of it
@@ -122,7 +120,7 @@ room Gate_Clearing
   prop tree2  -4.932 0.500 -2.100   0.000 3.400 0.000   0.320 0.320 0.320
   interact gate  -0.072 0.600 1.594  0.000 3.142 0.000  0.224 0.248 1.990  name gate
     when noflag gate_opened
-    do say A gate, and no fence on either side of it.|It will not move without a key.
+    do say A gate, there's a padlock on it.|It will not move without a key.
     do take key 1
     do say The key from the tent turns in it.
     do flag gate_opened
@@ -130,7 +128,7 @@ room Gate_Clearing
     do sound lever
     do move gate  -0.072 0.231 4.126 over 1.100 toggle
     do rotate gate  0.000 87.026 0.000 over 0.600 toggle
-    do say It swings. Nothing about the walk changes.
+    do say You swing the gate.
   prop cube  -0.177 -0.805 -1.804   0.000 0.000 0.000   1.316 1.316 1.316
 
 
@@ -149,12 +147,12 @@ room Car_Clearing
   prop tree   6.4 0.5 -3.4   0 4.1 0   0.30 0.30 0.30
 
   interact car  2.6 -0.85 1.6   0 1.42 0   0.40 0.40 0.40   name car
-    when noflag saw_car
-    do say A car, with the doors shut and the glass still in it.
-    do say There is no road.
-    do flag saw_car
     when flag saw_car
     do say There is still no road.
+    when noflag saw_car
+    do say A car, it appears to be locked, but undamaged.
+    do say There is no road nearby.
+    do flag saw_car
 
 
 # Trees, and a turn east
@@ -205,14 +203,15 @@ room Tent_Camp
     do say A tent, still pegged out and still dry inside.
     do say Whoever put it up meant to come back.
   interact cube  -3.509 0.440 -4.116   0.000 0.850 0.000   0.220 0.060 0.090  name key
+    when item key
+    do say The grass is molded in the shape of the key.
     when noitem key
-    do say A key, lying where it was dropped.
+    do say A key, lying as if it was dropped.
     do sound stone
     do hide self
     do flag took_key
     do give key 1
-    when item key
-    do say The grass is still flat where it was.
+    do say You received a key.
   prop tree2 -7.954 0.500 -0.799   0.000 0.000 0.000   0.353 0.353 0.353
   prop tree  -8.146 0.500 2.546   0.000 0.000 0.000   0.357 0.357 0.357
   prop tree  -2.607 0.500 6.219   0.000 0.000 0.000   0.358 0.358 0.358
@@ -282,12 +281,12 @@ room Ring
   prop cylinder  -1.24 0.44 -1.57   0 0 0   0.18 0.10 0.18
 
   interact cylinder  0.00 0.44 0.00   0 0 0   0.18 0.10 0.18   name mushrooms
-    do say Mushrooms, grown in a ring.
-    do say The one in the middle is the one that should not be there.
+    do say Mushrooms are grown in a ring.
+    do say You don't like the one in the middle.
 
   # F05: pressing E does nothing you can see, and it starts walking after you
   interact tree  -4.80 0.50 4.20   0 0.9 0   0.34 0.34 0.34   name walker
-    do say It is a tree.
+    do say It is a tree. Almost like the one in the Foyer.
     do flag tree_walks
 
 
@@ -375,7 +374,7 @@ room Bridge
   prop cube  0.000 0.300 2.801   0.000 0.000 0.000   7.000 0.220 1.100  name water_north
   interact cube  0.000 0.300 -2.970   0.000 0.000 0.000   7.000 0.220 1.100  name water_south
     do say The water is not moving.
-    do say It is the only thing down here that is not.
+    do say It is the only thing that isn't moving around here.
   prop water  0.000 0.869 0.000   0.000 0.000 0.000   10.056 10.056 10.056
   prop rock  -2.606 0.500 0.000   0.000 0.000 0.000   1.000 1.000 1.000
   prop rock  0.000 0.500 0.000   0.000 0.584 0.000   1.000 1.000 1.000
@@ -463,8 +462,8 @@ room Shrine_Path
 
   interact cube  0.0 -0.30 5.4   0 0 0   0.55 0.85 0.55   name shrine
     when noflag saw_shrine
-    do say A shrine, kept clean.
-    do say Something has been left on it and taken away again.
+    do say This shrine appears to hold sentimental value.
+    do say Something was left on it and taken away again.
     do flag saw_shrine
     when flag saw_shrine
     do say It has been kept clean since you were last here.
@@ -481,8 +480,8 @@ room Stump_End
   prop tree  0.839 0.500 2.068   0.000 1.900 0.000   0.340 0.340 0.340
   prop tree2 3.521 0.500 -2.067   0.000 4.400 0.000   0.300 0.300 0.300
   interact stump  -3.800 0.300 0.000   0.000 0.000 0.000   0.700 0.700 0.700  name stump
-    do say A stump, cut flat.
-    do say The rings do not go all the way round.
+    do say A rather round stump.|It's long enough to seat several people.
+    do say The rings do not go all the way around.
   prop grass  -2.005 0.500 0.000   0.000 0.000 0.000   1.000 1.000 1.000
   prop grass  -2.498 0.500 1.187   0.000 0.000 0.000   1.000 1.000 1.000
   prop grass  -3.367 0.500 -1.456   0.000 0.000 0.000   1.000 1.000 1.000
@@ -504,21 +503,21 @@ room Foyer
   light 0.0 -2.2 0.0   0.30 0.27 0.24   6
   door out  south  0
   interact tree  3.400 0.500 -2.200   0.000 2.400 0.000   0.300 0.300 0.300  name tree
-    do say The tree is on the wrong side of the room.
-    do say Nobody remembers moving it.
+    do say My tree is in the wrong spot.
+    do say (You feel a sense of disgust)
 
   # The slab across the way out, and the lever on the far side that lifts it
   prop cube  0.000 -0.650 -4.000   0.000 0.000 0.000   0.900 1.150 0.250  name gate
   interact cube  1.400 0.100 1.500   0.000 0.000 0.000   0.150 0.400 0.150  name lever
     when noflag foyer_open
-    do say A lever, set into the floor.
+    do say A lever...
     do sound lever
     do rotate self  -32 0 0  over 0.25
     do move gate  0 -2.600 0  over 1.10
     do flag foyer_open
     do say Something lifts by the south wall.
     when flag foyer_open
-    do say It has been pulled.
+    do say If you pulled it again...|You would never leave.
 
 
 # F10: where a run starts when the game has stopped agreeing about where he is.
@@ -531,8 +530,8 @@ room NOT_HERE_NOT_ANYWHERE
   door out  south  0
   prop cube  0.000 -0.400 3.400   0.000 0.000 0.000   0.400 0.900 0.400
   interact cylinder  0.000 0.300 0.000   0.000 0.000 0.000   0.700 0.300 0.700  name stump
-    do say The stump from the end of the path west.
-    do say It is not cut flat any more.
+    do say The stump from the end of the west path.
+    do say It is sharper than it was before.
 
 
 link Start.on             Clearing_Trees.back

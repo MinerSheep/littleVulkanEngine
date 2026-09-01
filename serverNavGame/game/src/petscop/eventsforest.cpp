@@ -95,7 +95,7 @@ void EventDirector::forestBridge(MapRoom& room) {
   if (!stage.state || stage.state->itemCount("@runs") < 3) return;
 
   addObject(room, glm::vec3(0.f, 0.430f, 0.f), glm::vec3(0.f), glm::vec3(3.4f, 0.06f, 1.1f),
-            "deck", "The planks are new. Nobody carried them down here.");
+            "deck", "The planks are new.");
 }
 
 // F04: a sign at the end of the line west, counting off how long it waited
@@ -313,7 +313,7 @@ void EventDirector::forestMan(float dt) {
 // F03: once the man has been seen the hollow stops being lit by anything but
 // him. The camera comes off its peg and there is nothing behind the room
 void EventDirector::forestDark(float dt) {
-  if (roomName != "Hollow" || roomVisits < 3) return;
+  if (roomName != "Hollow" || roomVisits < 2) return;
   if (!stage.state || !stage.state->hasFlag("saw_man")) return;
   if (!stage.player || dressed.lights.empty()) return;
 
