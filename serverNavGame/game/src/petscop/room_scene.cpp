@@ -500,8 +500,8 @@ void RoomScene::emitBackground() {
 
   // The unit quad runs 0 to 1
   // doubling it and shifting it covers the whole screen, the same way the fade quad does
-  backgroundItems.push_back(
-      {glm::mat2(2.f, 0.f, 0.f, 2.f), glm::vec2(-1.f), bgWash, 1.f, textRenderer->quad()});
+  backgroundItems.push_back({glm::mat2(2.f, 0.f, 0.f, 2.f), glm::vec2(-1.f),
+                             events.background(bgWash), 1.f, textRenderer->quad()});
 
   // How much screen one bar owns, and how far along its slot it has slid
   // fmod wraps the slide inside a single slot, so when it snaps back to zero
@@ -518,7 +518,8 @@ void RoomScene::emitBackground() {
 
   for (int i = -lead; i <= bgBars + 1; i++) {
     const float x = -1.f + slide + static_cast<float>(i) * slot;
-    backgroundItems.push_back({lean, glm::vec2(x, -1.f), bgBar, 1.f, textRenderer->quad()});
+    backgroundItems.push_back(
+        {lean, glm::vec2(x, -1.f), events.background(bgBar), 1.f, textRenderer->quad()});
   }
 }
 

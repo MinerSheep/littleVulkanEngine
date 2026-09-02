@@ -2,6 +2,7 @@
 
 #include "lve_canvas.hpp"
 #include "petscop/figure.hpp"
+#include "petscop/outside.hpp"
 #include "petscop/prop.hpp"
 
 #include <glm/glm.hpp>
@@ -68,8 +69,18 @@ class EventDirector {
   // A multiplier on one of the room's own lights
   float lightGain(std::size_t index) const;
 
-  float backgroundSpeed(float normal) const { return normal * bgScale; }
-  glm::vec4 ambient(const glm::vec4& normal) const { return tinted ? tint : normal; }
+  // X11: daylight slows the bars behind the room and washes the colour out of them
+  float backgroundSpeed(float normal) const { return normal * bgScale * sky.backdrop; }
+  glm::vec3 background(const glm::vec3& normal) const {
+    return normal + (glm::vec3(0.78f, 0.76f, 0.72f) - normal) * (sky.sun * 0.75f);
+  }
+
+  // X11: warm and lifted by day, cold and low after dark
+  glm::vec4 ambient(const glm::vec4& normal) const {
+    const glm::vec4 lit = tinted ? tint : normal;
+    return glm::vec4(glm::vec3(lit) * sky.wash, lit.a * sky.ambient);
+  }
+
 
   // Props an event conjured, drawn by the scene and nothing else
   const std::vector<Prop>& extras() const { return spawned; }
@@ -167,6 +178,17 @@ class EventDirector {
 
   // One light pulled down on its own, on top of whatever the room is doing
   void setLight(std::size_t index, float value);
+
+  // X11: the hour, read once a frame and once more before a room is built
+  void readSky();
+
+  // X11: the four steps are a night job. The cue and the spade are not standing
+  // in the daylight and the rock has nothing to say to you
+  void daylightHides(MapRoom& room);
+
+  // Counts the afternoons spent finishing nothing, and gives one prop back
+  void daylightRelent();
+  bool daylightRelents() const;
 
   // Rooms an event changes before they are built
   void foyerPull(MapRoom& room);        // E03
@@ -282,6 +304,9 @@ class EventDirector {
 
   // Seconds left before the house may do something again
   float quiet = 0.f;
+
+  // What the sun is doing to the room, off the machine's clock
+  Daylight sky;
 
   // Every light in the room is scaled by this, and any one of them on its own
   float gain = 1.f;

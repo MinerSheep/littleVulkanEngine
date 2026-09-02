@@ -48,6 +48,18 @@ const char* word[6][5] = {
 const char* quests[] = {"quest_stone", "quest_mirror", "quest_tiles", "quest_dig"};
 const int questCount = 4;
 
+// X11: what the four steps run through, and what the daylight does to each
+// The ones you pick up are not standing there at all, and the ones you press are
+// there and have nothing to say
+const char* dayGone[] = {"cue", "spade"};
+const char* dayMute[] = {"rock", "gate", "lever", "mirror", "dig_patch", "piano"};
+
+// Afternoons spent finishing nothing before the house leaves the cue out anyway
+const int relentAfter = 3;
+
+// As bright as a light is ever allowed to get, once the sun is on it
+const float dayCeiling = 1.6f;
+
 // X03: the one frame, and the colours it is drawn out of
 const glm::vec3 facePalette[5] = {
     {0.02f, 0.02f, 0.03f},  // 0 the dark around it
@@ -177,12 +189,13 @@ bool EventDirector::forest() const { return stage.map && stage.map->name == "for
 void EventDirector::newRun() {
   justLaunched = true;
   if (stage.state) stage.state->addItem("@runs", 1);
+  daylightRelent();
 }
 
 // --- odds and ends ----------------------------------------------------------
 
 // Something happened in front of him, so nothing else does for a while
-void EventDirector::fired() { quiet = quietFor; }
+void EventDirector::fired() { quiet = quietFor + sky.holdOff; }
 
 // Once the flag is down the thing is part of the room and stops asking
 bool EventDirector::settled(const std::string& flag, bool ready) {
@@ -328,12 +341,66 @@ void EventDirector::setLight(std::size_t index, float value) {
   gains[index] = value;
 }
 
+// --- X11: what time it is out there -----------------------------------------
+
+// The hour off the machine, read fresh rather than counted up from the last one
+void EventDirector::readSky() { sky = daylightNow(); }
+
+// Three afternoons of walking round a house with nothing in it and the cue is
+// on the table whatever the hour says
+bool EventDirector::daylightRelents() const {
+  return stage.state && stage.state->itemCount("@daylit") >= relentAfter;
+}
+
+// Counted once a run. A run started in the dark says nothing about the daylight,
+// and one that finished a step of the poem starts the count again
+void EventDirector::daylightRelent() {
+  if (!stage.state) return;
+
+  readSky();
+  if (!sky.hidesQuests) return;
+
+  const int done = questsDone();
+  const int since = stage.state->itemCount("@daylit.done");
+  if (done > since) {
+    stage.state->addItem("@daylit", -stage.state->itemCount("@daylit"));
+    stage.state->addItem("@daylit.done", done - since);
+    return;
+  }
+
+  stage.state->addItem("@daylit", 1);
+}
+
+// Nothing is locked and nothing is refused, the room is simply a room
+void EventDirector::daylightHides(MapRoom& room) {
+  if (!sky.hidesQuests) return;
+
+  std::vector<MapObject> kept;
+  kept.reserve(room.objects.size());
+
+  for (MapObject& object : room.objects) {
+    bool gone = false;
+    for (const char* name : dayGone) gone = gone || object.name == name;
+
+    // The one the house gives back is the cue, which is where the poem starts
+    if (gone && !(object.name == "cue" && daylightRelents())) continue;
+
+    for (const char* name : dayMute)
+      if (object.name == name) object.actions.clear();
+
+    kept.push_back(object);
+  }
+
+  room.objects.swap(kept);
+}
+
 // --- the room about to be built ---------------------------------------------
 
 // Every room comes through as a copy, and a helper may change anything on it --
 // its size, its camera, the things standing in it. The map never knows
 const MapRoom& EventDirector::dress(const MapRoom& source, int index) {
   dressed = source;
+  readSky();
 
   if (forest()) {
     dressForest(dressed);
@@ -347,6 +414,9 @@ const MapRoom& EventDirector::dress(const MapRoom& source, int index) {
   else if (source.name == "Bathroom") bathroomSink(dressed);
   else if (source.name == "Greenhouse") greenhousePanes(dressed);
   else if (source.name == "Shed") shedSeam(dressed);
+
+  // X11: the four steps are not there to be walked up to in the afternoon
+  daylightHides(dressed);
 
   // Any room at all may be the one he put your things down in
   lostThings(dressed);
@@ -683,6 +753,7 @@ void EventDirector::shedBoard() {
 
 void EventDirector::update(float dt, bool playing, int startedProp) {
   sinceEntry += dt;
+  readSky();
   if (quiet > 0.f) quiet -= dt;
 
   // Everything an event overrides is worked out again from nothing each frame,
@@ -1280,8 +1351,10 @@ void EventDirector::terraceDoor() {
 
 float EventDirector::lightGain(std::size_t index) const {
   const float own = index < gains.size() ? gains[index] : 1.f;
-  const float lit = gain * own;
-  return lit < 0.f ? 0.f : (lit > 1.f ? 1.f : lit);
+
+  // X11: the sun is on top of whatever the room and the events are doing
+  const float lit = gain * own * sky.gain;
+  return lit < 0.f ? 0.f : (lit > dayCeiling ? dayCeiling : lit);
 }
 
 bool EventDirector::cameraOverride(glm::vec3& eye, glm::vec3& look) const {
