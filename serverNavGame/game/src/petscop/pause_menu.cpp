@@ -87,16 +87,22 @@ std::vector<std::string> pocketLines(const GameState& state) {
 }  // namespace
 
 std::vector<std::string> PauseMenu::entries() const {
-  if (options || showingMap) return {"BACK"};
+  if (options || showingMap || showingPhotos) return {"BACK"};
   if (stripped) return {"LEAVE"};
-  if (hasMap) return {"RESUME", "MAP", "OPTIONS", "EXIT"};
-  return {"RESUME", "OPTIONS", "EXIT"};
+
+  std::vector<std::string> list{"RESUME"};
+  if (hasMap) list.push_back("MAP");
+  if (hasPhotos) list.push_back("PHOTOS");
+  list.push_back("OPTIONS");
+  list.push_back("EXIT");
+  return list;
 }
 
 void PauseMenu::close() {
   open = false;
   options = false;
   showingMap = false;
+  showingPhotos = false;
   cursor = 0;
 }
 
@@ -114,8 +120,9 @@ PauseMenu::Choice PauseMenu::update(GLFWwindow* window) {
       return Choice::None;
     }
     // Backing out of a page is not the same as putting the menu away
-    if (showingMap) {
+    if (showingMap || showingPhotos) {
       showingMap = false;
+      showingPhotos = false;
       cursor = 0;
       lve::LveAudio::instance().play("menu_accept");
       return Choice::None;
@@ -143,6 +150,24 @@ PauseMenu::Choice PauseMenu::update(GLFWwindow* window) {
   upDown = up;
   downDown = down;
 
+  // The photographs are stepped through sideways, the way a folder is
+  const bool leftward = glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS ||
+                        glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS;
+  const bool rightward = glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS ||
+                         glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS;
+  if (showingPhotos && photoCount > 0) {
+    if (leftward && !leftDown && photoIndex > 0) {
+      photoIndex--;
+      lve::LveAudio::instance().play("menu_accept");
+    }
+    if (rightward && !rightDown && photoIndex + 1 < photoCount) {
+      photoIndex++;
+      lve::LveAudio::instance().play("menu_accept");
+    }
+  }
+  leftDown = leftward;
+  rightDown = rightward;
+
   const bool pick = glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS ||
                     glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS;
   const bool pressed = pick && !pickDown;
@@ -168,11 +193,21 @@ PauseMenu::Choice PauseMenu::update(GLFWwindow* window) {
     lve::LveAudio::instance().play("menu_accept");
     return Choice::None;
   }
+  if (chosen == "PHOTOS") {
+    showingPhotos = true;
+    cursor = 0;
+
+    // The folder opens on the last one filed, which is the one just taken
+    photoIndex = photoCount > 0 ? photoCount - 1 : 0;
+    lve::LveAudio::instance().play("menu_accept");
+    return Choice::None;
+  }
   if (chosen == "BACK") {
     // Only the settings count as having been opened and shut again
     const bool wasOptions = options;
     options = false;
     showingMap = false;
+    showingPhotos = false;
     cursor = 0;
     lve::LveAudio::instance().play("menu_accept");
     return wasOptions ? Choice::Back : Choice::None;
@@ -190,16 +225,51 @@ void PauseMenu::emitMap(std::vector<lve::UIRenderItem>& out, lve::LveTextRendere
     return;
   }
 
-  const glm::vec2 room{panelSize.x - 2.f * padX, panelSize.y - pocketTop - footPad};
+  emitPicture(out, text, *mapPicture, rightPanel.y + pocketTop, 0.f);
+}
+
+// X12: one picture out of the folder, and what it is written over it
+void PauseMenu::emitPhotos(std::vector<lve::UIRenderItem>& out,
+                           lve::LveTextRenderer& text) const {
+  const float shelf = rightPanel.x + padX;
+  emitFitted(out, text, "PHOTOGRAPHS", {shelf, rightPanel.y + padY}, entryDot, lit);
+
+  if (photoPicture == nullptr || photoPicture->empty()) {
+    emitFitted(out, text, "THE FOLDER IS EMPTY", {shelf, rightPanel.y + pocketTop}, itemDot, dim);
+    return;
+  }
+
+  emitFitted(out, text, photoCaption, {shelf, rightPanel.y + pocketTop}, itemDot, dim);
+
+  // An arrow either side of the picture, greyed out at the ends of the folder
+  const float arrowWide = 5.f * entryDot / screenAspect();
+  const float gutter = arrowWide + 0.014f;
+  const glm::vec4 shot =
+      emitPicture(out, text, *photoPicture, rightPanel.y + pocketTop + 10.f * itemDot, gutter);
+
+  const float middle = shot.y + shot.w * 0.5f - 3.5f * entryDot;
+  text.emit(out, "<", {shot.x - gutter, middle}, entryDot, photoIndex > 0 ? lit : dim);
+  text.emit(out, ">", {shot.x + shot.z + 0.014f, middle}, entryDot,
+            photoIndex + 1 < photoCount ? lit : dim);
+}
+
+// As big as it will go in what is left of the panel, pixels still square
+glm::vec4 PauseMenu::emitPicture(std::vector<lve::UIRenderItem>& out, lve::LveTextRenderer& text,
+                                 const lve::LveCanvas& picture, float top, float inset) const {
+  const glm::vec2 room{panelSize.x - 2.f * padX - 2.f * inset,
+                       rightPanel.y + panelSize.y - footPad - top};
+  if (room.x <= 0.f || room.y <= 0.f) return glm::vec4(0.f);
 
   // A pixel only comes out square if the box leans the way the window does
-  const float wanted = mapPicture->aspect() / screenAspect();
+  const float wanted = picture.aspect() / screenAspect();
   glm::vec2 size{room.y * wanted, room.y};
   if (size.x > room.x) size = {room.x, room.x / wanted};
 
-  const glm::vec2 at{shelf + (room.x - size.x) * 0.5f,
-                     rightPanel.y + pocketTop + (room.y - size.y) * 0.5f};
-  mapPicture->emit(out, text.quad(), at, size, 1.f);
+  const glm::vec2 at{rightPanel.x + padX + inset + (room.x - size.x) * 0.5f,
+                     top + (room.y - size.y) * 0.5f};
+  picture.emit(out, text.quad(), at, size, 1.f);
+
+  return glm::vec4(at.x, at.y, size.x, size.y);
 }
 
 void PauseMenu::emit(std::vector<lve::UIRenderItem>& out, lve::LveTextRenderer& text,
@@ -237,9 +307,13 @@ void PauseMenu::emit(std::vector<lve::UIRenderItem>& out, lve::LveTextRenderer& 
     y += rowStep * (buttonDot / entryDot);
   }
 
-  // The map takes the right panel over while he is reading it
+  // A page takes the right panel over while he is reading it
   if (showingMap) {
     emitMap(out, text);
+    return;
+  }
+  if (showingPhotos) {
+    emitPhotos(out, text);
     return;
   }
 

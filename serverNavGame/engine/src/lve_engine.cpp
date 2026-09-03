@@ -90,6 +90,8 @@ void LveEngine::init() {
           .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_TEXTURES)
           .build();
 
+  shots = std::make_unique<LveScreenshot>(lveDevice);
+
   simpleRenderSystem = std::make_unique<SimpleRenderSystem>(
       lveDevice,
       lveRenderer.getSwapChainRenderPass(),
@@ -147,9 +149,31 @@ void LveEngine::render() {
     simpleRenderSystem->renderUI(frameInfo, frameInfo.UIrenderItems);
 
     lveRenderer.endSwapChainRenderPass(commandBuffer);
+
+    // X12: the finished frame is copied aside before it goes to the screen
+    const bool kept = shots && shots->waiting() && lveRenderer.canCopyFrames();
+    if (kept)
+      shots->record(commandBuffer, lveRenderer.getCurrentImage(), lveRenderer.getImageFormat(),
+                    lveRenderer.getExtent());
+
     lveRenderer.endFrame();
+
+    // The copy is read on the CPU, so it has to have actually happened first
+    if (kept) {
+      vkDeviceWaitIdle(lveDevice.device());
+      shots->arrived();
+    }
   }
 }
+
+void LveEngine::grabFrame(int width, int height) {
+  if (!shots || !lveRenderer.canCopyFrames()) return;
+  shots->want(width, height);
+}
+
+bool LveEngine::grabbing() const { return shots && shots->waiting(); }
+
+bool LveEngine::takeFrame(LveCanvas& out) { return shots && shots->take(out); }
 
 void LveEngine::cleanup() 
 {

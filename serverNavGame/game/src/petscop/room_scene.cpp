@@ -537,6 +537,31 @@ void RoomScene::update(float dt) {
   menu.hasMap = state.hasItem("map");
   menu.mapPicture = &houseMap;
 
+  // X12: the folder is read once, as the menu goes up, and the picture is drawn
+  // again only when he steps to another one
+  if (menu.isOpen() && !menuWasOpen) {
+    photoPaths = petscop::photoFiles();
+    shownPhoto = -1;
+  }
+  menuWasOpen = menu.isOpen();
+
+  menu.hasPhotos = !photoPaths.empty();
+  menu.photoCount = photoPaths.size();
+  if (menu.photoIndex >= photoPaths.size()) menu.photoIndex = 0;
+
+  if (!photoPaths.empty() && shownPhoto != static_cast<int>(menu.photoIndex)) {
+    shownPhoto = static_cast<int>(menu.photoIndex);
+
+    petscop::Photo shown;
+    if (petscop::readPhoto(photoPaths[menu.photoIndex], shown)) {
+      photoPicture = shown.picture;
+      menu.photoCaption = displayName(shown.room) + "   " +
+                          std::to_string(menu.photoIndex + 1) + "/" +
+                          std::to_string(photoPaths.size());
+    }
+  }
+  menu.photoPicture = &photoPicture;
+
   // It does not open mid fade, with the room already going
   const petscop::PauseMenu::Choice picked =
       (phase == Phase::Playing || menu.isOpen()) ? menu.update(window)
@@ -692,6 +717,12 @@ void RoomScene::update(float dt) {
   }
 
   // --- camera: one pose for the whole room, unless an event has taken it ------
+  // Read off the room again each frame. An event that lets go of the camera hands
+  // it back, rather than leaving it wherever it stopped
+  if (liveRoom) {
+    cameraEye = liveRoom->cameraEye;
+    cameraLook = liveRoom->cameraLook;
+  }
   events.cameraOverride(cameraEye, cameraLook);
   camera.setViewTarget(cameraEye, cameraLook);
   camera.setPerspectiveProjection(glm::radians(50.f), lve::LveEngine::instance().getAspectRatio(),
@@ -772,6 +803,9 @@ void RoomScene::update(float dt) {
       emitHoverBox();
       dialog.emit(UIrenderItems, *textRenderer);
     }
+
+    // X12: the frame being kept is the room, not the room with the game over it
+    if (lve::LveEngine::instance().grabbing()) UIrenderItems.clear();
     menu.emit(UIrenderItems, *textRenderer, state);
     if (fade > 0.f) {
       // One quad over the whole screen

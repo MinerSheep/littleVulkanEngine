@@ -14,6 +14,7 @@
 
 
 #include "lve_descriptors.hpp"
+#include "lve_screenshot.hpp"
 #include <vector>
 
 
@@ -45,6 +46,12 @@ namespace lve
         
         // Self managed variable, optional to set or not
         LveScene* activeScene;
+
+        // X12: keeps the next frame drawn, shrunk to a picture that size
+        // Nothing is kept on a surface that will not let a frame be copied
+        void grabFrame(int width, int height);
+        bool grabbing() const;
+        bool takeFrame(LveCanvas& out);
 
         LveWindow& getWindow() { return lveWindow; }
         LveDevice& getDevice() { return lveDevice; }
@@ -90,6 +97,9 @@ namespace lve
         // every LveTexture the scenes load
         std::unique_ptr<LveDescriptorSetLayout> textureSetLayout{};
         std::unique_ptr<LveDescriptorPool> texturePool{};
+
+        // X12: the frame kept aside, when one has been asked for
+        std::unique_ptr<LveScreenshot> shots{};
 
         // std::unique_ptr<LveBuffer> globalUboBuffer {};
         std::vector<std::unique_ptr<LveBuffer>> uboBuffers;

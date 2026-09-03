@@ -4,6 +4,7 @@
 #include "petscop/dialog_box.hpp"
 #include "petscop/game_state.hpp"
 #include "petscop/model_cache.hpp"
+#include "petscop/photo.hpp"
 
 #include <lve_audio.hpp>
 #include <lve_engine.hpp>
@@ -598,6 +599,7 @@ void EventDirector::onEnterRoom(int index, int arriveDoor) {
   echoAt = -1.f;
   stepAt = 0.f;
   banged = false;
+  litKept = false;
   onEdge = true;  // you have to step off a corner before leaning on it counts
 
   // Nothing about the last room's walking carries into this one
@@ -808,6 +810,9 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
   // point the forest leaves
   footsteps(dt, playing);
 
+  // The stands are in both maps as well
+  photoStation(startedProp);
+
   if (forest()) {
     updateForest(dt, playing, startedProp);
     return;
@@ -847,6 +852,44 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
   // The two that are the same in every room
   turnToCamera(dt);
   lateLights();
+}
+
+// X12: the stand takes the screen as it is, you standing in it
+//
+// A frame has to be drawn before it can be copied, so pressing E only asks for
+// one. What comes back is picked up on the next go round and filed
+void EventDirector::photoStation(int startedProp) {
+  lve::LveEngine& engine = lve::LveEngine::instance();
+
+  // The picture asked for last frame, now that it has been drawn and copied
+  if (!shotRoom.empty()) {
+    Photo taken;
+    if (engine.takeFrame(taken.picture)) {
+      taken.room = shotRoom;
+      taken.stamp = nowSeconds();
+      filePhoto(taken);
+      shotRoom.clear();
+    }
+  }
+
+  if (startedProp < 0 || !stage.props || !stage.state || !built) return;
+  if (startedProp >= static_cast<int>(stage.props->size())) return;
+  if ((*stage.props)[startedProp].name != "station") return;
+
+  engine.grabFrame(kPhotoWide, kPhotoTall);
+  shotRoom = roomName;
+  stage.state->addItem("@photos", 1);
+
+  // He is in one of them, once. He is standing in the room for the frame the
+  // shutter takes, so the picture has him in it because the game drew him
+  if (stage.state->hasFlag("photo_haunted") || stage.state->itemCount("@photos") < 3) return;
+  stage.state->setFlag("photo_haunted", true);
+
+  // In the middle of the room, turned to you, standing still
+  const glm::vec3 you = stage.player ? stage.player->translation : glm::vec3(0.f, 0.5f, 1.f);
+  const glm::vec3 stood(0.f, you.y, 0.f);
+
+  figure(stood, std::atan2(you.x - stood.x, you.z - stood.z));
 }
 
 // E13: the screen is held shut, and he is facing the other way when it opens

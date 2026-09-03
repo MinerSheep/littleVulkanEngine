@@ -19,6 +19,12 @@ class LveRenderer {
   LveRenderer& operator=(const LveRenderer&) = delete;
 
   VkRenderPass getSwapChainRenderPass() const { return lveSwapChain->getRenderPass(); }
+
+  // The frame being drawn into right now, which X12 copies aside
+  VkImage getCurrentImage() const { return lveSwapChain->getImage(currentImageIndex); }
+  VkFormat getImageFormat() const { return lveSwapChain->getSwapChainImageFormat(); }
+  VkExtent2D getExtent() const { return lveSwapChain->getExtent(); }
+  bool canCopyFrames() const { return lveSwapChain->canCopyFrames(); }
   float getAspectRatio() const { return lveSwapChain->extentAspectRatio(); }
   bool isFrameInProgress() const { return isFrameStarted; }
 

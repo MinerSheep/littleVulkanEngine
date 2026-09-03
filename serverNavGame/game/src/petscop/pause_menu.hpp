@@ -38,6 +38,17 @@ class PauseMenu {
   // The house as the map draws it, which the scene hands over and still owns
   const lve::LveCanvas* mapPicture = nullptr;
 
+  // X12: there are pictures filed, which puts another button in the list
+  bool hasPhotos = false;
+
+  // Which one the page is showing, and how many there are to step through
+  std::size_t photoIndex = 0;
+  std::size_t photoCount = 0;
+
+  // The picture and the line under it, both drawn and owned by the scene
+  const lve::LveCanvas* photoPicture = nullptr;
+  std::string photoCaption;
+
  private:
   // The buttons as they stand, which the pages change
   std::vector<std::string> entries() const;
@@ -45,15 +56,26 @@ class PauseMenu {
   // The map, fitted into a panel with its pixels still square
   void emitMap(std::vector<lve::UIRenderItem>& out, lve::LveTextRenderer& text) const;
 
+  // One photograph, in the same panel, with what it is underneath it
+  void emitPhotos(std::vector<lve::UIRenderItem>& out, lve::LveTextRenderer& text) const;
+
+  // A picture fitted into the right panel, however tall it is, keeping inset
+  // clear down each side. Hands back where it landed, as x, y, width, height
+  glm::vec4 emitPicture(std::vector<lve::UIRenderItem>& out, lve::LveTextRenderer& text,
+                        const lve::LveCanvas& picture, float top, float inset) const;
+
   bool open = false;
   bool options = false;
   bool showingMap = false;
+  bool showingPhotos = false;
   std::size_t cursor = 0;
 
   bool escDown = false;
   bool upDown = false;
   bool downDown = false;
   bool pickDown = false;
+  bool leftDown = false;
+  bool rightDown = false;
 };
 
 }  // namespace petscop

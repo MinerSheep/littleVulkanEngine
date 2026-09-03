@@ -19,6 +19,7 @@
 #include "petscop/dialog_box.hpp"
 #include "petscop/events.hpp"
 #include "petscop/house_map.hpp"
+#include "petscop/photo.hpp"
 #include "petscop/game_state.hpp"
 #include "petscop/pause_menu.hpp"
 #include "petscop/player_watch.hpp"
@@ -61,6 +62,13 @@ class RoomScene : public lve::LveScene {
   // The room as it was actually built, which an event may have changed
   // Points either into map.rooms or at the director's own copy
   const petscop::MapRoom* liveRoom = nullptr;
+
+  // X12: the folder as it stood when the menu went up, and the one being looked
+  // at, drawn again only when the page moves
+  std::vector<std::string> photoPaths;
+  lve::LveCanvas photoPicture;
+  int shownPhoto = -1;
+  bool menuWasOpen = false;
 
   // Items, flags, and how each room was left. Delete the file to start over
   // One save per map, or the forest writes its rooms over the house's memories

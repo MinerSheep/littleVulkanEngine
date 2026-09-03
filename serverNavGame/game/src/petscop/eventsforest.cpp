@@ -557,6 +557,11 @@ void EventDirector::forestStare(float dt) {
   stareAt += dt;
   if (stareAt > stareFor) {
     stareAt = -1.f;
+
+    // The room gets its own light back the moment he is not standing in it
+    if (litKept && !dressed.lights.empty()) dressed.lights[0] = litWas;
+    litKept = false;
+
     if (stage.state) stage.state->setFlag("crash_seen", false);
     return;
   }
@@ -572,6 +577,10 @@ void EventDirector::forestStare(float dt) {
 
   // He is the only thing lit, and only just
   if (!dressed.lights.empty()) {
+    if (!litKept) {
+      litWas = dressed.lights[0];
+      litKept = true;
+    }
     dressed.lights[0].position = head + glm::vec3(0.f, -0.9f, -1.f);
     dressed.lights[0].intensity = 7.f;
   }

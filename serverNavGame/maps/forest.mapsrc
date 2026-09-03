@@ -20,6 +20,11 @@ hidenames
 room Start
   size 8 12
   height 4
+
+  # X12: a camera on a stand, turned in on the room
+  prop cube  -3.000 0.050 -5.000   0 0.540 0   0.050 0.450 0.050
+  interact cube  -3.000 -0.520 -5.000   0 0.540 0   0.160 0.110 0.220  name station
+  do sound menu_accept
   floortex forest_grass_lush
   open
   light 0.0 -2.8 -2.0   0.30 0.38 0.48   12
@@ -430,6 +435,11 @@ room Bank_East
 room House
   size 17 16
   height 4
+
+  # X12: a camera on a stand, turned in on the room
+  prop cube  6.500 0.050 -6.500   0 -0.785 0   0.050 0.450 0.050
+  interact cube  6.500 -0.520 -6.500   0 -0.785 0   0.160 0.110 0.220  name station
+  do sound menu_accept
   floortex wood_flooring
   showname
   light -4.0 -3.0  3.0   0.55 0.50 0.42   14
@@ -528,7 +538,6 @@ room Foyer
   door out  south  0
   interact tree  3.400 0.500 -2.200   0.000 2.400 0.000   0.300 0.300 0.300  name tree
     do say My tree is in the wrong spot.
-    do say (You feel a sense of disgust)
 
   # The slab across the way out, and the lever on the far side that lifts it
   prop cube  0.000 -0.650 -4.000   0.000 0.000 0.000   0.900 1.150 0.250  name gate

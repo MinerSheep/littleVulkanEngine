@@ -26,6 +26,11 @@ class LveSwapChain {
   VkFramebuffer getFrameBuffer(int index) { return swapChainFramebuffers[index]; }
   VkRenderPass getRenderPass() { return renderPass; }
   VkImageView getImageView(int index) { return swapChainImageViews[index]; }
+  VkImage getImage(int index) { return swapChainImages[index]; }
+  VkExtent2D getExtent() { return swapChainExtent; }
+
+  // Whether the surface allows a finished frame to be copied off it
+  bool canCopyFrames() const { return copyable; }
   size_t imageCount() { return swapChainImages.size(); }
   VkFormat getSwapChainImageFormat() { return swapChainImageFormat; }
   VkExtent2D getSwapChainExtent() { return swapChainExtent; }
@@ -71,6 +76,7 @@ class LveSwapChain {
   std::vector<VkDeviceMemory> depthImageMemorys;
   std::vector<VkImageView> depthImageViews;
   std::vector<VkImage> swapChainImages;
+  bool copyable = false;
   std::vector<VkImageView> swapChainImageViews;
 
   LveDevice &device;

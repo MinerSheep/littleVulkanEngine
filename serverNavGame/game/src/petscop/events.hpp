@@ -222,6 +222,7 @@ class EventDirector {
   void hallLightBehind();                        // E09
   void hallFootprints();                         // E10
   void oneFrame(float dt);                       // X03
+  void photoStation(int startedProp);            // X12
   void footsteps(float dt, bool playing);        // his own feet, every room
   void yardPath();                               // E14
   void bathroomWater(float dt, bool playing);    // E19
@@ -347,6 +348,9 @@ class EventDirector {
   // Whether the yard has already been heard from this visit to the west hall
   bool banged = false;
 
+  // X12: the room a picture has been asked for in, until it is filed
+  std::string shotRoom;
+
   // Doors taken in quick succession, and how long since the last one
   int mash = 0;
   bool turnAround = false;
@@ -431,6 +435,10 @@ class EventDirector {
   // F12: the game is about to go out, and how far into the face on the way back
   bool crashing = false;
   float stareAt = -1.f;
+
+  // The room's own first light, kept while the stare is borrowing it
+  MapLight litWas;
+  bool litKept = false;
 
   // This is the first room of the run, which the relaunch events wait for
   bool justLaunched = false;

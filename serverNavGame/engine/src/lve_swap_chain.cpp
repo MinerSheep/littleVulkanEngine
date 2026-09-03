@@ -152,7 +152,11 @@ void LveSwapChain::createSwapChain() {
   createInfo.imageColorSpace = surfaceFormat.colorSpace;
   createInfo.imageExtent = extent;
   createInfo.imageArrayLayers = 1;
+  // X12 copies the finished frame aside, which the surface has to allow
   createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+  copyable = (swapChainSupport.capabilities.supportedUsageFlags &
+              VK_IMAGE_USAGE_TRANSFER_SRC_BIT) != 0;
+  if (copyable) createInfo.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
   QueueFamilyIndices indices = device.findPhysicalQueueFamilies();
   uint32_t queueFamilyIndices[] = {indices.graphicsFamily, indices.presentFamily};
