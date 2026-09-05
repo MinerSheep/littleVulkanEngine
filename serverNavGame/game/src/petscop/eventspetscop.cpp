@@ -154,6 +154,7 @@ void EventDirector::reset() {
   gain = 1.f;
   gains.clear();
   bgScale = 1.f;
+  shot = lve::PostEffect{};
   tinted = false;
   hasCam = false;
   warpRoom = -1;
@@ -773,6 +774,7 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
   gain = 1.f;
   gains.clear();
   bgScale = 1.f;
+  shot = lve::PostEffect{};
   tinted = false;
   frozen = false;
   locked = false;

@@ -25,6 +25,7 @@ class LveRenderer {
   VkFormat getImageFormat() const { return lveSwapChain->getSwapChainImageFormat(); }
   VkExtent2D getExtent() const { return lveSwapChain->getExtent(); }
   bool canCopyFrames() const { return lveSwapChain->canCopyFrames(); }
+  VkFormat getDepthFormat() { return lveSwapChain->findDepthFormat(); }
   float getAspectRatio() const { return lveSwapChain->extentAspectRatio(); }
   bool isFrameInProgress() const { return isFrameStarted; }
 

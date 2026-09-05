@@ -53,6 +53,20 @@ namespace lve {
     // climbing from rather than halfway up a board
     float groundY = 0.f;
   };
+  // X04: what is being done to the picture this frame, worked out again from
+  // nothing every frame the way the light gains are
+  struct PostEffect {
+    float wobble = 0.f;    // lines slide sideways, like tape
+    float separate = 0.f;  // red and blue pull apart
+    float invert = 0.f;    // the picture turns inside out
+    float vignette = 0.f;  // the edges go
+    float grain = 0.f;     // dust on the picture
+    float drain = 0.f;     // the colour leaves
+
+    // The picture stops while the sound and the room carry on
+    bool hold = false;
+  };
+
   struct UIRenderItem {
     glm::mat2 transform;
     glm::vec2 offset;

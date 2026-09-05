@@ -30,5 +30,8 @@ namespace lve
         // Flat quads painted first, so the scene is drawn on top of them
         // Use for a stylish background rather than pitch black
         std::vector<UIRenderItem> backgroundItems;
+
+        // X04: what the whole picture is put through on its way to the screen
+        PostEffect post{};
     };
 } // namespace lve

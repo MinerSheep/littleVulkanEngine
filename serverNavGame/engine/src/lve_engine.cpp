@@ -1,5 +1,7 @@
 #include "lve_engine.hpp"
 
+#include <chrono>
+
 namespace lve {
 LveEngine::LveEngine() {
   // since the fns return a reference, we can chain initialization here
@@ -91,6 +93,7 @@ void LveEngine::init() {
           .build();
 
   shots = std::make_unique<LveScreenshot>(lveDevice);
+  post = std::make_unique<LvePost>(lveDevice, *textureSetLayout, *texturePool);
 
   simpleRenderSystem = std::make_unique<SimpleRenderSystem>(
       lveDevice,
@@ -116,6 +119,17 @@ void LveEngine::render() {
   if (activeScene == nullptr) return;
 
   LveScene& scene = *activeScene;
+
+  // X04: the picture is rebuilt whenever the window is a different size
+  if (post) {
+    const VkExtent2D want = lveRenderer.getExtent();
+    if (!post->ready() || post->size().width != want.width || post->size().height != want.height) {
+      vkDeviceWaitIdle(lveDevice.device());
+      post->rebuild(want, lveRenderer.getImageFormat(), lveRenderer.getDepthFormat(),
+                    lveRenderer.getSwapChainRenderPass());
+    }
+  }
+
   if (auto commandBuffer = lveRenderer.beginFrame()) {
     int frameIndex = lveRenderer.getFrameIndex();
     FrameInfo frameInfo{
@@ -133,22 +147,40 @@ void LveEngine::render() {
     uboBuffers[frameIndex]->writeToBuffer(&scene.ubo);
     uboBuffers[frameIndex]->flush();
 
-    // render
-    // Being able to control when the render pass begins and ends is helpful for post processing
-    // effects
-    lveRenderer.beginSwapChainRenderPass(commandBuffer);
+    // Everything the room is, in the order it goes down
+    auto drawEverything = [&]() {
+      // Background first
+      simpleRenderSystem->renderUI(frameInfo, frameInfo.backgroundItems);
 
-    // Background first
-    simpleRenderSystem->renderUI(frameInfo, frameInfo.backgroundItems);
+      simpleRenderSystem->render(frameInfo);
+      skinnedRenderSystem->render(frameInfo);
+      pointLightSystem->render(frameInfo);
 
-    simpleRenderSystem->render(frameInfo);
-    skinnedRenderSystem->render(frameInfo);
-    pointLightSystem->render(frameInfo);
+      // UI overlay
+      simpleRenderSystem->renderUI(frameInfo, frameInfo.UIrenderItems);
+    };
 
-    // UI overlay
-    simpleRenderSystem->renderUI(frameInfo, frameInfo.UIrenderItems);
+    // X04: the room is drawn into a picture, and the picture is put on the
+    // screen through one shader. A held picture is simply not drawn again
+    if (post && post->ready()) {
+      // Wall clock, so the wobble crawls at the same speed however the frames go
+      static const auto begun = std::chrono::steady_clock::now();
+      postClock = std::chrono::duration<float>(std::chrono::steady_clock::now() - begun).count();
 
-    lveRenderer.endSwapChainRenderPass(commandBuffer);
+      if (!scene.post.hold) {
+        post->beginPass(commandBuffer);
+        drawEverything();
+        post->endPass(commandBuffer);
+      }
+
+      lveRenderer.beginSwapChainRenderPass(commandBuffer);
+      post->drawTo(commandBuffer, scene.post, postClock);
+      lveRenderer.endSwapChainRenderPass(commandBuffer);
+    } else {
+      lveRenderer.beginSwapChainRenderPass(commandBuffer);
+      drawEverything();
+      lveRenderer.endSwapChainRenderPass(commandBuffer);
+    }
 
     // X12: the finished frame is copied aside before it goes to the screen
     const bool kept = shots && shots->waiting() && lveRenderer.canCopyFrames();

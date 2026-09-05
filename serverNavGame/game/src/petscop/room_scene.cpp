@@ -819,6 +819,7 @@ void RoomScene::update(float dt) {
       frame->emit(UIrenderItems, textRenderer->quad(), glm::vec2(-1.f), glm::vec2(2.f), 1.f);
   }
 
+  post = events.picture();
   ubo.ambientLightColor = events.ambient(glm::vec4(1.f, 1.f, 1.f, 0.15f));
   ubo.projection = camera.getProjection();
   ubo.view = camera.getView();

@@ -70,6 +70,9 @@ class EventDirector {
   float lightGain(std::size_t index) const;
 
   // X11: daylight slows the bars behind the room and washes the colour out of them
+  // X04: what the whole picture is put through this frame
+  const lve::PostEffect& picture() const { return shot; }
+
   float backgroundSpeed(float normal) const { return normal * bgScale * sky.backdrop; }
   glm::vec3 background(const glm::vec3& normal) const {
     return normal + (glm::vec3(0.78f, 0.76f, 0.72f) - normal) * (sky.sun * 0.75f);
@@ -314,6 +317,7 @@ class EventDirector {
   std::vector<float> gains;
 
   float bgScale = 1.f;
+  lve::PostEffect shot{};
   bool tinted = false;
   glm::vec4 tint{1.f};
 

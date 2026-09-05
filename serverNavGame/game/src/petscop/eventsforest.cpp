@@ -568,6 +568,10 @@ void EventDirector::forestStare(float dt) {
 
   frozen = true;
 
+  // The colour goes out of the picture while he is up against it
+  shot.drain = 0.85f;
+  shot.grain = 0.35f;
+
   const glm::vec3 at(0.f, 0.5f, 0.f);
   const glm::vec3 head(at.x, at.y - Figure::kEyeLift, at.z);
 

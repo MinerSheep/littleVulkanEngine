@@ -14,6 +14,7 @@
 
 
 #include "lve_descriptors.hpp"
+#include "lve_post.hpp"
 #include "lve_screenshot.hpp"
 #include <vector>
 
@@ -100,6 +101,10 @@ namespace lve
 
         // X12: the frame kept aside, when one has been asked for
         std::unique_ptr<LveScreenshot> shots{};
+
+        // X04: the room is drawn into this and this is drawn to the screen
+        std::unique_ptr<LvePost> post{};
+        float postClock = 0.f;
 
         // std::unique_ptr<LveBuffer> globalUboBuffer {};
         std::vector<std::unique_ptr<LveBuffer>> uboBuffers;
