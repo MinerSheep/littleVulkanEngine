@@ -35,6 +35,10 @@ class PauseMenu {
   // He is carrying the map, which puts a button in the list
   bool hasMap = false;
 
+  // X11: what the settings say the hour is -- 0 the machine, 1 day, 2 night
+  // The scene carries it into the save and the director reads it back out
+  int timeChoice = 0;
+
   // The house as the map draws it, which the scene hands over and still owns
   const lve::LveCanvas* mapPicture = nullptr;
 

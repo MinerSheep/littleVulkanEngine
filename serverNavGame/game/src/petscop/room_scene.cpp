@@ -86,6 +86,9 @@ void RoomScene::loadModels() {
     std::cout << "[petscop] loaded save '" << savePath << "': " << state.items.size()
               << " item(s), " << state.flags.size() << " flag(s)" << std::endl;
 
+  // Whatever hour the settings were left on, before anything reads the sky
+  menu.timeChoice = state.itemCount("@timeofday");
+
   // Before a single room is built, because none of it happens in front of you
   letHimPlay();
 
@@ -534,6 +537,10 @@ void RoomScene::update(float dt) {
   menu.stripped = events.menuStripped();
 
   // The map is a button only while he is carrying one, and the picture stays ours
+  // X11: the settings pick the hour, the save remembers it, the director reads it
+  const int wasTime = state.itemCount("@timeofday");
+  if (menu.timeChoice != wasTime) state.addItem("@timeofday", menu.timeChoice - wasTime);
+
   menu.hasMap = state.hasItem("map");
   menu.mapPicture = &houseMap;
 
@@ -599,7 +606,7 @@ void RoomScene::update(float dt) {
     // One door on its own can be plugged too, for a way on that is not open yet
     const bool sealed = events.locksDoors();
     for (std::size_t i = 0; i < doors.size(); i++)
-      doors[i].blocker.enabled = sealed || static_cast<int>(i) == events.sealedDoor();
+      doors[i].blocker.enabled = sealed || events.sealedDoor(static_cast<int>(i));
 
     TransformComponent* body = player.getComponent<TransformComponent>();
     watch.begin(currentRoom >= 0 ? map.rooms[currentRoom].name : "nowhere", body->translation, dt);

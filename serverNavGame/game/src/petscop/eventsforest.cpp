@@ -78,7 +78,7 @@ void EventDirector::dressForest(MapRoom& room) {
 // F09: the room is stood on its head. Everything in it is mirrored across the
 // room's middle and turned over, and the doorways are left where they were
 void EventDirector::forestInvert(MapRoom& room) {
-  if (visits(room.name) + 1 < 3) return;
+  if (!byNight() || visits(room.name) + 1 < 3) return;
 
   for (MapObject& object : room.objects) {
     if (object.solid) continue;  // the floor and the walls stay put
@@ -89,10 +89,10 @@ void EventDirector::forestInvert(MapRoom& room) {
   }
 }
 
-// F18: the bridge is out until the game has been run three times, and then it
-// has put itself back and nothing says so
+// F18: the bridge is out until the game has been run three times, and after
+// that it is only there after dark -- blocked all day, open all night
 void EventDirector::forestBridge(MapRoom& room) {
-  if (!stage.state || stage.state->itemCount("@runs") < 3) return;
+  if (!byNight() || !stage.state || stage.state->itemCount("@runs") < 3) return;
 
   addObject(room, glm::vec3(0.f, 0.430f, 0.f), glm::vec3(0.f), glm::vec3(3.4f, 0.06f, 1.1f),
             "deck", "The planks are new.");
@@ -100,7 +100,7 @@ void EventDirector::forestBridge(MapRoom& room) {
 
 // F04: a sign at the end of the line west, counting off how long it waited
 void EventDirector::forestSign(MapRoom& room) {
-  if (!stage.state || stage.state->itemCount("@runs") < 2) return;
+  if (!byNight() || !stage.state || stage.state->itemCount("@runs") < 2) return;
 
   // Seconds are counted a room at a time, which is close enough to a clock
   const int waited = stage.state->itemCount("@seconds");
@@ -112,7 +112,7 @@ void EventDirector::forestSign(MapRoom& room) {
 // F17: come back to the game and there is a note by the shrine that was not
 // there, and it is addressed to you
 void EventDirector::forestNote(MapRoom& room) {
-  if (!stage.state || stage.state->itemCount("@runs") < 2) return;
+  if (!byNight() || !stage.state || stage.state->itemCount("@runs") < 2) return;
   if (stage.state->hasFlag("read_sorry")) return;
 
   addObject(room, glm::vec3(0.900f, 0.460f, 3.200f), glm::vec3(0.f, 0.6f, 0.f),
@@ -159,7 +159,7 @@ void EventDirector::lostThings(MapRoom& room) {
 // F12: the room is watched from further back than any other, with the two of
 // them on the screen at once
 void EventDirector::forestWatched(MapRoom& room) {
-  if (!stage.state || stage.state->itemCount("@runs") < 2) return;
+  if (!byDay() || !stage.state || stage.state->itemCount("@runs") < 2) return;
 
   room.cameraEye = room.cameraLook + (room.cameraEye - room.cameraLook) * 1.7f;
 }
@@ -192,7 +192,7 @@ void EventDirector::enterForest() {
   forestPockets();
 
   // F17: the game greets him on the way back in, once per run
-  if (stage.state && stage.state->itemCount("@runs") >= 2 &&
+  if (byNight() && stage.state && stage.state->itemCount("@runs") >= 2 &&
       !stage.state->hasFlag("welcomed") && stage.dialog) {
     stage.state->setFlag("welcomed", true);
     stage.dialog->open("Welcome back home.");
@@ -202,8 +202,8 @@ void EventDirector::enterForest() {
   //
   // Not a chance any more. He has been walking this save while the game was shut,
   // and this is the room it left him standing in -- see petscop/other.hpp
-  if (stage.state && !stage.state->other.room.empty() && stage.state->other.room == roomName &&
-      built && !built->doors.empty()) {
+  if (byDay() && stage.state && !stage.state->other.room.empty() &&
+      stage.state->other.room == roomName && built && !built->doors.empty()) {
     int way = -1;
     for (std::size_t i = 0; i < built->doors.size(); i++) {
       if (static_cast<int>(i) != arrivedFrom) {
@@ -244,21 +244,31 @@ void EventDirector::updateForest(float dt, bool playing, int startedProp) {
     }
   }
 
-  forestMan(dt);
-  forestDark(dt);
-  forestFollower(dt);
+  // The forest is one light and a camera that will not leave him, after dark,
+  // in every clearing. An event that wants the camera takes it back below
+  if (byNight()) forestNight(dt);
+  else forestNightOff();
+
+  if (byDay()) forestMan(dt);
+  if (byNight()) forestDark(dt);
+  if (byNight()) forestFollower(dt);
+
+  // The stare is what a faked crash leaves behind, so it plays whatever the
+  // hour is. Gating it would leave the flag set with nothing to clear it
   forestStare(dt);
 
-  if (roomName == "False_Path") {
+  if (roomName == "False_Path" && byNight()) {
     forestAfraid();
     forestGrey();
   }
   if (roomName == "Path_West") forestBlocked();
-  if (roomName == "Bank_West") forestDrift(dt);
-  if (roomName == "Well_Path") forestDoll(dt, startedProp);
-  if (roomName == "Trees_West") forestMannequin();
-  if (roomName == "Camp_East") forestWall();
-  if (roomName == "Tall_Trees") forestMirror();
+  if (roomName == "Bank_West" && byNight()) forestDrift(dt);
+  if (roomName == "Well_Path" && byNight()) forestDoll(dt, startedProp);
+  if (roomName == "Trees_West" && byNight()) forestMannequin();
+  if (roomName == "Camp_East" && byNight()) forestWall();
+  if (roomName == "Tall_Trees" && byDay()) forestMirror();
+
+  // The way out of the false foyer is not an event, it is the only door
   if (roomName == "Foyer") forestFoyer();
   if (roomName == "NOT_HERE_NOT_ANYWHERE") forestDoorway("out", "Start", "on");
 }
@@ -266,6 +276,7 @@ void EventDirector::updateForest(float dt, bool playing, int startedProp) {
 // F06: something goes missing on the way into a room, and it is on the ground
 // in the one he has just walked out of
 void EventDirector::forestPockets() {
+  if (!byNight()) return;
   if (!stage.state || lastRoom.empty() || lastRoom == roomName) return;
   if (stage.state->itemCount("@runs") < 2 || !canFire()) return;
 
@@ -310,28 +321,47 @@ void EventDirector::forestMan(float dt) {
   figure(at, std::atan2(way.x, way.z), true);
 }
 
-// F03: once the man has been seen the hollow stops being lit by anything but
-// him. The camera comes off its peg and there is nothing behind the room
+// F03: once the man has been seen there is nothing behind the hollow at all
+//
+// The light carried on him and the camera that follows are what every clearing
+// does after dark, so the black behind the room is what is left that is F03
 void EventDirector::forestDark(float dt) {
+  (void)dt;
   if (roomName != "Hollow" || roomVisits < 2) return;
   if (!stage.state || !stage.state->hasFlag("saw_man")) return;
-  if (!stage.player || dressed.lights.empty()) return;
 
   noBackdrop = true;
+}
+
+// After dark the forest is one light and a camera that will not leave him
+void EventDirector::forestNight(float dt) {
+  if (!stage.player || dressed.lights.empty()) return;
+
+  if (!nightLitKept) {
+    nightLitWas = dressed.lights[0];
+    nightLitKept = true;
+  }
 
   // One light, carried on him, and every other one out
   dressed.lights[0].position = stage.player->translation + glm::vec3(0.f, -1.1f, 0.f);
   dressed.lights[0].intensity = 9.f;
   for (std::size_t i = 1; i < dressed.lights.size(); i++) setLight(i, 0.f);
 
-  // The camera walks after him rather than watching the room
-  glm::vec3 want = stage.player->translation;
+  const glm::vec3 want = stage.player->translation;
   const float chase = dt * 2.0f;
   follow += (want - follow) * (chase > 1.f ? 1.f : chase);
 
   hasCam = true;
   camLook = follow;
   camEye = follow + (dressed.cameraEye - dressed.cameraLook) * 0.7f;
+}
+
+// The clearing gets its own light back the moment the sun is up
+void EventDirector::forestNightOff() {
+  if (!nightLitKept || dressed.lights.empty()) return;
+
+  dressed.lights[0] = nightLitWas;
+  nightLitKept = false;
 }
 
 // F05: a tree in the ring answers E and does nothing, and from then on it walks
@@ -392,10 +422,10 @@ void EventDirector::forestAfraid() {
   }
 }
 
-// F11: a tree lies across the way west, and eight seconds stood still in the
-// room is enough for it not to be there any more
+// F11: two trees lie across the clearing, one over each way out, and eight
+// seconds stood still in the room is enough for neither of them to be there
 void EventDirector::forestBlocked() {
-  if (!stage.state || stage.state->hasFlag("path_opened")) return;
+  if (!byDay() || !stage.state || stage.state->hasFlag("path_opened")) return;
 
   if (sinceEntry >= pathHold) {
     if (!pathClear) {
@@ -406,19 +436,28 @@ void EventDirector::forestBlocked() {
     return;
   }
 
-  const int west = findDoor(room, "west");
-  if (west < 0 || !built) return;
-  sealed = west;
+  if (!built) return;
 
-  const glm::vec3 at = built->doors[west].translation;
-  conjure("tree", glm::vec3(at.x + 1.2f, 0.5f, at.z), glm::vec3(0.f, 0.f, glm::half_pi<float>()),
-          glm::vec3(0.28f));
+  const int west = findDoor(room, "west");
+  const int east = findDoor(room, "east");
+  sealed = west;
+  sealedAlso = east;
+
+  // One lying across each doorway, leaning in off the wall it is nearest
+  for (int way : {west, east}) {
+    if (way < 0 || way >= static_cast<int>(built->doors.size())) continue;
+
+    const glm::vec3 at = built->doors[way].translation;
+    const float lean = at.x < 0.f ? 1.2f : -1.2f;
+    conjure("tree", glm::vec3(at.x + lean, 0.5f, at.z),
+            glm::vec3(0.f, 0.f, glm::half_pi<float>()), glm::vec3(0.28f));
+  }
 }
 
 // F14: the camera lets him walk away and stays looking at the door he came in
 // by, and only catches up once he is nearly out of the room
 void EventDirector::forestDrift(float dt) {
-  if (!stage.player || !built || arrivedFrom < 0) return;
+  if (!byNight() || !stage.player || !built || arrivedFrom < 0) return;
   if (!stage.state || !stage.state->hasFlag("saw_man")) return;
   if (arrivedFrom >= static_cast<int>(built->doors.size())) return;
 
@@ -627,7 +666,7 @@ void EventDirector::forestDoorway(const std::string& door, const std::string& ba
 // F01: the way east out of the trees does not come out where it should. The room
 // the other side says Foyer, and it is not the one he remembers
 bool EventDirector::forestReroute(int& toRoom, int& toDoor) {
-  if (!stage.state || stage.state->hasFlag("saw_foyer")) return true;
+  if (!byNight() || !stage.state || stage.state->hasFlag("saw_foyer")) return true;
   if (roomName != "Clearing_Trees" || toRoom != findRoom("Hollow")) return true;
   if (stage.state->itemCount("@runs") < 2 || !canFire()) return true;
 
@@ -649,6 +688,9 @@ int EventDirector::forestWake(int fallback) {
   const int nowhere = findRoom("NOT_HERE_NOT_ANYWHERE");
   if (nowhere < 0 || !stage.state) return fallback;
 
+  // Waking up nowhere is a night thing, but leaving it is not
+  if (!byNight()) return fallback == nowhere ? stage.map->startRoom : fallback;
+
   // Quitting in there does not leave him in there
   if (fallback == nowhere) return stage.map->startRoom;
   if (stage.state->itemCount("@runs") < 3) return fallback;
@@ -668,7 +710,7 @@ bool EventDirector::invertsControls() const {
 }
 
 bool EventDirector::menuStripped() const {
-  return forest() && stage.state && stage.state->itemCount("@runs") >= 3;
+  return forest() && byDay() && stage.state && stage.state->itemCount("@runs") >= 3;
 }
 
 // F13: the name in the corner stops being a place

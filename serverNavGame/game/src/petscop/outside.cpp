@@ -19,6 +19,11 @@ const float dayGain = 1.4f;
 const float dayAmbient = 1.6f;
 const float dayBackdrop = 0.4f;
 
+// The bars are painted almost black, so daylight has to pull their two colours
+// apart before it lifts them, or the sky comes out as one flat sheet
+const float dayBarsBoost = 4.f;
+const float dayBarsLift = 0.48f;
+
 // Seconds between anything happening at midday, and none of it after dark
 const float dayHoldOff = 25.f;
 
@@ -66,15 +71,20 @@ float hourOfDay() {
          static_cast<float>(local->tm_sec) / 3600.f;
 }
 
-Daylight daylightAt(float hour) {
+Daylight daylightAt(float hour) { return daylightFromSun(sunAt(hour)); }
+
+Daylight daylightFromSun(float sun) {
   Daylight sky;
-  sky.sun = sunAt(hour);
+  sky.sun = sun < 0.f ? 0.f : (sun > 1.f ? 1.f : sun);
   sky.gain = ramp(nightGain, dayGain, sky.sun);
   sky.ambient = ramp(1.f, dayAmbient, sky.sun);
   sky.wash = nightWash + (dayWash - nightWash) * sky.sun;
   sky.backdrop = ramp(1.f, dayBackdrop, sky.sun);
+  sky.barsBoost = ramp(1.f, dayBarsBoost, sky.sun);
+  sky.barsLift = ramp(0.f, dayBarsLift, sky.sun);
   sky.holdOff = dayHoldOff * sky.sun;
   sky.hidesQuests = sky.sun > questsGoneAbove;
+  sky.day = sky.sun > questsGoneAbove;
   return sky;
 }
 

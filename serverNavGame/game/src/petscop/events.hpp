@@ -69,13 +69,14 @@ class EventDirector {
   // A multiplier on one of the room's own lights
   float lightGain(std::size_t index) const;
 
-  // X11: daylight slows the bars behind the room and washes the colour out of them
   // X04: what the whole picture is put through this frame
   const lve::PostEffect& picture() const { return shot; }
 
+  // X11: daylight slows the bars behind the room and brings them up out of the
+  // dark. After dark they are the same bars, in the colours the room painted them
   float backgroundSpeed(float normal) const { return normal * bgScale * sky.backdrop; }
   glm::vec3 background(const glm::vec3& normal) const {
-    return normal + (glm::vec3(0.78f, 0.76f, 0.72f) - normal) * (sky.sun * 0.75f);
+    return normal * sky.barsBoost + glm::vec3(sky.barsLift);
   }
 
   // X11: warm and lifted by day, cold and low after dark
@@ -97,7 +98,7 @@ class EventDirector {
   bool takeWarp(int& room, int& door);
 
   // Which door of this room is plugged shut, or -1 for none
-  int sealedDoor() const { return sealed; }
+  bool sealedDoor(int index) const { return index >= 0 && (index == sealed || index == sealedAlso); }
 
   // F03: the bars behind the room stop being drawn at all
   bool hidesBackground() const { return noBackdrop; }
@@ -183,7 +184,13 @@ class EventDirector {
   void setLight(std::size_t index, float value);
 
   // X11: the hour, read once a frame and once more before a room is built
-  void readSky();
+  // The sun walks to where it should be rather than jumping, so a change of
+  // setting is something you watch happen
+  void readSky(float dt = 0.f);
+
+  // Which half of the day's events are the ones allowed to run
+  bool byDay() const { return sky.day; }
+  bool byNight() const { return !sky.day; }
 
   // X11: the four steps are a night job. The cue and the spade are not standing
   // in the daylight and the rock has nothing to say to you
@@ -258,6 +265,8 @@ class EventDirector {
   void forestWatched(MapRoom& room);  // F12 stands the camera further back
 
   // Forest events worked out again every frame
+  void forestNight(float dt);          // the forest after dark, in every room
+  void forestNightOff();               // and the room's own light given back
   void forestMan(float dt);            // F02
   void forestDark(float dt);           // F03
   void forestFollower(float dt);       // F05
@@ -309,8 +318,11 @@ class EventDirector {
   // Seconds left before the house may do something again
   float quiet = 0.f;
 
-  // What the sun is doing to the room, off the machine's clock
+  // What the sun is doing to the room, off the machine's clock or the settings
+  // sunShown is what is on the screen, walking toward what the hour says
   Daylight sky;
+  float sunShown = 0.f;
+  bool sunKnown = false;
 
   // Every light in the room is scaled by this, and any one of them on its own
   float gain = 1.f;
@@ -389,6 +401,7 @@ class EventDirector {
   bool tileRun = false;
   bool toldDoor = false;
   int sealed = -1;
+  int sealedAlso = -1;
 
   // --- the forest -----------------------------------------------------------
 
@@ -443,6 +456,10 @@ class EventDirector {
   // The room's own first light, kept while the stare is borrowing it
   MapLight litWas;
   bool litKept = false;
+
+  // And the same again, for the one the forest carries after dark
+  MapLight nightLitWas;
+  bool nightLitKept = false;
 
   // This is the first room of the run, which the relaunch events wait for
   bool justLaunched = false;

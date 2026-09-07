@@ -87,7 +87,13 @@ std::vector<std::string> pocketLines(const GameState& state) {
 }  // namespace
 
 std::vector<std::string> PauseMenu::entries() const {
-  if (options || showingMap || showingPhotos) return {"BACK"};
+  if (showingMap || showingPhotos) return {"BACK"};
+
+  // The one thing in the settings that does change something
+  if (options) {
+    const char* clock[] = {"AUTO", "DAY", "NIGHT"};
+    return {std::string("TIME: ") + clock[timeChoice % 3], "BACK"};
+  }
   if (stripped) return {"LEAVE"};
 
   std::vector<std::string> list{"RESUME"};
@@ -193,6 +199,11 @@ PauseMenu::Choice PauseMenu::update(GLFWwindow* window) {
     lve::LveAudio::instance().play("menu_accept");
     return Choice::None;
   }
+  if (chosen.rfind("TIME", 0) == 0) {
+    timeChoice = (timeChoice + 1) % 3;
+    lve::LveAudio::instance().play("menu_accept");
+    return Choice::None;
+  }
   if (chosen == "PHOTOS") {
     showingPhotos = true;
     cursor = 0;
@@ -289,10 +300,13 @@ void PauseMenu::emit(std::vector<lve::UIRenderItem>& out, lve::LveTextRenderer& 
   float y = leftPanel.y + padY;
 
   if (options) {
-    const std::string note = wrapText("NOTHING HERE CAN BE CHANGED", columnsFor(itemDot));
-    emitFitted(out, text, note, {left, y}, itemDot, dim);
+    // Smaller than a pocket line, to leave the buttons their room
+    const float noteDot = itemDot * 0.78f;
+
+    const std::string note = wrapText("The house changes at night", columnsFor(noteDot));
+    emitFitted(out, text, note, {left, y}, noteDot, dim);
     // The buttons pick up a blank line under the note
-    y += (lve::LveTextRenderer::lineCount(note) + 1) * 8.f * itemDot;
+    y += (lve::LveTextRenderer::lineCount(note) + 1) * 8.f * noteDot;
   }
 
   // The buttons shrink together, keeping the longest one inside the panel

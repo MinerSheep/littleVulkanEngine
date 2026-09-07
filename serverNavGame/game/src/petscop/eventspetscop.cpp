@@ -50,16 +50,25 @@ const char* quests[] = {"quest_stone", "quest_mirror", "quest_tiles", "quest_dig
 const int questCount = 4;
 
 // X11: what the four steps run through, and what the daylight does to each
-// The ones you pick up are not standing there at all, and the ones you press are
-// there and have nothing to say
-const char* dayGone[] = {"cue", "spade"};
-const char* dayMute[] = {"rock", "gate", "lever", "mirror", "dig_patch", "piano"};
+//
+// Nothing is left standing there dead. A thing is either in the room and answers
+// when you press E on it, or it is not in the room at all
+const char* dayGone[] = {"cue", "spade", "lever", "mirror", "dig_patch", "piano"};
+
+// The rock is the one that stays, because the slab over the closet is not a
+// thing daylight is allowed to move. It answers at any hour and only turns after
+// dark
+const char* rockByDay =
+    "A smooth rock, it looks like it can be spun.|But it seems stuck in place.";
 
 // Afternoons spent finishing nothing before the house leaves the cue out anyway
 const int relentAfter = 3;
 
 // As bright as a light is ever allowed to get, once the sun is on it
 const float dayCeiling = 1.6f;
+
+// How long the sky takes to walk from one end of the day to the other
+const float dayTurn = 1.4f;
 
 // X03: the one frame, and the colours it is drawn out of
 const glm::vec3 facePalette[5] = {
@@ -165,6 +174,9 @@ void EventDirector::reset() {
   echoAt = -1.f;
   waking = false;
   quiet = 0.f;
+
+  // A scene that has just come up is however the sky already is
+  sunKnown = false;
 
   noBackdrop = false;
   forestTick = 0.f;
@@ -345,8 +357,28 @@ void EventDirector::setLight(std::size_t index, float value) {
 
 // --- X11: what time it is out there -----------------------------------------
 
-// The hour off the machine, read fresh rather than counted up from the last one
-void EventDirector::readSky() { sky = daylightNow(); }
+// The hour off the machine, unless the settings have picked one, and the sun
+// walks the gap rather than jumping it
+void EventDirector::readSky(float dt) {
+  const int chosen = stage.state ? stage.state->itemCount("@timeofday") : 0;
+
+  float want = daylightNow().sun;
+  if (chosen == 1) want = daylightAt(13.f).sun;
+  else if (chosen == 2) want = daylightAt(2.f).sun;
+
+  // The first look of a run is however the sky already is
+  if (!sunKnown) {
+    sunShown = want;
+    sunKnown = true;
+  }
+
+  const float step = dt / dayTurn;
+  const float gap = want - sunShown;
+  if (std::fabs(gap) <= step || step <= 0.f) sunShown = std::fabs(gap) <= step ? want : sunShown;
+  else sunShown += gap < 0.f ? -step : step;
+
+  sky = daylightFromSun(sunShown);
+}
 
 // Three afternoons of walking round a house with nothing in it and the cue is
 // on the table whatever the hour says
@@ -387,8 +419,13 @@ void EventDirector::daylightHides(MapRoom& room) {
     // The one the house gives back is the cue, which is where the poem starts
     if (gone && !(object.name == "cue" && daylightRelents())) continue;
 
-    for (const char* name : dayMute)
-      if (object.name == name) object.actions.clear();
+    // It still answers, it just will not turn
+    if (object.name == "rock") {
+      MapAction say;
+      say.kind = ActionKind::Say;
+      say.text = rockByDay;
+      object.actions.assign(1, say);
+    }
 
     kept.push_back(object);
   }
@@ -430,6 +467,8 @@ const MapRoom& EventDirector::dress(const MapRoom& source, int index) {
 // E03: every fourth visit the foyer camera comes in a step closer, and it never
 // goes back out. foyerCamera is the half that walks after him
 void EventDirector::foyerPull(MapRoom& room) {
+  if (!byDay()) return;
+
   const int step = (visits(room.name) + 1) / 4;
   if (step < 1) return;
 
@@ -442,7 +481,7 @@ void EventDirector::foyerPull(MapRoom& room) {
 // stays that way. Stretching the room data is the whole trick -- walls, doors,
 // spawn points and lights all come out of it further apart
 void EventDirector::hallStretch(MapRoom& room) {
-  if (visits(room.name) + 1 < 4) return;
+  if (!byDay() || visits(room.name) + 1 < 4) return;
 
   const float stretch = 0.5f;
   const glm::vec3 back = room.cameraEye - room.cameraLook;
@@ -472,6 +511,7 @@ void EventDirector::yardEarth(MapRoom& room) {
     object.name = "grass_" + std::to_string(tuft++);
   }
 
+  if (!byNight()) return;
   if (!settled("earth_turned", stage.state && stage.state->hasFlag("quest_dig"))) return;
 
   stage.state->addItem("@patches.yard", 1);
@@ -488,6 +528,7 @@ void EventDirector::yardEarth(MapRoom& room) {
 // E18: heard the water three times and there is a sink on the wall the bathroom
 // has never had. Finding it stops the water for good
 void EventDirector::bathroomSink(MapRoom& room) {
+  if (!byDay()) return;
   if (!settled("sink_found", stage.state && stage.state->itemCount("@water.heard") >= 3)) return;
 
   addObject(room, glm::vec3(3.600f, -0.350f, 0.500f), glm::vec3(0.f),
@@ -497,6 +538,7 @@ void EventDirector::bathroomSink(MapRoom& room) {
 // E28: after the shape went over, a pane of glass is leaning on the north wall,
 // and one more of them every visit until you are walking around the stack
 void EventDirector::greenhousePanes(MapRoom& room) {
+  if (!byNight()) return;
   if (!settled("panes_leaning", stage.state && stage.state->hasFlag("saw_shape"))) return;
 
   stage.state->addItem("@panes.greenhouse", 1);
@@ -517,6 +559,8 @@ void EventDirector::greenhousePanes(MapRoom& room) {
 // E35: a seam in the shed floor that does nothing at all, until the shed has put
 // you out into the closet. Then it tells you what is under it
 void EventDirector::shedSeam(MapRoom& room) {
+  if (!byNight()) return;
+
   const bool under = stage.state && stage.state->hasFlag("shed_closet");
 
   addObject(room, glm::vec3(0.900f, 0.470f, 0.800f), glm::vec3(0.f, 0.350f, 0.f),
@@ -568,8 +612,12 @@ void EventDirector::standPickups() {
     Prop* lying = prop(pick.prop);
     if (!lying) continue;
 
-    const bool gone = stage.state->hasItem(pick.item) || stage.state->hasFlag(pick.spent) ||
-                      lyingAbout(*stage.state, pick.item);
+    // The forest keeps the key back after dark, where the house keeps the cue
+    // and the spade back by day
+    const bool nightly = std::string(pick.item) == "key" && byNight();
+
+    const bool gone = nightly || stage.state->hasItem(pick.item) ||
+                      stage.state->hasFlag(pick.spent) || lyingAbout(*stage.state, pick.item);
     lying->disappeared = gone;
     lying->collider.enabled = !gone && lying->solid;
   }
@@ -601,6 +649,7 @@ void EventDirector::onEnterRoom(int index, int arriveDoor) {
   stepAt = 0.f;
   banged = false;
   litKept = false;
+  nightLitKept = false;
   onEdge = true;  // you have to step off a corner before leaning on it counts
 
   // Nothing about the last room's walking carries into this one
@@ -623,7 +672,7 @@ void EventDirector::onEnterRoom(int index, int arriveDoor) {
   if (roomName == "Yard") stage.state->setFlag("seen_yard", true);
 
   // E13: doors taken one after another until the screen stops coming back
-  if (mash >= mashLimit) {
+  if (mash >= mashLimit && byDay()) {
     mash = 0;
     if (canFire()) {
       black = 10.f;
@@ -666,7 +715,7 @@ void EventDirector::ballroomStage() {
   Prop* piano = prop("piano");
   if (!piano) return;
 
-  pianoBack = questsDone() >= 3;
+  pianoBack = byNight() && questsDone() >= 3;
   if (pianoBack) {
     piano->disappeared = false;
     piano->collider.enabled = true;
@@ -687,7 +736,7 @@ void EventDirector::foyerTree() {
   if (!tree || !hole) return;
 
   bool taken = stage.state->hasFlag("tree_taken");
-  if (!taken && roomVisits >= 3 && canFire()) {
+  if (!taken && byDay() && roomVisits >= 3 && canFire()) {
     taken = true;
     stage.state->setFlag("tree_taken", true);
     fired();
@@ -701,7 +750,7 @@ void EventDirector::foyerTree() {
 
 // E15: once the foyer has gone dark, one tuft of grass in the yard answers E
 void EventDirector::yardTuft() {
-  if (!stage.state->hasFlag("saw_dark_foyer")) return;
+  if (!byDay() || !stage.state->hasFlag("saw_dark_foyer")) return;
   if (stage.state->hasFlag("tuft_named") || !canFire()) return;
   if (!stage.models || !stage.props) return;
 
@@ -739,6 +788,8 @@ void EventDirector::yardTuft() {
 
 // E36: the board in the shed reads your own save back, and is one line ahead
 void EventDirector::shedBoard() {
+  if (!byDay()) return;
+
   std::string words = "The board is a list.";
 
   int onPage = 0;
@@ -756,7 +807,7 @@ void EventDirector::shedBoard() {
 
 void EventDirector::update(float dt, bool playing, int startedProp) {
   sinceEntry += dt;
-  readSky();
+  readSky(dt);
   if (quiet > 0.f) quiet -= dt;
 
   // Everything an event overrides is worked out again from nothing each frame,
@@ -779,6 +830,7 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
   frozen = false;
   locked = false;
   sealed = -1;
+  sealedAlso = -1;
   hasCam = false;
   showInsert = false;
 
@@ -826,34 +878,36 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
   if (roomName == "Ballroom") ballroomTiles(playing);
   if (roomName == "Terrace") terraceDoor();
 
+  // Half the house waits for dark and the other half only happens in daylight,
+  // and each event says which it is by the gate it sits behind
   if (roomName == "Foyer") {
-    foyerLight();
-    foyerCamera(dt);
+    if (byNight()) foyerLight();
+    if (byNight()) foyerCamera(dt);
   }
-  if (roomName == "Closet") closetShutIn(dt, startedProp);
-  if (roomName == "Hall_West") hallWestBang(dt);
+  if (roomName == "Closet" && byNight()) closetShutIn(dt, startedProp);
+  if (roomName == "Hall_West" && byNight()) hallWestBang(dt);
   if (roomName == "Hall_Main") {
-    hallLightBehind();
+    if (byNight()) hallLightBehind();
     hallFootprints();
-    oneFrame(dt);
+    if (byNight()) oneFrame(dt);
   }
-  if (roomName == "Yard") yardPath();
-  if (roomName == "Bathroom") bathroomWater(dt, playing);
+  if (roomName == "Yard" && byNight()) yardPath();
+  if (roomName == "Bathroom" && byDay()) bathroomWater(dt, playing);
   if (roomName == "Billiard_Room") billiardWord();
-  if (roomName == "Ballroom") {
+  if (roomName == "Ballroom" && byNight()) {
     ballroomPiano(dt, playing);
     ballroomWalker(dt, playing);
     if (pianoBack) setLight(1, 0.f);  // E25: lit from one side, with it back
   }
-  if (roomName == "Greenhouse") {
+  if (roomName == "Greenhouse" && byNight()) {
     bgScale = 0.f;  // E29: the only room the backdrop holds still in
     greenhouseShape(dt);
   }
   if (roomName == "Field" || roomName == "Field_Red") fieldEdge(playing);
 
   // The two that are the same in every room
-  turnToCamera(dt);
-  lateLights();
+  if (byNight()) turnToCamera(dt);
+  if (byNight()) lateLights();
 }
 
 // X12: the stand takes the screen as it is, you standing in it
@@ -1008,7 +1062,7 @@ void EventDirector::hallFootprints() {
     stops.push_back(here);
   }
 
-  if (questsDone() < 3 || !sawWest || !sawEast) return;
+  if (!byDay() || questsDone() < 3 || !sawWest || !sawEast) return;
   for (const glm::vec3& stop : stops)
     conjure("cube", glm::vec3(stop.x, 0.470f, stop.z), glm::vec3(0.f),
             glm::vec3(0.30f, 0.02f, 0.46f));
@@ -1109,6 +1163,8 @@ void EventDirector::billiardWord() {
 
   // The table has moved on again while you were out of the room
   if (roomVisits > 6) {
+    if (!byNight()) return;
+
     const int frame = (roomVisits - 7) % 6;
     for (int ball = 0; ball < 6; ball++) {
       conjure("sphere", glm::vec3(frames[frame][ball][0], tableTop, frames[frame][ball][1]),
@@ -1116,6 +1172,8 @@ void EventDirector::billiardWord() {
     }
     return;
   }
+
+  if (!byDay()) return;
 
   for (int letter = 0; letter < shown; letter++) {
     for (int row = 0; row < 5; row++) {
@@ -1242,6 +1300,8 @@ void EventDirector::fieldEdge(bool playing) {
     warpDoor = findDoor(greenhouse, "Field");
     return;
   }
+
+  if (!byNight()) return;
 
   const bool corner = here.x < -10.5f && here.z > 3.5f;
   if (!corner) {
@@ -1412,6 +1472,8 @@ bool EventDirector::cameraOverride(glm::vec3& eye, glm::vec3& look) const {
 // E39: late on he does not start up in the room the save left him in. It is
 // always the terrace, which is always further along than where he stopped
 int EventDirector::wakeRoom(int fallback) {
+  readSky();
+
   if (forest() && stage.state && stage.state->hasFlag("crash_seen")) {
     const int foyer = findRoom("Foyer");
     if (foyer >= 0) return foyer;
@@ -1420,7 +1482,7 @@ int EventDirector::wakeRoom(int fallback) {
   return fallback; // disabled
 
   if (forest()) return forestWake(fallback);
-  if (!stage.state || questsDone() < 3) return fallback;
+  if (!stage.state || !byNight() || questsDone() < 3) return fallback;
 
   const int terrace = findRoom("Terrace");
   if (terrace < 0) return fallback;
@@ -1442,6 +1504,7 @@ bool EventDirector::takeWarp(int& toRoom, int& toDoor) {
 // E12: one time only, a north door out of the hall does not lead out of the
 // hall. You come back in at the far end of it, facing the way you were going
 bool EventDirector::hallGivesBack(int& toRoom, int& toDoor) {
+  if (!byNight()) return false;
   if (questsDone() < 2 || stage.state->hasFlag("hall_gave_back") || !canFire()) return false;
   if (toRoom < 0 || toRoom >= static_cast<int>(stage.map->rooms.size())) return false;
 
@@ -1473,7 +1536,7 @@ bool EventDirector::reroute(int& toRoom, int& toDoor) {
 
   if (roomName == "Hall_Main" && hallGivesBack(toRoom, toDoor)) return true;
 
-  if (roomName != "Shed") return true;
+  if (roomName != "Shed" || !byDay()) return true;
   if (!stage.state->hasFlag("read_note") || stage.state->hasFlag("shed_closet")) return true;
   if (!canFire()) return true;
 

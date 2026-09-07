@@ -30,13 +30,22 @@ struct Daylight {
   float ambient = 1.f;   // and so is the wash sitting over everything
   glm::vec3 wash{1.f};   // warm at noon, cold once it is dark
   float backdrop = 1.f;  // how fast the bars behind the room march
+  float barsBoost = 1.f;  // and how far apart their two colours are pulled
+  float barsLift = 0.f;   // before the whole lot is lifted into the daylight
   float holdOff = 0.f;   // seconds the house waits before doing anything else
 
   // The cue is not on the table and the spade is not in the shed
   bool hidesQuests = false;
+
+  // Whether the events of the day are the ones running
+  bool day = false;
 };
 
 Daylight daylightAt(float hour);
+
+// The same thing worked out from how high the sun is, so a change of hour can be
+// walked into rather than switched to
+Daylight daylightFromSun(float sun);
 Daylight daylightNow();
 
 }  // namespace petscop
