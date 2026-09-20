@@ -63,6 +63,21 @@ WALLS = {
 }
 
 
+# The fence mesh runs down its own -Z and stands about waist high at this size
+# Spacing is post to post, measured in the editor, so two runs meet without a gap
+FENCE_PRESET = "fence"
+FENCE_SCALE = 0.364
+FENCE_SPACING = 1.605
+
+# Which way round the ring each side runs, and the yaw that points a section that way
+FENCE_RING = {
+    "north": (-1.0, math.pi * 0.5),
+    "west":  (-1.0, 0.0),
+    "south": (+1.0, -math.pi * 0.5),
+    "east":  (+1.0, math.pi),
+}
+
+
 class MapError(Exception):
     """Something in the map source is wrong and the build should stop"""
 
@@ -118,7 +133,7 @@ class Obj:
     """
 
     def __init__(self, preset, translation, rotation, scale, face=(0.0, 0.0, 0.0), name="",
-                 solid=True):
+                 solid=True, texture=""):
         self.preset = preset
         self.translation = translation
         self.rotation = rotation
@@ -126,6 +141,9 @@ class Obj:
         self.face = face
         self.name = name
         self.solid = solid
+
+        # A picture painted over it, from textures/<name>.tex
+        self.texture = texture
         self.actions = []
 
 
@@ -137,7 +155,11 @@ class Room:
         self.depth = None
         self.height = 3.0
         self.wall_height = None  # walls run the full height unless told otherwise
+        self.floor_tex = None    # a picture over the floor, bare colour without one
+        self.wall_tex = None     # and one over every wall the room stands
         self.open = False        # outdoors: door frames only, no walls between them
+        self.fence = None        # (preset, spacing, scale) once a room asks to be ringed
+        self.show_name = None    # None takes whatever the map asked for
         self.cam = None          # (eye, look) once set
         self.lights = []         # (pos, colour, intensity)
         self.doors = []
@@ -273,6 +295,7 @@ def parse_mapsrc(path):
     by_ident = {}
     links = []
     room = None
+    hide_names = False
 
     for number, text in enumerate(raw, start=1):
         line = text.split("#", 1)[0].strip()
@@ -304,6 +327,19 @@ def parse_mapsrc(path):
             rooms.append(room)
             by_ident[room.ident] = room
 
+        elif key == "hidenames":
+            room = None
+            if rest:
+                fail(where, "hidenames takes nothing after it")
+            hide_names = True
+
+        elif key == "showname":
+            if room is None:
+                fail(where, "showname outside a room")
+            if rest:
+                fail(where, "showname takes nothing after it")
+            room.show_name = True
+
         elif key == "link":
             room = None
             if len(rest) != 2:
@@ -331,12 +367,48 @@ def parse_mapsrc(path):
             if room.wall_height <= 0:
                 fail(where, "wallheight must be positive")
 
+        elif key == "floortex":
+            if room is None:
+                fail(where, "floortex outside a room")
+            if len(rest) != 1:
+                fail(where, "floortex reads: floortex <picture>")
+            room.floor_tex = rest[0]
+
+        elif key == "walltex":
+            if room is None:
+                fail(where, "walltex outside a room")
+            if len(rest) != 1:
+                fail(where, "walltex reads: walltex <picture>")
+            room.wall_tex = rest[0]
+
         elif key == "open":
             if room is None:
                 fail(where, "open outside a room")
             if rest:
                 fail(where, "open takes nothing after it")
             room.open = True
+
+        elif key == "fence":
+            if room is None:
+                fail(where, "fence outside a room")
+            preset, spacing, scale = FENCE_PRESET, FENCE_SPACING, FENCE_SCALE
+            words = list(rest)
+            if words and words[0].lower() not in ("spacing", "scale"):
+                preset = words.pop(0)
+            i = 0
+            while i < len(words):
+                word = words[i].lower()
+                if word == "spacing":
+                    spacing = parse_floats(where, words[i + 1:i + 2], 1, "fence spacing")[0]
+                elif word == "scale":
+                    scale = parse_floats(where, words[i + 1:i + 2], 1, "fence scale")[0]
+                else:
+                    fail(where, "unexpected {} after fence, expected spacing or scale"
+                                .format(words[i]))
+                i += 2
+            if spacing <= 0 or scale <= 0:
+                fail(where, "fence spacing and scale must be positive")
+            room.fence = (preset, spacing, scale)
 
         elif key == "cam":
             if room is None:
@@ -404,7 +476,7 @@ def parse_mapsrc(path):
                             "the game reads # as a comment and would cut the text short".format(key))
             if len(rest) < 10:
                 fail(where, "{} reads: {} <preset>  tx ty tz  rx ry rz  sx sy sz  "
-                            "[name <id>]  [say <words>]".format(key, key))
+                            "[name <id>]  [say <words>]  [pass]".format(key, key))
             values = parse_floats(where, rest[1:10], 9, key)
             obj = Obj(rest[0], tuple(values[0:3]), tuple(values[3:6]), tuple(values[6:9]))
 
@@ -417,6 +489,9 @@ def parse_mapsrc(path):
                         fail(where, "name needs a word after it")
                     obj.name = tail[i + 1]
                     i += 2
+                elif word == "pass":
+                    obj.solid = False
+                    i += 1
                 elif word == "say":
                     words = " ".join(tail[i + 1:]).strip()
                     if not words:
@@ -457,6 +532,8 @@ def parse_mapsrc(path):
     for room in rooms:
         if room.width is None:
             fail(room.line, "room {} has no size".format(room.ident))
+        if room.show_name is None:
+            room.show_name = not hide_names
     if start is None:
         start = rooms[0].ident
     if start not in by_ident:
@@ -553,6 +630,7 @@ def build_room(room):
         (0.0, GROUND_Y + FLOOR_HALF_THICK, 0.0),
         (0.0, 0.0, 0.0),
         (half_w, FLOOR_HALF_THICK, half_d),
+        texture=room.floor_tex or "",
     ))
 
     for wall, info in WALLS.items():
@@ -590,7 +668,8 @@ def build_room(room):
                 (lo + hi) * 0.5, fixed,
                 (hi - lo) * 0.5, wall_half,
                 GROUND_Y - wall_h * 0.5, wall_h * 0.5)
-            room.objects.append(Obj(WALL_PRESET, translation, (0.0, 0.0, 0.0), scale, outward))
+            room.objects.append(Obj(WALL_PRESET, translation, (0.0, 0.0, 0.0), scale, outward,
+                                    texture=room.wall_tex or ""))
 
         for door in doors:
             # The bit of wall above the opening
@@ -602,7 +681,8 @@ def build_room(room):
                     door.width * 0.5, wall_half,
                     GROUND_Y - wall_h + lintel_half, lintel_half)
                 # Part of the wall, so it goes when the wall goes
-                room.objects.append(Obj(WALL_PRESET, translation, (0.0, 0.0, 0.0), scale, outward))
+                room.objects.append(Obj(WALL_PRESET, translation, (0.0, 0.0, 0.0), scale, outward,
+                                    texture=room.wall_tex or ""))
 
             # The trigger, reaching further through the wall than the wall is thick
             depth_half = max(wall_half, MIN_TRIGGER_DEPTH * 0.5)
@@ -623,6 +703,48 @@ def build_room(room):
 
     if room.cam is None:
         room.cam = auto_camera(room)
+
+    if room.fence:
+        build_fence(room)
+
+
+def build_fence(room):
+    """Rings the room with fence sections, leaving each doorway and its posts clear"""
+    preset, spacing, scale = room.fence
+    half_w = room.width * 0.5
+    half_d = room.depth * 0.5
+
+    eye, look = room.cam
+    ahead = (look[0] - eye[0], look[2] - eye[2])
+    reach = math.hypot(ahead[0], ahead[1])
+    ahead = (ahead[0] / reach, ahead[1] / reach) if reach > 1e-4 else (0.0, 0.0)
+
+    for wall, (forward, yaw) in FENCE_RING.items():
+        info = WALLS[wall]
+        along = info["along"]
+        along_half = half_w if along == "x" else half_d
+        fixed = info["sign"] * (half_d if along == "x" else half_w)
+
+        # Only the side the camera looks in through turns ghostly, the others stay solid
+        outward = tuple(-c for c in info["inward"])
+        near = outward[0] * ahead[0] + outward[2] * ahead[1] < -1e-4
+        face = outward if near else (0.0, 0.0, 0.0)
+
+        # Nothing stands across a doorway, nor across the posts either side of it
+        holes = [(d.offset - d.width * 0.5 - JAMB_WIDTH,
+                  d.offset + d.width * 0.5 + JAMB_WIDTH)
+                 for d in room.doors if d.wall == wall]
+
+        for lo, hi in subtract((-along_half, along_half), holes):
+            # Rounding the count up closes the run: sections overlap rather than gap
+            count = max(1, int(math.ceil((hi - lo) / spacing - 1e-6)))
+            step = (hi - lo) / count
+            start = lo if forward > 0 else hi
+            for i in range(count):
+                translation, _ = place(along, start + forward * i * step, fixed,
+                                       0.0, 0.0, GROUND_Y, 0.0)
+                room.objects.append(Obj(preset, translation, (0.0, yaw, 0.0),
+                                        (scale, scale, scale), face))
 
 
 def auto_camera(room):
@@ -729,6 +851,24 @@ def check_sounds(rooms, sounds_dir):
                   .format(name, sounds_dir), file=sys.stderr)
 
 
+def check_textures(rooms, textures_dir):
+    """Every picture a room asks for has to be a .tex on disk"""
+    missing = []
+    for room in rooms:
+        for obj in room.objects:
+            if not obj.texture:
+                continue
+            if not os.path.isfile(os.path.join(textures_dir, obj.texture + ".tex")):
+                missing.append(obj.texture)
+
+    if missing:
+        wanted = sorted(set(missing))
+        raise MapError("no picture on disk for: {}\nlooked for {}\nturn a PNG into one with "
+                       "tools/png2tex.py"
+                       .format(", ".join(wanted),
+                               ", ".join(os.path.join(textures_dir, t + ".tex") for t in wanted)))
+
+
 def check_presets(presets, models_dir):
     missing = []
     for name in presets:
@@ -786,6 +926,8 @@ def emit(name, start_index, rooms, presets, out_path):
     for index, room in enumerate(rooms):
         lines.append("room {} {}".format(index, room.ident))
         lines.append("size {} {} {}".format(f3(room.width), f3(room.depth), f3(room.height)))
+        if not room.show_name:
+            lines.append("noname")
         eye, look = room.cam
         lines.append("cam {}  {}".format(vec(eye), vec(look)))
         for position, colour, intensity in room.lights:
@@ -803,6 +945,8 @@ def emit(name, start_index, rooms, presets, out_path):
                 head = "obj {}".format(body)
             if not obj.solid:
                 head += "  pass"
+            if obj.texture:
+                head += "  tex {}".format(obj.texture)
             if obj.name:
                 head += "  name {}".format(obj.name)
             lines.append(head)
@@ -831,7 +975,7 @@ def emit(name, start_index, rooms, presets, out_path):
         handle.write(text)
 
 
-def build(src_path, out_path, models_dir, sounds_dir):
+def build(src_path, out_path, models_dir, sounds_dir, textures_dir):
     name, start, rooms, by_ident, links = parse_mapsrc(src_path)
     room_index = {room.ident: i for i, room in enumerate(rooms)}
 
@@ -865,6 +1009,7 @@ def build(src_path, out_path, models_dir, sounds_dir):
             if obj.preset not in presets:
                 presets.append(obj.preset)
     check_presets(presets, models_dir)
+    check_textures(rooms, textures_dir)
 
     emit(name, room_index[start], rooms, presets, out_path)
 
@@ -885,11 +1030,13 @@ def main():
                         help="where the preset meshes live (default: models)")
     parser.add_argument("--sounds-dir", default="sounds",
                         help="where the sound clips live (default: sounds)")
+    parser.add_argument("--textures-dir", default="textures",
+                        help="where the .tex pictures live (default: textures)")
     args = parser.parse_args()
 
     out = args.out or os.path.splitext(args.source)[0] + ".map"
     try:
-        build(args.source, out, args.models_dir, args.sounds_dir)
+        build(args.source, out, args.models_dir, args.sounds_dir, args.textures_dir)
     except MapError as exc:
         print("[build_map] error: {}".format(exc), file=sys.stderr)
         return 1

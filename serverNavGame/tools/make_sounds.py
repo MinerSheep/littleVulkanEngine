@@ -102,6 +102,19 @@ def footsteps(seconds=10.0):
     return [v * envelope(i, total, 0.05, 0.4) for i, v in enumerate(out)]
 
 
+def step(seconds=0.24):
+    """One footfall on its own, for the walker who is a beat behind you"""
+    total = int(RATE * seconds)
+    out = []
+    for i in range(total):
+        age = i / RATE
+        body = math.sin(2.0 * math.pi * 95.0 * age) * math.exp(-26.0 * age)
+        grit = random.uniform(-1.0, 1.0) * math.exp(-55.0 * age)
+        out.append((body * 0.8 + grit * 0.35) * 0.6)
+
+    return [v * envelope(i, total, 0.002, 0.05) for i, v in enumerate(out)]
+
+
 def drone(seconds=3.0):
     """Low swell for the thing that passes over the greenhouse"""
     total = int(RATE * seconds)
@@ -121,6 +134,7 @@ CLIPS = {
     "water": water,
     "piano": piano,
     "footsteps": footsteps,
+    "step": step,
     "drone": drone,
 }
 
