@@ -1,18 +1,18 @@
 #include "petscop/room_scene.hpp"
 
-#include <lve_audio.hpp>
-#include <lve_engine.hpp>
-#include <lve_skinned_model.hpp>
-
-#include <glm/gtc/constants.hpp>
-
 #include <sys/stat.h>
 
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
+#include <glm/gtc/constants.hpp>
 #include <iostream>
+#include <lve_audio.hpp>
+#include <lve_engine.hpp>
+#include <lve_skinned_model.hpp>
 #include <stdexcept>
+
+#include "game_analytics_manager.hpp"
 
 namespace {
 
@@ -29,6 +29,7 @@ struct Area {
 const Area kAreas[] = {
     {"petscop", "maps/petscop.map", "saves/petscop.save", "Building_Two", "inside"},
     {"forest", "maps/forest.map", "saves/forest.save", "", ""},
+    {"unbounded", "maps/unbounded.map", "saves/unbounded.save", "", ""},
 };
 constexpr int kAreaCount = static_cast<int>(sizeof(kAreas) / sizeof(kAreas[0]));
 
@@ -49,6 +50,10 @@ void writeProgressArea(const std::string& path, int area) {
   for (std::size_t i = 1; i < path.size(); i++) {
     if (path[i] == '/') mkdir(path.substr(0, i).c_str(), 0755);
   }
+  GameAnalyticsManager::Get().CompleteLevel();
+  GameAnalyticsManager::Get().levelName = kAreas[area].name;
+  GameAnalyticsManager::Get().StartLevel();
+  
   std::ofstream out(path);
   if (out) out << "area " << kAreas[area].name << "\n";
 }
@@ -69,7 +74,12 @@ void RoomScene::loadModels() {
   // Where the last run left off. A marker naming an area whose save has been
   // deleted drops back to area one, so clearing saves/ starts the game over
   areaIndex = readProgressArea(progressPath);
-  if (areaIndex > 0 && !fileExists(kAreas[areaIndex].save)) areaIndex = 0;
+  if (areaIndex > 0 && !fileExists(kAreas[areaIndex].save))
+  {
+    areaIndex = 0;
+    GameAnalyticsManager::Get().levelName = kAreas[areaIndex].name; 
+    GameAnalyticsManager::Get().StartLevel();
+  } 
   mapPath = kAreas[areaIndex].map;
   savePath = kAreas[areaIndex].save;
 
@@ -90,7 +100,7 @@ void RoomScene::loadModels() {
   menu.timeChoice = state.itemCount("@timeofday");
 
   // Before a single room is built, because none of it happens in front of you
-  letHimPlay();
+  // letHimPlay();
 
   textRenderer = std::make_unique<lve::LveTextRenderer>(lve::LveEngine::instance().getDevice());
 
@@ -138,6 +148,8 @@ void RoomScene::loadModels() {
 
   // After bind, and after the save has been read
   events.newRun();
+
+  GameAnalyticsManager::Get().levelName = kAreas[areaIndex].name;
 
   std::cout << "[petscop] loaded map '" << map.name << "': " << map.rooms.size() << " room(s), "
             << map.presets.size() << " mesh(es)" << std::endl;

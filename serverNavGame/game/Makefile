@@ -3,9 +3,9 @@
 include ../engine/.env
 
 CXX = g++
-CXXFLAGS = -std=c++17 -Isrc -I../engine/include -I$(VULKAN_SDK_PATH)/include -g3 -O0 -fno-omit-frame-pointer -fsanitize=address -MMD -MP
+CXXFLAGS = -std=c++17 -Isrc -I../engine/include -I../engine/libs/include -I$(VULKAN_SDK_PATH)/include -g3 -O0 -fno-omit-frame-pointer -fsanitize=address -MMD -MP
 LDFLAGS = -L../engine -lvulkan_engine \
-          -L$(VULKAN_SDK_PATH)/lib `pkg-config --static --libs glfw3` -lvulkan \
+          -L$(VULKAN_SDK_PATH)/lib `pkg-config --libs glfw3` -lvulkan -L../engine/libs/ubuntu-latest-gcc-Release -lGameAnalytics -lcurl -L/usr/lib/x86_64-linux-gnu -lssl -lcrypto -lpthread -ldl \
           -lpthread -ldl -lm
 
 CFLAGS += `pkg-config --cflags libcurl`
@@ -32,7 +32,7 @@ all: $(TARGET)
 ../engine/libvulkan_engine.a:
 	$(MAKE) -C ../engine
 
-$(TARGET): $(OBJECTS) ../engine/libvulkan_engine.a
+$(TARGET): $(OBJECTS) ../engine/libvulkan_engine.a ../engine/libs/ubuntu-latest-gcc-Release/libGameAnalytics.a
 	$(CXX) $(CXXFLAGS) -o $@ $(OBJECTS) $(LDFLAGS)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp

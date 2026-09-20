@@ -1,6 +1,9 @@
 #include "petscop/game_state.hpp"
+#include "events.hpp"
 
 #include <cstddef>
+
+#include "game_analytics_manager.hpp"
 
 namespace petscop {
 
@@ -15,7 +18,14 @@ std::string keyFor(const std::string& roomName, const std::string& propName) {
 bool GameState::hasFlag(const std::string& name) const { return flags.count(name) != 0; }
 
 void GameState::setFlag(const std::string& name, bool on) {
-  if (on) flags.insert(name);
+  if (on)
+  {
+    if (EventDirector::inQuestsList(name))
+      GameAnalyticsManager::Get().StepCompleted(name);
+
+    GameAnalyticsManager::Get().PlayerEvent(EventDirector::roomName, name); // ProgressionCompleted(GameAnalyticsManager::Get().CurrentMap(), name);
+    flags.insert(name);
+  }
   else flags.erase(name);
 }
 
@@ -27,6 +37,17 @@ int GameState::itemCount(const std::string& name) const {
 void GameState::addItem(const std::string& name, int count) {
   if (name.empty()) return;
 
+  bool found = count > 0;
+
+  // @visits and etc. get passed through here, do not give events for those
+  if (name != "" && name[0] != '@')
+    GameAnalyticsManager::Get().ItemEvent(found, name, count * (found ? 1 : -1), "item", name); 
+
+  std::string questName = EventDirector::pickupToEvent(name);
+  if (found && questName != "")
+  {
+    GameAnalyticsManager::Get().StepStarted(questName);
+  }
   int& held = items[name];
   held += count;
   if (held <= 0) items.erase(name);

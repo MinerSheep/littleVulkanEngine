@@ -11,11 +11,14 @@
 #include "fetch_weather.hpp"
 
 // std
+#include <chrono>
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
 
-#include <chrono>
+// lib
+#include "game_analytics_manager.hpp"
+
 
 // Upper bound on per-frame dt, to stop a one-off multi-second stall (first-frame
 // warmup, a hitch) from teleporting the camera. It must sit ABOVE the normal
@@ -48,9 +51,12 @@ int main() {
     lve::LveEngine& engine = lve::LveEngine::instance();
     // lve::FirstApp app;
     // ServerNav navGame;
-
+    
+    // Once at startup, before your main loop:
+    GameAnalyticsManager::Get().Initialize();
+    
     engine.init();
-
+    
     lve::LveAudio& audio = lve::LveAudio::instance();
     audio.init();
     // One-shots, decoded up front. loadFolder does not walk into subfolders, so

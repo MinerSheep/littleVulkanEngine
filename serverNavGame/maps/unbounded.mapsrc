@@ -1,0 +1,57 @@
+# One field, and the house standing alone in the middle of it. Walking up to
+# the house and going in through its door leads to a single room with one
+# door, back the way you came.
+#
+# Compile it with:
+#   python3 tools/build_map.py maps/unbounded.mapsrc -o maps/unbounded.map
+
+map unbounded
+start Outside
+hidenames
+
+
+# The whole of the outside world: one big open field, with the house sitting
+# in the middle of it
+room Outside
+  size 40 40
+  height 4
+  floortex forest_grass_lush
+  open
+  light -12.0 -3.0 -12.0   0.30 0.38 0.48   40
+  light  12.0 -3.0 -12.0   0.28 0.36 0.46   40
+  light -12.0 -3.0  12.0   0.28 0.36 0.46   40
+  light  12.0 -3.0  12.0   0.30 0.38 0.48   40
+
+  # The house, standing on its own in the middle of the field
+  prop cube  0.000 1.000 -1.500   0.000 0.000 0.000   6.000 2.000 5.000  name house_walls
+  prop cube  0.000 2.150 -1.500   0.000 0.785 0.000   4.500 0.300 4.500  name house_roof
+
+  door house  north  0
+
+  interact cube  0.000 0.700 1.000   0.000 0.000 0.000   1.400 1.400 0.300  name front_door
+    do say The house sits alone in the middle of the field.
+    do say The door is unlocked.
+
+  # Trees and rocks scattered around the field, well clear of the house
+  prop tree    -12.000 0.500  -9.000   0.000 0.700 0.000   0.450 0.450 0.450
+  prop tree     10.500 0.500  -8.400   0.000 2.900 0.000   0.400 0.400 0.400
+  prop tree    -14.000 0.500   6.500   0.000 1.900 0.000   0.420 0.420 0.420
+  prop tree2    13.000 0.500   9.000   0.000 4.100 0.000   0.380 0.380 0.380
+  prop tree2   -10.000 0.500  12.500   0.000 0.400 0.000   0.360 0.360 0.360
+  prop rock      9.000 0.170  11.500   0.000 1.100 0.000   0.550 0.550 0.550
+  prop rock    -13.500 0.170  -2.000   0.000 2.400 0.000   0.500 0.500 0.500
+
+
+# The one room inside the house. One way in, and the same way back out.
+room House
+  size 10 10
+  height 4
+  floortex wood_flooring
+  showname
+  light 0.0 -3.0 0.0   0.55 0.50 0.42   16
+  door south  south  0
+  prop flat_vase  -3.5 0.5 -3.5   0 0.4 0   1.00 1.00 1.00
+  prop cube        0.0 0.10  0.0   0 0.15 0   1.60 0.40 0.90   name table
+
+
+link Outside.house  House.south

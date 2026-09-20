@@ -147,6 +147,7 @@ room Closet
   interact rock  0.0 0.17 0.0  0 0.6 0  0.60 0.60 0.60  name rock
     do say A smooth rock, it looks like it can be spun.|You give it a little spin.
     do sound stone
+    do flag moved_stone
     do rotate rock  0 90 0  over 0.45
 
   # Pinned to the north wall. Read the other way round it says NW FIELD

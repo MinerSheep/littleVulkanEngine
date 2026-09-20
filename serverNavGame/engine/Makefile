@@ -1,8 +1,10 @@
 include .env
 
 
-CFLAGS = -std=c++17 -I. -Ilibs -Iinclude -I$(VULKAN_SDK_PATH)/include -MMD -MP
-LDFLAGS = -L$(VULKAN_SDK_PATH)/lib `pkg-config --static --libs glfw3` -lvulkan
+CFLAGS = -std=c++17 -I. -Ilibs -Iinclude -Ilibs/GameAnalytics -I$(VULKAN_SDK_PATH)/include -MMD -MP
+LDFLAGS = -Llibs/ubuntu-latest-gcc-Release -L$(VULKAN_SDK_PATH)/lib \
+          `pkg-config --static --libs glfw3` -lvulkan \
+          -lGameAnalytics -lcurl -lssl -lcrypto -lpthread -ldl
 
 SRC_DIR = src
 OBJ_DIR = obj
@@ -38,7 +40,8 @@ $(TARGET): $(OBJECTS)
 
 .PHONY: all test clean
 
-test: a.out
+test: $(TARGET)
+	g++ $(CFLAGS) src/test_main.cpp $(TARGET) $(LDFLAGS) -o a.out
 	./a.out
 
 clean:

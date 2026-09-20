@@ -14,6 +14,8 @@
 
 #include <cmath>
 
+#include "game_analytics_manager.hpp"
+
 // The house doing things the map file cannot say on its own
 //
 // Two kinds of event live here. One kind puts props right the moment a room
@@ -131,8 +133,28 @@ std::string shout(const std::string& flag) {
 
 }  // namespace
 
+// Which map is playing. The forest is area two, the house is everything else
+bool staticForest = false;
+bool EventDirector::forest() const { return staticForest = stage.map && stage.map->name == "forest"; }
+
+bool EventDirector::inQuestsList(std::string name) 
+{
+  if (staticForest) return inForestQuestsList(name);
+
+  for (auto quest : quests) {
+    if (quest == name) return true;
+  }
+  return false;
+}
+
 void EventDirector::bind(const Stage& newStage) {
   stage = newStage;
+
+  std::set<std::string> m_completedSteps;
+  for (auto& quest : petscop::fullQuestList) {
+    if (stage.state->hasFlag(quest)) m_completedSteps.insert(quest);
+  }
+  GameAnalyticsManager::Get().ReloadActiveSteps(m_completedSteps);
 
   // Meshes only an event ever stands up, so none of them loads mid frame
   if (stage.models) {
@@ -196,13 +218,15 @@ void EventDirector::reset() {
   stareAt = -1.f;
 }
 
-// Which map is playing. The forest is area two, the house is everything else
-bool EventDirector::forest() const { return stage.map && stage.map->name == "forest"; }
-
 // One more run of the game, counted in the save the same way visits are
 void EventDirector::newRun() {
   justLaunched = true;
-  if (stage.state) stage.state->addItem("@runs", 1);
+  if (stage.state)
+  {
+    stage.state->addItem("@runs", 1);
+
+    //adadsad
+  }
   daylightRelent();
 }
 
@@ -582,7 +606,7 @@ struct Pickup {
 const Pickup pickups[] = {
     {"Billiard_Room", "cue", "cue", "quest_mirror"},
     {"Shed", "spade", "spade", "quest_dig"},
-    {"Tent_Camp", "key", "key", "gate_opened"},
+    {"Tent_Camp", "key", "key", "quest_gate"},
 };
 
 // Whether the thing is already lying on the floor of some room
@@ -600,6 +624,17 @@ bool lyingAbout(const GameState& state, const std::string& item) {
 }
 
 }  // namespace
+
+std::string EventDirector::pickupToEvent(std::string name) 
+{
+  for(auto& pickup : pickups)
+  {
+    if (name == pickup.item)
+      return pickup.spent;
+  }
+
+  return "";
+}
 
 // Whether a pickup is lying in the room, worked out again every time he walks in
 // In his pocket or already spent means it stays gone, lost means it is back
@@ -842,7 +877,11 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
   // debug command to skip all progress steps
   if (glfwGetKey(window, GLFW_KEY_F1) == GLFW_PRESS)
     for(auto& quest : quests)
+    {
+      GameAnalyticsManager::Get().StepCompleted(quest);
+
       stage.state->setFlag(quest, true);
+    }
 
   wasMoving = moved;
   moved = false;
@@ -1371,6 +1410,9 @@ int EventDirector::questsDone() const { return questCount - questsLeft(); }
 void EventDirector::stoneAndGate() {
   if (!stage.state || stage.state->hasFlag("quest_stone")) return;
 
+  if (stage.state->hasFlag("moved_stone"))
+    GameAnalyticsManager::Get().StepStarted("quest_stone");
+
   glm::vec3 rockAt, rockTurn, gateAt, gateTurn;
   if (!placeOf("Closet", "rock", rockAt, rockTurn)) return;
   if (!placeOf("Foyer", "gate", gateAt, gateTurn)) return;
@@ -1387,9 +1429,11 @@ void EventDirector::stoneAndGate() {
 
   if (std::fabs(gateAt.y - gateRest->translation.y) > 0.1f) return;
 
-  stage.state->setFlag("quest_stone", true);
-  lve::LveAudio::instance().play("quest_done");
-  if (stage.dialog) stage.dialog->open("Something changed, a sound from the Terrace.");
+      stage.state->setFlag(quests[0], true);
+      GameAnalyticsManager::Get().StepCompleted(quests[0]);
+
+      lve::LveAudio::instance().play("quest_done");
+      if (stage.dialog) stage.dialog->open("Something changed, a sound from the Terrace.");
 }
 
 // Quest 3: the pale tiles are the only floor that counts. Step off them and the
@@ -1403,8 +1447,12 @@ void EventDirector::ballroomTiles(bool playing) {
     }
   }
 
+  // start piano quest if it is possible
+  if (roomVisits > 1)
+    GameAnalyticsManager::Get().StepStarted(quests[2]);
+
   if (!playing || !stage.player || !stage.state) return;
-  if (stage.state->hasFlag("quest_tiles")) return;
+  if (stage.state->hasFlag(quests[2])) return;
 
   const glm::vec3 here = stage.player->translation;
   const int column = static_cast<int>(std::floor((here.x + 7.f) * 0.5f));
@@ -1421,7 +1469,8 @@ void EventDirector::ballroomTiles(bool playing) {
 
   if (!tileRun || column != 3 || row != 3) return;
 
-  stage.state->setFlag("quest_tiles", true);
+  stage.state->setFlag(quests[2], true);
+  GameAnalyticsManager::Get().StepCompleted(quests[2]);
   lve::LveAudio::instance().play("quest_done");
   if (stage.dialog) stage.dialog->open("You reach the middle without touching the floor.");
 }

@@ -17,6 +17,14 @@ struct TransformComponent;
 
 namespace petscop {
 
+inline const char* fullQuestList[] = {
+    "quest_stone",
+    "quest_mirror",
+    "quest_tiles",
+    "quest_dig",
+    "quest_gate",
+    "quest_3runs"};
+
 struct GameState;
 class DialogBox;
 class ModelCache;
@@ -38,6 +46,12 @@ struct Stage {
 // pointers into it, so anything an event conjures goes in extras() instead
 class EventDirector {
  public:
+  static bool inQuestsList(std::string name);
+  static bool inForestQuestsList(std::string name);
+  inline static std::string roomName = "unknown";
+  // ask if the pickup like whats the quest for ittz
+  static std::string pickupToEvent(std::string name);
+
   void bind(const Stage& stage);
   void reset();
 
@@ -162,8 +176,8 @@ class EventDirector {
   // The live prop by that name, or null
   Prop* prop(const std::string& name);
 
-  // Puts a pickup back on the ground when he has lost it and still needs it
-  void standPickups();
+      // Puts a pickup back on the ground when he has lost it and still needs it
+      void standPickups();
 
   // Stands a prop that only exists to be looked at
   void conjure(const std::string& mesh, const glm::vec3& t, const glm::vec3& r,
@@ -296,7 +310,6 @@ class EventDirector {
   Stage stage;
 
   int room = -1;
-  std::string roomName;
   int roomVisits = 0;
   float sinceEntry = 0.f;
 

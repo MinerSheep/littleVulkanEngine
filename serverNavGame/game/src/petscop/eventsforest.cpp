@@ -37,6 +37,10 @@ const float stareFor = 1.8f;
 // How close to a doorway counts as standing in it
 const float doorReach = 1.1f;
 
+// The four things building two waits on
+const char* quests[] = {"quest_gate", "quest_3runs"};
+const int questCount = 2;
+
 // An item name the way a note about it would be written, mid sentence
 std::string plainly(const std::string& name) {
   std::string out;
@@ -63,6 +67,13 @@ void EventDirector::figure(const glm::vec3& at, float yaw, bool walking) {
 }
 
 // --- the room about to be built ---------------------------------------------
+
+bool EventDirector::inForestQuestsList(std::string name) {
+  for (auto quest : quests) {
+    if (quest == name) return true;
+  }
+  return false;
+}
 
 void EventDirector::dressForest(MapRoom& room) {
   if (room.name == "Camp_South") forestInvert(room);
@@ -167,6 +178,9 @@ void EventDirector::forestWatched(MapRoom& room) {
 // --- the room is standing ---------------------------------------------------
 
 void EventDirector::enterForest() {
+  if (stage.state->itemCount("@runs") > 2)
+    stage.state->setFlag("quest_3runs", true);
+  
   // The way back is open again, until this room shuts it
   wallUp = false;
 
