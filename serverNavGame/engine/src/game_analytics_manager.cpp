@@ -46,10 +46,13 @@ void GameAnalyticsManager::StepStarted(const std::string& step) {
 }
 
 void GameAnalyticsManager::StepCompleted(const std::string& step) {
-  if (!m_activeSteps.count(step)) {
-    std::cout << "Step not started or completed" << step << "\n";
-    StepStarted(step);
-  }
+  if (m_completedSteps.count(step))
+    return;
+    
+    if (!m_activeSteps.count(step)) {
+      std::cout << "Step not started" << step << "\n";
+      StepStarted(step);
+    }
   m_activeSteps.erase(step);
   m_completedSteps.insert(step);
   ProgressionCompleted(levelName, "Progress", step);

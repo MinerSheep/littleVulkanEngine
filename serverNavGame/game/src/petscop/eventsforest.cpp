@@ -1,15 +1,13 @@
-#include "petscop/events.hpp"
-
-#include "lve_game_object.hpp"
-#include "petscop/dialog_box.hpp"
-#include "petscop/game_state.hpp"
-#include "petscop/model_cache.hpp"
-
+#include <cmath>
+#include <glm/gtc/constants.hpp>
 #include <lve_audio.hpp>
 
-#include <glm/gtc/constants.hpp>
-
-#include <cmath>
+#include "game_analytics_manager.hpp"
+#include "lve_game_object.hpp"
+#include "petscop/dialog_box.hpp"
+#include "petscop/events.hpp"
+#include "petscop/game_state.hpp"
+#include "petscop/model_cache.hpp"
 
 // The forest doing things the map file cannot say on its own
 //
@@ -178,9 +176,10 @@ void EventDirector::forestWatched(MapRoom& room) {
 // --- the room is standing ---------------------------------------------------
 
 void EventDirector::enterForest() {
-  if (stage.state->itemCount("@runs") > 2)
-    stage.state->setFlag("quest_3runs", true);
-  
+  // set to 2 because entering the forest first time starts at runs 0, so 3 runs would be 2
+  if (stage.state->itemCount("@runs") > 1) stage.state->setFlag("quest_3runs", true);
+  else if (stage.state->itemCount("@runs") > 0) GameAnalyticsManager::Get().StepStarted("quest_3runs");
+
   // The way back is open again, until this room shuts it
   wallUp = false;
 

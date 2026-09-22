@@ -2,6 +2,7 @@
 #include "events.hpp"
 
 #include <cstddef>
+#include <set>
 
 #include "game_analytics_manager.hpp"
 
@@ -18,13 +19,18 @@ std::string keyFor(const std::string& roomName, const std::string& propName) {
 bool GameState::hasFlag(const std::string& name) const { return flags.count(name) != 0; }
 
 void GameState::setFlag(const std::string& name, bool on) {
-  if (on)
+  static std::set<std::string> ranThisSession;
+
+  // Ran this session makes it so events can only get enabled once per session (prevent gameanalytic event spam)
+  if (on && ranThisSession.find(name) == ranThisSession.end())
   {
     if (EventDirector::inQuestsList(name))
       GameAnalyticsManager::Get().StepCompleted(name);
 
-    GameAnalyticsManager::Get().PlayerEvent(EventDirector::roomName, name); // ProgressionCompleted(GameAnalyticsManager::Get().CurrentMap(), name);
+    GameAnalyticsManager::Get().PlayerEvent(EventDirector::roomName, name); 
+    // ProgressionCompleted(GameAnalyticsManager::Get().CurrentMap(), name);
     flags.insert(name);
+    ranThisSession.insert(name);
   }
   else flags.erase(name);
 }
