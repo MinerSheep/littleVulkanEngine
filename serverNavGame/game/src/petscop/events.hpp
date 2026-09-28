@@ -112,7 +112,7 @@ class EventDirector {
   bool takeWarp(int& room, int& door);
 
   // Which door of this room is plugged shut, or -1 for none
-  bool sealedDoor(int index) const { return index >= 0 && (index == sealed || index == sealedAlso); }
+  bool sealedDoor(int index) const { return index == sealed || index == sealedAlso; }
 
   // F03: the bars behind the room stop being drawn at all
   bool hidesBackground() const { return noBackdrop; }
@@ -190,6 +190,15 @@ class EventDirector {
   // Unlike conjure this one is real -- you walk into it and can press E on it
   void addObject(MapRoom& room, const glm::vec3& t, const glm::vec3& r, const glm::vec3& s,
                  const std::string& name, const std::string& words, bool solid = true);
+  void addObject(
+      MapRoom& room,
+      const std::string& mesh,
+      const glm::vec3& t,
+      const glm::vec3& r,
+      const glm::vec3& s,
+      const std::string& name,
+      const std::string& words = "",
+      bool solid = true);
 
   // Replaces what pressing E on a prop does, flips and all
   void rewrite(const std::string& name, const std::string& words);
@@ -425,6 +434,7 @@ class EventDirector {
   float manAt = -1.f;
   glm::vec3 manFrom{0.f};
   glm::vec3 manTo{0.f};
+  std::string manToRoom{};
 
   // F05: where the tree that walks after him has got to, and the one room it
   // is ever in

@@ -100,7 +100,7 @@ void RoomScene::loadModels() {
   menu.timeChoice = state.itemCount("@timeofday");
 
   // Before a single room is built, because none of it happens in front of you
-  // letHimPlay();
+  letHimPlay();
 
   textRenderer = std::make_unique<lve::LveTextRenderer>(lve::LveEngine::instance().getDevice());
 
@@ -309,7 +309,7 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
   // The plan only changes when the room he is standing in does
   houseMap = petscop::drawHouseMap(map, currentRoom);
 
-  watch.placed(room.name, arriveSpawn, arrived ? "walking in through a door" : "no door at all");
+  // watch.placed(room.name, arriveSpawn, arrived ? "walking in through a door" : "no door at all");
 
   // Last, so an event can put props right now that they are all standing
   events.onEnterRoom(roomIndex, arriveDoor);
@@ -364,8 +364,8 @@ void RoomScene::save() {
 // He gets an hour for every hour the game was shut
 // Nothing of it is drawn -- it is all in the save before the first room is built
 void RoomScene::letHimPlay() {
+  std::cout << "LETHIMPLAY" << std::endl;
   const int hours = petscop::hoursBetween(state.lastPlayed, petscop::nowSeconds());
-  if (hours <= 0) return;
 
   const int turns = petscop::runOffline(map, state, hours, state.room);
   std::cout << "[petscop] away " << hours << " hour(s), he took " << turns << ":" << std::endl;
@@ -404,7 +404,6 @@ void RoomScene::enterArea(int area) {
   // The new area starts from its own save, never the last one's flags
   state = petscop::GameState{};
   petscop::readSave(savePath, state);
-  letHimPlay();
 
   // Save and marker land together, so the two can never disagree about where he is
   save();
@@ -448,7 +447,7 @@ void RoomScene::recoverFromFall() {
   if (arrivedDoor >= 0 && arrivedDoor < static_cast<int>(doors.size()))
     doors[arrivedDoor].armed = false;
 
-  watch.placed(map.rooms[currentRoom].name, xform->translation, "a fall through the floor");
+  // watch.placed(map.rooms[currentRoom].name, xform->translation, "a fall through the floor");
 }
 
 void RoomScene::updateWallVisibility() {
@@ -618,21 +617,26 @@ void RoomScene::update(float dt) {
     // One door on its own can be plugged too, for a way on that is not open yet
     const bool sealed = events.locksDoors();
     for (std::size_t i = 0; i < doors.size(); i++)
-      doors[i].blocker.enabled = sealed || events.sealedDoor(static_cast<int>(i));
-
+    {
+      bool locked = sealed || events.sealedDoor(static_cast<int>(i));
+      doors[i].trigger.enabled = !locked;
+      doors[i].blocker.enabled = locked;
+      std::cout << "DOOR " << i << " IS " << locked << "\n";
+    }
+    
     TransformComponent* body = player.getComponent<TransformComponent>();
-    watch.begin(currentRoom >= 0 ? map.rooms[currentRoom].name : "nowhere", body->translation, dt);
+    // watch.begin(currentRoom >= 0 ? map.rooms[currentRoom].name : "nowhere", body->translation, dt);
 
     // Whether he was standing on something, read before the move clears it
     const bool standing = playerBody && playerBody->grounded;
 
     player.updateComponents(dt);
-    watch.afterMove(body->translation, playerBody ? playerBody->velocity : glm::vec3(0.f),
-                    standing);
+    // watch.afterMove(body->translation, playerBody ? playerBody->velocity : glm::vec3(0.f),
+                    // standing);
 
     // He has moved and his box has followed, so shove him back out of the walls
     collisions.settleAll();
-    watch.afterSettle(body->translation, pusherName());
+    // watch.afterSettle(body->translation, pusherName());
 
     // Through the floor and still going, so stand him back up before anything
     // else this frame reads where he is

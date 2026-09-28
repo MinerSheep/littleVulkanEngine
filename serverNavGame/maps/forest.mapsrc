@@ -58,7 +58,7 @@ room Path_West
   size 14 6
   height 4
   floortex forest_grass_dry
-  open
+  fence
   light -3.0 -2.8 0.0   0.28 0.36 0.46   12
   light  3.0 -2.8 0.0   0.24 0.32 0.42   12
   door east  east  0
@@ -73,7 +73,7 @@ room Deep_Trees
   size 24 16
   height 4
   floortex forest_grass_lush
-  open
+  fence
   light -7.0 -3.0  2.0   0.28 0.36 0.46   17
   light  6.0 -3.0 -2.0   0.22 0.30 0.40   17
   door east   east   -4
@@ -351,7 +351,6 @@ room Tall_Trees
   door south  south  5
   door west   west  -4
   door north  north -5
-  prop tree2  -0.755 0.500 -4.119   0.000 0.900 0.000   0.550 0.550 0.550
   prop tree  -0.207 0.500 1.498   0.000 2.500 0.000   0.520 0.520 0.520
   prop tree  1.240 0.500 3.471   0.000 4.300 0.000   0.500 0.500 0.500
   prop tree  0.486 0.500 -1.600   0.000 1.800 0.000   0.480 0.480 0.480
@@ -385,7 +384,7 @@ room Bank_West
 
 # Over the water. There is nothing to fall into and no way in either
 room Bridge
-  size 14 9
+  size 14 5
   height 4
   floortex wood_flooring
   open
@@ -393,14 +392,10 @@ room Bridge
   light  3.0 -2.8 0.0   0.26 0.34 0.46   13
   door west  west  0
   door east  east  0
-  prop cube  0.000 0.300 2.801   0.000 0.000 0.000   7.000 0.220 1.100  name water_north
-  interact cube  0.000 0.300 -2.970   0.000 0.000 0.000   7.000 0.220 1.100  name water_south
+  fence
+  interact water  0.000 0.869 0.000   0.000 0.000 0.000   10.056 10.056 10.056
     do say The water is not moving.
-    do say It is the only thing that isn't moving around here.
-  prop water  0.000 0.869 0.000   0.000 0.000 0.000   10.056 10.056 10.056
-  prop rock  -2.606 0.500 0.000   0.000 0.000 0.000   1.000 1.000 1.000
-  prop rock  0.000 0.500 0.000   0.000 0.584 0.000   1.000 1.000 1.000
-  prop rock  2.765 0.500 0.000   0.000 0.871 0.000   1.000 1.000 1.000
+    do say It's like ice, only it shouldn't be.
 
 
 

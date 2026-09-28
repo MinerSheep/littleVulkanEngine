@@ -318,11 +318,18 @@ Prop* EventDirector::prop(const std::string& name) {
 
 void EventDirector::conjure(const std::string& mesh, const glm::vec3& t, const glm::vec3& r,
                             const glm::vec3& s) {
-  if (!stage.models) return;
+  if (!stage.models) {
+    std::cout << "Couldn't find stage models\n";
+    return;
+  }
 
   Prop extra;
   extra.model = stage.models->get(mesh);
-  if (!extra.model) return;
+  if (!extra.model)
+  {
+    std::cout << "Couldn't find model for extra\n";
+    return;
+  }
 
   extra.translation = t;
   extra.rotation = r;
@@ -359,6 +366,40 @@ void EventDirector::addObject(MapRoom& room, const glm::vec3& t, const glm::vec3
 
   MapObject extra;
   extra.preset = cube;
+  extra.translation = t;
+  extra.rotation = r;
+  extra.scale = s;
+  extra.solid = solid;
+  extra.name = name;
+
+  if (!words.empty()) {
+    MapAction say;
+    say.kind = ActionKind::Say;
+    say.text = words;
+    extra.actions.push_back(say);
+  }
+  room.objects.push_back(extra);
+}
+
+// Adds an object of any mesh the house knows to a room. The mesh is looked up by
+// name, the same way conjure finds its model
+void EventDirector::addObject(
+    MapRoom& room,
+    const std::string& mesh,
+    const glm::vec3& t,
+    const glm::vec3& r,
+    const glm::vec3& s,
+    const std::string& name,
+    const std::string& words,
+    bool solid) {
+  const int found = preset(mesh);
+  if (found < 0) {
+    std::cout << "Couldn't find preset for object: " << mesh << "\n";
+    return;
+  }
+
+  MapObject extra;
+  extra.preset = found;
   extra.translation = t;
   extra.rotation = r;
   extra.scale = s;
@@ -462,6 +503,7 @@ void EventDirector::daylightHides(MapRoom& room) {
 // Every room comes through as a copy, and a helper may change anything on it --
 // its size, its camera, the things standing in it. The map never knows
 const MapRoom& EventDirector::dress(const MapRoom& source, int index) {
+
   dressed = source;
   readSky();
 

@@ -306,6 +306,8 @@ bool isQuestItem(const std::string& name) {
   return listed(kQuestItems, sizeof(kQuestItems) / sizeof(kQuestItems[0]), name);
 }
 
+void setOtherRoom(GameState& state, const std::string& otherRoom) { state.other.room = otherRoom; }
+
 int runOffline(const GameMap& map, GameState& state, int hours, const std::string& playerRoom) {
   if (hours <= 0 || map.rooms.empty()) return 0;
 
@@ -328,7 +330,7 @@ int runOffline(const GameMap& map, GameState& state, int hours, const std::strin
   std::string lastPressed;
   int turns = 0;
 
-  for (int turn = 0; turn < hours; turn++) {
+  for (int turn = 0; turn < hours + 2; turn++) {
     turns++;
 
     if (roll(seed) % kIdleInEvery == 0) {

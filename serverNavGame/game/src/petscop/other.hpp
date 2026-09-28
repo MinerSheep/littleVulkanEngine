@@ -7,6 +7,8 @@
 
 namespace petscop {
 
+void setOtherRoom(GameState& state, const std::string& otherRoom);
+
 // Somebody else has been playing your save while the game was shut
 //
 // He gets one turn for every whole hour you were away. Every turn he walks one

@@ -2,6 +2,8 @@
 #include <glm/gtc/constants.hpp>
 #include <lve_audio.hpp>
 
+#include "other.hpp"
+
 #include "game_analytics_manager.hpp"
 #include "lve_game_object.hpp"
 #include "petscop/dialog_box.hpp"
@@ -74,6 +76,13 @@ bool EventDirector::inForestQuestsList(std::string name) {
 }
 
 void EventDirector::dressForest(MapRoom& room) {
+  // F02: when man is moving, makes man disappear
+  if (manAt >= 0.f) {
+    manAt = -1.f;
+    if (stage.state) stage.state->setFlag("saw_man", true);
+    if (!manToRoom.empty()) setOtherRoom(*stage.state, manToRoom);
+  }
+
   if (room.name == "Camp_South") forestInvert(room);
   else if (room.name == "Bridge") forestBridge(room);
   else if (room.name == "Stump_End") forestSign(room);
@@ -101,9 +110,33 @@ void EventDirector::forestInvert(MapRoom& room) {
 // F18: the bridge is out until the game has been run three times, and after
 // that it is only there after dark -- blocked all day, open all night
 void EventDirector::forestBridge(MapRoom& room) {
-  if (!byNight() || !stage.state || stage.state->itemCount("@runs") < 3) return;
+  if (!byNight() || !stage.state || stage.state->itemCount("@runs") < 2)
+  {
+    addObject(
+        room,
+        "stump",
+        glm::vec3(-2.606f, 0.500f, 0.000f),
+        glm::vec3(0.f),
+        glm::vec3(1.5f),
+        "stump");
+    addObject(
+        room,
+        "stump",
+        glm::vec3(0.000f, 0.500f, 0.000f),
+        glm::vec3(0.f),
+        glm::vec3(1.5f),
+        "stump");
+    addObject(
+        room,
+        "stump",
+        glm::vec3(2.765f, 0.500f, 0.000f),
+        glm::vec3(0.f),
+        glm::vec3(1.5f),
+        "stump");
+    return;
+  }
 
-  addObject(room, glm::vec3(0.f, 0.430f, 0.f), glm::vec3(0.f), glm::vec3(3.4f, 0.06f, 1.1f),
+  addObject(room, glm::vec3(0.f, 0.430f, 0.f), glm::vec3(0.f), glm::vec3(3.4f, 0.06f, 1.1f) / 2.0f,
             "deck", "The planks are new.");
 }
 
@@ -168,6 +201,16 @@ void EventDirector::lostThings(MapRoom& room) {
 // F12: the room is watched from further back than any other, with the two of
 // them on the screen at once
 void EventDirector::forestWatched(MapRoom& room) {
+  if (!byDay() || !stage.player || !stage.state || stage.state->itemCount("@runs") < 1 ||
+      stage.state->hasFlag("met_mirror")) {
+    addObject(
+        room,
+        "tree2",
+        glm::vec3(-0.755f, 0.500f, -4.119f),
+        glm::vec3(0.000f, 0.900f, 0.000f),
+        glm::vec3(0.55f), "tree2");
+  }
+
   if (!byDay() || !stage.state || stage.state->itemCount("@runs") < 2) return;
 
   room.cameraEye = room.cameraLook + (room.cameraEye - room.cameraLook) * 1.7f;
@@ -228,6 +271,7 @@ void EventDirector::enterForest() {
 
     manAt = 0.f;
     manTo = built->doors[static_cast<std::size_t>(way)].translation;
+    manToRoom = stage.map->rooms[built->doors[static_cast<std::size_t>(way)].toRoom].name;
     manTo.y = 0.5f;
     manFrom = glm::vec3(-manTo.x * 0.6f, 0.5f, -manTo.z * 0.6f);
 
@@ -262,9 +306,10 @@ void EventDirector::updateForest(float dt, bool playing, int startedProp) {
   if (byNight()) forestNight(dt);
   else forestNightOff();
 
-  if (byDay()) forestMan(dt);
+
+  forestMan(dt);
+  forestFollower(dt);
   if (byNight()) forestDark(dt);
-  if (byNight()) forestFollower(dt);
 
   // The stare is what a faked crash leaves behind, so it plays whatever the
   // hour is. Gating it would leave the flag set with nothing to clear it
@@ -279,7 +324,7 @@ void EventDirector::updateForest(float dt, bool playing, int startedProp) {
   if (roomName == "Well_Path" && byNight()) forestDoll(dt, startedProp);
   if (roomName == "Trees_West" && byNight()) forestMannequin();
   if (roomName == "Camp_East" && byNight()) forestWall();
-  if (roomName == "Tall_Trees" && byDay()) forestMirror();
+  if (roomName == "Tall_Trees") forestMirror();
 
   // The way out of the false foyer is not an event, it is the only door
   if (roomName == "Foyer") forestFoyer();
@@ -320,6 +365,7 @@ void EventDirector::forestMan(float dt) {
   if (manAt > manWalk) {
     manAt = -1.f;
     if (stage.state) stage.state->setFlag("saw_man", true);
+    if (!manToRoom.empty()) setOtherRoom(*stage.state, manToRoom);
     return;
   }
 
@@ -438,10 +484,13 @@ void EventDirector::forestAfraid() {
 // F11: two trees lie across the clearing, one over each way out, and eight
 // seconds stood still in the room is enough for neither of them to be there
 void EventDirector::forestBlocked() {
-  if (!byDay() || !stage.state || stage.state->hasFlag("path_opened")) return;
+  if (!stage.state || stage.state->hasFlag("path_opened")) return;
+  
+  static int blocked = -1;
 
   if (sinceEntry >= pathHold) {
     if (!pathClear) {
+      blocked = -1;
       pathClear = true;
       stage.state->setFlag("path_opened", true);
       lve::LveAudio::instance().play("stone");
@@ -453,17 +502,26 @@ void EventDirector::forestBlocked() {
 
   const int west = findDoor(room, "west");
   const int east = findDoor(room, "east");
-  sealed = west;
-  sealedAlso = east;
-
-  // One lying across each doorway, leaning in off the wall it is nearest
-  for (int way : {west, east}) {
+  sealed = west == arrivedFrom ? east : west;
+  sealedAlso = blocked;
+  
+  for (int way : {sealed, sealedAlso}) {
     if (way < 0 || way >= static_cast<int>(built->doors.size())) continue;
 
     const glm::vec3 at = built->doors[way].translation;
     const float lean = at.x < 0.f ? 1.2f : -1.2f;
-    conjure("tree", glm::vec3(at.x + lean, 0.5f, at.z),
-            glm::vec3(0.f, 0.f, glm::half_pi<float>()), glm::vec3(0.28f));
+    conjure(
+        "tree",
+        glm::vec3(at.x + lean, 0.5f, at.z + 2.0f),
+        glm::vec3(glm::half_pi<float>(), 0.f, 0.f),
+        glm::vec3(0.68f));
+  }
+
+  // Wait for the player to close in on x = 0 before blocking the far door
+  if (blocked == -1 && std::abs(stage.player->translation.x) < 0.5f)
+  {
+    blocked = west == arrivedFrom ? west : east;
+    lve::LveAudio::instance().play("stone");
   }
 }
 
@@ -520,7 +578,7 @@ void EventDirector::forestMannequin() {
   if (!built || !stage.state) return;
   if (!stage.state->hasFlag("saw_man")) return;
 
-  const float north = built->size.z * 0.5f - 0.6f;
+  const float north = built->size.z * 0.85f - 0.6f;
 
   // Modelled with Y up and stood with Y down, the same flip the player gets
   // Nose first, and a yaw of nothing leaves him looking at the wall
@@ -541,7 +599,15 @@ void EventDirector::forestWall() {
     wallUp = true;
     lve::LveAudio::instance().play("stone");
   }
-  if (wallUp) sealed = arrivedFrom;
+  if (wallUp) 
+  {
+    sealed = arrivedFrom;
+    conjure(
+        "stump",
+        built->doors[arrivedFrom].translation,
+        glm::vec3(glm::pi<float>(), 0.f, glm::pi<float>()),
+        glm::vec3(1.035f));
+  }
 }
 
 // F08: the doorway west that goes nowhere takes him anyway. He comes out of it
@@ -574,9 +640,12 @@ void EventDirector::onSettingsClosed() {
 // F12: somebody the other side of the room walks his walk back at him, step for
 // step. Meeting him in the middle is where the run stops
 void EventDirector::forestMirror() {
-  if (!stage.player || !stage.state || stage.state->itemCount("@runs") < 2) return;
 
   // He meets him once a save, whatever the run after this one does
+  if (!stage.player || !stage.state || stage.state->itemCount("@runs") < 1) {
+      return;
+  }
+
   if (stage.state->hasFlag("met_mirror")) return;
 
   const glm::vec3 here = stage.player->translation;
@@ -723,7 +792,7 @@ bool EventDirector::invertsControls() const {
 }
 
 bool EventDirector::menuStripped() const {
-  return forest() && byDay() && stage.state && stage.state->itemCount("@runs") >= 3;
+  return forest() && byDay() && stage.state && stage.state->itemCount("@runs") < 2;
 }
 
 // F13: the name in the corner stops being a place
