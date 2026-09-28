@@ -30,6 +30,7 @@ LveConsole::LveConsole() : shared(std::make_shared<Shared>()) {
 LveConsole::~LveConsole() { stop(); }
 
 void LveConsole::registerCommand(const std::string& name, const std::string& usage, Handler handler) {
+  // on a scene change, these console commands need to be DISABLED
   commands[toLower(name)] = Command{usage, std::move(handler)};
 }
 

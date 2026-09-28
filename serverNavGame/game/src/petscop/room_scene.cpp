@@ -491,8 +491,8 @@ void RoomScene::updateWallVisibility() {
 
 void RoomScene::setConsoleCommands() 
 {
-  LveConsole& console = LveEngine::instance().getConsole();
-  
+  lve::LveConsole& console = lve::LveEngine::instance().getConsole();
+
   console.registerCommand("camera", "camera follow|lock|unlock", [this](const auto& a) -> std::string {
     if (a.size() != 1) return "usage: camera follow|lock|unlock";
 
@@ -516,16 +516,19 @@ void RoomScene::setConsoleCommands()
 
   console.registerCommand("tp", "tp <room>", [this](const auto& a) -> std::string {
     if (a.size() != 1) return "usage: tp <room>";
-    for (int i = 0; i < map.rooms.size; i++) {
-      if (map.rooms[i].name == a) {
-        enterRoom(i) return "0";
+    for (int i = 0; i < map.rooms.size(); i++) {
+      if (map.rooms[i].name == a[0]) {
+        enterRoom(i); 
+        return "entered room " + a[0];
       }
     }
+
+    return "room not found";
   });
 
   console.registerCommand("flag", "flag <name> <true|false>", [this](const auto& a) -> std::string {
     bool v;
-    if (a.size() != 2 || !LveConsole::parseBool(a[1], v)) return "usage: flag <name> <true|false>";
+    if (a.size() != 2 || !lve::LveConsole::parseBool(a[1], v)) return "usage: flag <name> <true|false>";
     state.setFlag(a[0], v);
 
     return a[0] + " = " + (v ? "true" : "false");
@@ -533,8 +536,8 @@ void RoomScene::setConsoleCommands()
 
   console.registerCommand("speed", "speed <value>", [this](const auto& a) -> std::string {
     float v;
-    if (a.size() != 1 || !LveConsole::parseFloat(a[0], v)) return "usage: speed <value>";
-    playerMover.moveSpeed = v;
+    if (a.size() != 1 || !lve::LveConsole::parseFloat(a[0], v)) return "usage: speed <value>";
+    playerMover->moveSpeed = v;
 
     return "speed = " + a[0];
   });
@@ -679,7 +682,6 @@ void RoomScene::update(float dt) {
       bool locked = sealed || events.sealedDoor(static_cast<int>(i));
       doors[i].trigger.enabled = !locked;
       doors[i].blocker.enabled = locked;
-      std::cout << "DOOR " << i << " IS " << locked << "\n";
     }
     
     TransformComponent* body = player.getComponent<TransformComponent>();

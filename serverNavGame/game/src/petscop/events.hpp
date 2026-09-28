@@ -377,12 +377,14 @@ class EventDirector {
   // Where the camera is this frame, and whether an event put it there
   // hasCam is default layer, enabled when cam is modified
   // camLock is primary, camFollow does not act if camLock is enabled
+public:
   bool hasCam = false;
   bool camLock = false;
   bool camFollow = false;
   glm::vec3 camEye{0.f};
   glm::vec3 camLook{0.f};
 
+private:
   // The spot the foyer camera is drifting after
   glm::vec3 follow{0.f};
 
