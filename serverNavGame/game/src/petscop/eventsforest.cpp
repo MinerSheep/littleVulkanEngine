@@ -401,18 +401,12 @@ void EventDirector::forestNight(float dt) {
     nightLitKept = true;
   }
 
-  // One light, carried on him, and every other one out
+  // One light, carried on him, and every other light is out
   dressed.lights[0].position = stage.player->translation + glm::vec3(0.f, -1.1f, 0.f);
   dressed.lights[0].intensity = 9.f;
   for (std::size_t i = 1; i < dressed.lights.size(); i++) setLight(i, 0.f);
 
-  const glm::vec3 want = stage.player->translation;
-  const float chase = dt * 2.0f;
-  follow += (want - follow) * (chase > 1.f ? 1.f : chase);
-
-  hasCam = true;
-  camLook = follow;
-  camEye = follow + (dressed.cameraEye - dressed.cameraLook) * 0.7f;
+  camFollow = true;
 }
 
 // The clearing gets its own light back the moment the sun is up

@@ -62,6 +62,8 @@ class EventDirector {
   // arriveDoor is the door he stepped out of, or -1 when he did not use one
   void onEnterRoom(int index, int arriveDoor = -1);
 
+  void setCamLock(bool set = false, glm::vec3 newEye = glm::vec3{0.f}, glm::vec3 newLook = glm::vec3{0.f});
+
   // startedProp is the prop a press just set going, or -1 for none
   void update(float dt, bool playing, int startedProp);
 
@@ -373,7 +375,11 @@ class EventDirector {
   MapRoom dressed;
 
   // Where the camera is this frame, and whether an event put it there
+  // hasCam is default layer, enabled when cam is modified
+  // camLock is primary, camFollow does not act if camLock is enabled
   bool hasCam = false;
+  bool camLock = false;
+  bool camFollow = false;
   glm::vec3 camEye{0.f};
   glm::vec3 camLook{0.f};
 

@@ -882,6 +882,20 @@ void EventDirector::shedBoard() {
 
 // --- every frame ------------------------------------------------------------
 
+void EventDirector::setCamLock(bool set, glm::vec3 newEye, glm::vec3 newLook) {
+  static glm::vec3 lockEye{0.f};
+  static glm::vec3 lockLook{0.f};
+
+  if (set)
+  {
+    lockEye = newEye;
+    lockLook = newLook;
+  }
+
+  camEye = lockEye;
+  camLook = lockLook;
+}
+
 void EventDirector::update(float dt, bool playing, int startedProp) {
   sinceEntry += dt;
   readSky(dt);
@@ -937,6 +951,21 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
   if (built) {
     camEye = built->cameraEye;
     camLook = built->cameraLook;
+  }
+
+  if (camLock)
+  {
+    setCamLock();
+  }
+  else if (camFollow)
+  {
+    const glm::vec3 want = stage.player->translation;
+    const float chase = dt * 2.0f;
+    follow += (want - follow) * (chase > 1.f ? 1.f : chase);
+  
+    hasCam = true;
+    camLook = follow;
+    camEye = follow + (dressed.cameraEye - dressed.cameraLook) * 0.7f;
   }
 
   blackout(dt);

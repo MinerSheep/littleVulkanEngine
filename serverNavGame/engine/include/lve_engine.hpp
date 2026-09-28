@@ -7,6 +7,7 @@
 #include "lve_buffer.hpp"
 #include "lve_renderer.hpp"
 #include "lve_frame_info.hpp"
+#include "lve_console.hpp"
 #include "systems/simple_render_system.hpp"
 #include "systems/point_light_system.hpp"
 #include "systems/skinned_render_system.hpp"
@@ -68,7 +69,9 @@ namespace lve
         LveDescriptorSetLayout& getTextureSetLayout() { return *textureSetLayout; }
         LveDescriptorPool& getTexturePool() { return *texturePool; }
 
-    private:
+        LveConsole& getConsole() { return console; }
+
+       private:
         bool running = true;
 
         // Max distinct skinned models that can own a bone descriptor set at once.
@@ -112,5 +115,6 @@ namespace lve
         std::unique_ptr<PointLightSystem> pointLightSystem {};
         std::unique_ptr<SkinnedRenderSystem> skinnedRenderSystem {};
 
+        LveConsole console;
     };
 } // namespace lve

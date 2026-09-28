@@ -1,4 +1,6 @@
 #include "petscop/room_scene.hpp"
+#include "lve_engine.hpp"
+#include "lve_console.hpp"
 
 #include <sys/stat.h>
 
@@ -148,6 +150,9 @@ void RoomScene::loadModels() {
 
   // After bind, and after the save has been read
   events.newRun();
+
+  // Set console commands
+  setConsoleCommands();
 
   GameAnalyticsManager::Get().levelName = kAreas[areaIndex].name;
 
@@ -482,6 +487,59 @@ void RoomScene::updateWallVisibility() {
     float ghostAlpha = 0.25f;
     prop.visibility = facing < hideThreshold ? ghostAlpha : 1.f;
   }
+}
+
+void RoomScene::setConsoleCommands() 
+{
+  LveConsole& console = LveEngine::instance().getConsole();
+  
+  console.registerCommand("camera", "camera follow|lock|unlock", [this](const auto& a) -> std::string {
+    if (a.size() != 1) return "usage: camera follow|lock|unlock";
+
+    if (a[0] == "follow") {
+      events.camLock = false;
+      events.camFollow = !events.camFollow;
+      return "camera unlocked";
+    }
+    if (a[0] == "lock") {
+      events.setCamLock(true, events.camEye, events.camLook);
+      events.camLock = true;
+      return "camera locked";
+    }
+    if (a[0] == "unlock") {
+      events.camLock = false;
+      return "camera unlocked";
+    }
+
+    return "usage: camera follow|lock|unlock";
+  });
+
+  console.registerCommand("tp", "tp <room>", [this](const auto& a) -> std::string {
+    if (a.size() != 1) return "usage: tp <room>";
+    for (int i = 0; i < map.rooms.size; i++) {
+      if (map.rooms[i].name == a) {
+        enterRoom(i) return "0";
+      }
+    }
+  });
+
+  console.registerCommand("flag", "flag <name> <true|false>", [this](const auto& a) -> std::string {
+    bool v;
+    if (a.size() != 2 || !LveConsole::parseBool(a[1], v)) return "usage: flag <name> <true|false>";
+    state.setFlag(a[0], v);
+
+    return a[0] + " = " + (v ? "true" : "false");
+  });
+
+  console.registerCommand("speed", "speed <value>", [this](const auto& a) -> std::string {
+    float v;
+    if (a.size() != 1 || !LveConsole::parseFloat(a[0], v)) return "usage: speed <value>";
+    playerMover.moveSpeed = v;
+
+    return "speed = " + a[0];
+  });
+
+  console.start();
 }
 
 // Floating box to signify when you got close to an object you can interact with

@@ -118,6 +118,8 @@ void LveEngine::render() {
   if (!running) return;
   if (activeScene == nullptr) return;
 
+  console.poll();
+
   LveScene& scene = *activeScene;
 
   // X04: the picture is rebuilt whenever the window is a different size

@@ -240,4 +240,6 @@ class RoomScene : public lve::LveScene {
 
   // How much of a tree's width you can actually walk into, trunk against canopy
   float trunkFootprint = 0.32f;
+
+  void setConsoleCommands();
 };
