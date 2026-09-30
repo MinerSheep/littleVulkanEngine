@@ -75,7 +75,7 @@ std::string displayName(const std::string& ident) {
 void RoomScene::loadModels() {
   // Where the last run left off. A marker naming an area whose save has been
   // deleted drops back to area one, so clearing saves/ starts the game over
-  areaIndex = readProgressArea(progressPath);
+  areaIndex = readProgressArea(petscop::defaultSaveDirectory() + progressPath);
   if (areaIndex > 0 && !fileExists(kAreas[areaIndex].save))
   {
     areaIndex = 0;
@@ -94,9 +94,10 @@ void RoomScene::loadModels() {
   models.preload(map.presets);
 
   // No file yet is a new game, not a fault
-  if (petscop::readSave(savePath, state))
-    std::cout << "[petscop] loaded save '" << savePath << "': " << state.items.size()
-              << " item(s), " << state.flags.size() << " flag(s)" << std::endl;
+  if (petscop::readSave(petscop::defaultSaveDirectory() + savePath, state))
+    std::cout << "[petscop] loaded save '" << petscop::defaultSaveDirectory() + savePath
+              << "': " << state.items.size() << " item(s), " << state.flags.size() << " flag(s)"
+              << std::endl;
 
   // Whatever hour the settings were left on, before anything reads the sky
   menu.timeChoice = state.itemCount("@timeofday");
@@ -363,7 +364,7 @@ void RoomScene::keepRoomBed() {
 // The save, stamped with the time, so he knows how long you were gone
 void RoomScene::save() {
   state.lastPlayed = petscop::nowSeconds();
-  petscop::writeSave(savePath, state);
+  petscop::writeSave(petscop::defaultSaveDirectory() + savePath, state);
 }
 
 // He gets an hour for every hour the game was shut
@@ -408,11 +409,11 @@ void RoomScene::enterArea(int area) {
 
   // The new area starts from its own save, never the last one's flags
   state = petscop::GameState{};
-  petscop::readSave(savePath, state);
+  petscop::readSave(petscop::defaultSaveDirectory() + savePath, state);
 
   // Save and marker land together, so the two can never disagree about where he is
   save();
-  writeProgressArea(progressPath, area);
+  writeProgressArea(petscop::defaultSaveDirectory() + progressPath, area);
 
   std::cout << "[petscop] area '" << kAreas[area].name << "' from " << mapPath << std::endl;
   enterRoom(startingRoom(), -1);
@@ -676,7 +677,7 @@ void RoomScene::update(float dt) {
 
     // A held door is a wall you cannot walk out through, not just a dead trigger
     // One door on its own can be plugged too, for a way on that is not open yet
-    const bool sealed = events.locksDoors();
+    const bool sealed = events.locksDoors();  
     for (std::size_t i = 0; i < doors.size(); i++)
     {
       bool locked = sealed || events.sealedDoor(static_cast<int>(i));

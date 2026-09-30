@@ -1,0 +1,12 @@
+.git
+.claude
+benchmarks
+saves
+tools
+obj
+engine/obj
+game/obj
+*.md
+*.sh
+*.bat
+poem.txt

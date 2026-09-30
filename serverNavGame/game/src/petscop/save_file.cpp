@@ -2,6 +2,7 @@
 
 #include <sys/stat.h>
 
+#include <cstdlib>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -164,6 +165,26 @@ bool writeSave(const std::string& path, const GameState& state) {
   }
 
   return static_cast<bool>(out);
+}
+
+std::string defaultSaveDirectory() {
+#if defined(_WIN32)
+  const char* appdata = std::getenv("APPDATA");
+  const std::string base = appdata ? appdata : ".";
+  return base + "/petscop";
+#else
+  // XDG Base Directory spec: prefer XDG_DATA_HOME, fall back to ~/.local/share
+  const char* xdgDataHome = std::getenv("XDG_DATA_HOME");
+  if (xdgDataHome && *xdgDataHome) return std::string(xdgDataHome) + "/petscop";
+
+  const char* home = std::getenv("HOME");
+  const std::string base = home ? home : ".";
+  return base + "/.local/share/petscop";
+#endif
+}
+
+std::string defaultSavePath(const std::string& fileName) {
+  return defaultSaveDirectory() + "/" + fileName;
 }
 
 }  // namespace petscop
