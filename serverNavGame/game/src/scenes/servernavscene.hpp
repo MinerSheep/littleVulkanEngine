@@ -1,0 +1,48 @@
+
+#pragma once
+
+#include "lve_scene.hpp"
+#include "lve_camera.hpp"
+#include "lve_text.hpp"
+#include "keyboard_movement_controller.hpp"
+#include "lve_game_object.hpp"  // GameObject / TransformComponent (formerly pulled in transitively)
+
+#include "servernav_sim.hpp"
+
+#include <memory>
+#include <set>
+
+class ServerNavScene : public lve::LveScene
+{
+public: 
+    ServerNavScene() {}
+    void update(float dt) override;
+    void onEvent(const lve::Event& event) override;
+    void cleanup() override;
+
+    void loadWeather();
+    void loadModels() override;
+    void setupLights() override;
+
+private:
+ lve::LveCamera camera{};
+ GameObject* viewerObject = nullptr;
+ lve::KeyboardMovementController cameraController{};
+
+ std::unordered_map<id_t, GameObject> gameObjects;
+ std::unordered_map<Vessel::id_t, GameObject::id_t> vesselMap;
+
+ std::set<GameObject::id_t> top;
+
+ // dt is 2 mins a sec
+// ServerNav nav = ServerNav::makeStructuredScenario(WorldCoords{37.805641,-122.611101}, WorldCoords{37.748082, -122.490994}, 120.0f);
+ ServerNav nav = ServerNav::makeRandomScenario(8, 2, 120);
+
+ // Draws on-screen HUD text by appending solid dot-quads to UIrenderItems.
+ // Created in loadModels() (after the device exists).
+ std::unique_ptr<lve::LveTextRenderer> textRenderer;
+
+ // Wall-clock accumulator that throttles the console navigation readout so
+ // it doesn't flood the terminal every frame.
+ float hudTimer = 0.f;
+};

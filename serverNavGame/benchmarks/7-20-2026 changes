@@ -1,0 +1,82 @@
+OLD
+Vertex count: 378
+Vertex count: 248
+Vertex count: 158
+Vertex count: 10149
+Vertex count: 12318
+Vertex count: 168
+Vertex count: 378
+Vertex count: 248
+Vertex count: 158
+Vertex count: 4
+[SkinnedModel] models/man.glb  verts=70249 indices=241176 prims=19 joints=344
+[SkinnedModel] AABB min=(-1.21075, -0.430397, -0.557191)  max=(0.689159, 2.00718, 0.316242)
+FPS: 131.474  (8 ms/frame)
+FPS: 76.7162  (13 ms/frame)
+FPS: 126.528  (8 ms/frame)
+FPS: 133.572  (7 ms/frame)
+FPS: 127.22  (8 ms/frame)
+FPS: 137.722  (7 ms/frame)
+FPS: 132.49  (8 ms/frame)
+FPS: 134.262  (7 ms/frame)
+FPS: 133.126  (8 ms/frame)
+FPS: 136.2  (7 ms/frame)
+FPS: 193.931  (5 ms/frame)
+FPS: 290.374  (3 ms/frame)
+FPS: 297.287  (3 ms/frame)
+FPS: 317.566  (3 ms/frame)
+FPS: 305.442  (3 ms/frame)
+FPS: 243.723  (4 ms/frame)
+FPS: 123.783  (8 ms/frame)
+FPS: 119.454  (8 ms/frame)
+FPS: 130.71  (8 ms/frame)
+FPS: 131.229  (8 ms/frame)
+FPS: 125.202  (8 ms/frame)
+FPS: 126.714  (8 ms/frame)
+
+NEW
+
+Vertex count: 378
+Vertex count: 248
+Vertex count: 158
+Vertex count: 10149
+Vertex count: 12318
+Vertex count: 168
+Vertex count: 378
+Vertex count: 248
+Vertex count: 158
+Vertex count: 4
+[SkinnedModel] models/man.glb  verts=70249 indices=241176 prims=19 joints=344
+[SkinnedModel] AABB min=(-1.21075, -0.430397, -0.557191)  max=(0.689159, 2.00718, 0.316242)
+FPS: 105.596  (9 ms/frame)
+FPS: 102.982  (10 ms/frame)
+FPS: 126.467  (8 ms/frame)
+FPS: 121.954  (8 ms/frame)
+FPS: 106.997  (9 ms/frame)
+FPS: 119.993  (8 ms/frame)
+FPS: 118.242  (8 ms/frame)
+FPS: 123.468  (8 ms/frame)
+FPS: 118.554  (8 ms/frame)
+FPS: 128.932  (8 ms/frame)
+FPS: 94.2726  (11 ms/frame)
+FPS: 116.889  (9 ms/frame)
+FPS: 140.405  (7 ms/frame)
+FPS: 273.957  (4 ms/frame)
+FPS: 279.385  (4 ms/frame)
+FPS: 265.414  (4 ms/frame)
+FPS: 263.139  (4 ms/frame)
+FPS: 124.336  (8 ms/frame)
+FPS: 127.8  (8 ms/frame)
+FPS: 115.56  (9 ms/frame)
+FPS: 129.282  (8 ms/frame)
+FPS: 119.537  (8 ms/frame)
+FPS: 54.8499  (18 ms/frame)
+FPS: 109.851  (9 ms/frame)
+FPS: 118.29  (8 ms/frame)
+FPS: 122.612  (8 ms/frame)
+FPS: 122.987  (8 ms/frame)
+FPS: 120.078  (8 ms/frame)
+FPS: 93.4686  (11 ms/frame)
+FPS: 90.7124  (11 ms/frame)
+FPS: 81.5362  (12 ms/frame)
+FPS: 91.5856  (11 ms/frame)

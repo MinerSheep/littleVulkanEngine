@@ -1,0 +1,589 @@
+# Area two: the forest, and the house at the end of it
+#
+# The door out of building two comes up on trees. Nothing says so -- the rooms
+# down here have no names in the corner, which is what 'hidenames' does. The
+# house is the one thing in the forest that admits what it is.
+#
+# Compile it with:
+#   python3 tools/build_map.py maps/forest.mapsrc -o maps/forest.map
+#
+# Laid out from maps/forest_two_layout.png. Everything outdoors is 'open', so
+# only the frame around each doorway stands -- you can see clearing to clearing
+# and still not be able to walk it.
+
+map forest
+start Start
+hidenames
+
+
+# Where you come to. One way on and no way back
+room Start
+  size 8 12
+  height 4
+
+  # X12: a camera on a stand, turned in on the room
+  prop cube  -3.000 0.050 -5.000   0 0.540 0   0.050 0.450 0.050
+  interact cube  -3.000 -0.520 -5.000   0 0.540 0   0.160 0.110 0.220  name station
+  do sound menu_accept
+  floortex forest_grass_lush
+  open
+  light 0.0 -2.8 -2.0   0.30 0.38 0.48   12
+  light 0.0 -2.8  3.0   0.26 0.34 0.44   12
+  door on north 0
+  prop tree  -3.0 0.5 -4.2   0 0.4 0   0.35 0.35 0.35
+  prop tree2  3.2 0.5  4.0   0 2.1 0   0.30 0.30 0.30
+  prop rock   2.6 0.17 -3.4  0 0.9 0   0.45 0.45 0.45
+
+
+# A stand of trees with a way out either side
+room Clearing_Trees
+  size 14 10
+  height 4
+  floortex forest_grass_lush
+  open
+  light -3.0 -2.8 0.0   0.30 0.38 0.48   13
+  light  4.0 -2.8 1.0   0.24 0.32 0.42   13
+  door back  south  1.5
+  door west  west   0
+  door east  east   1.5
+  prop tree  -1.5 0.5  1.5   0 0.7 0   0.45 0.45 0.45
+  prop tree   0.5 0.5  2.6   0 2.8 0   0.40 0.40 0.40
+  prop tree  -2.8 0.5  3.0   0 1.5 0   0.38 0.38 0.38
+  prop tree   1.8 0.5  0.4   0 0.2 0   0.34 0.34 0.34
+  prop rock  -4.5 0.17 -2.0  0 1.8 0   0.55 0.55 0.55
+
+
+# A short run west, and trees the whole way
+room Path_West
+  size 14 6
+  height 4
+  floortex forest_grass_dry
+  fence
+  light -3.0 -2.8 0.0   0.28 0.36 0.46   12
+  light  3.0 -2.8 0.0   0.24 0.32 0.42   12
+  door east  east  0
+  door west  west  0
+  prop tree  -3.2 0.5  2.1   0 1.1 0   0.30 0.30 0.30
+  prop tree   1.4 0.5 -2.1   0 3.0 0   0.28 0.28 0.28
+  prop tree   4.6 0.5  2.2   0 0.5 0   0.26 0.26 0.26
+
+
+# The widest place down here, and the thickest
+room Deep_Trees
+  size 24 16
+  height 4
+  floortex forest_grass_lush
+  fence
+  light -7.0 -3.0  2.0   0.28 0.36 0.46   17
+  light  6.0 -3.0 -2.0   0.22 0.30 0.40   17
+  door east   east   -4
+  door north  north   8
+  prop tree  8.892 0.500 1.897   0.000 0.700 0.000   0.500 0.500 0.500
+  prop tree  5.503 0.500 0.739   0.000 2.400 0.000   0.460 0.460 0.460
+  prop tree  3.173 0.500 2.416   0.000 1.200 0.000   0.480 0.480 0.480
+  prop tree2 0.517 0.500 2.267   0.000 3.900 0.000   0.440 0.440 0.440
+  prop tree2 -2.144 0.500 2.292   0.000 1.900 0.000   0.420 0.420 0.420
+  prop tree2 -4.724 0.500 1.193   0.000 4.400 0.000   0.400 0.400 0.400
+  prop tree  -1.299 0.500 -6.475   0.000 0.300 0.000   0.450 0.450 0.450
+  prop tree  0.982 0.500 -5.203   0.000 2.200 0.000   0.410 0.410 0.410
+  prop tree  2.943 0.500 -6.421   0.000 5.100 0.000   0.430 0.430 0.430
+  prop tree  11.084 0.500 -0.367   0.000 1.600 0.000   0.360 0.360 0.360
+  prop rock  -9.102 0.170 -4.689   0.000 0.900 0.000   0.600 0.600 0.600
+  prop rock  5.500 0.170 5.000   0.000 2.400 0.000   0.500 0.500 0.500
+  prop tree  5.388 0.500 -6.214   0.000 0.000 0.000   0.459 0.459 0.459
+  prop tree  -10.647 0.500 6.913   0.000 0.000 0.000   0.478 0.478 0.478
+  prop tree2 -7.535 0.500 7.674   0.000 0.000 0.000   0.447 0.447 0.447
+  prop tree  -11.267 0.500 3.700   0.000 0.000 0.000   0.445 0.445 0.445
+  prop tree  -10.947 0.500 0.563   0.000 0.000 0.000   0.514 0.514 0.514
+  prop tree  -10.779 0.500 -6.842   0.000 0.000 0.000   0.483 0.483 0.483
+  prop tree  -4.962 0.500 -6.831   0.000 0.000 0.000   0.484 0.484 0.484
+
+
+# A well nobody has drawn from, on the way between the gate and the car
+room Well_Path
+  size 6 16
+  height 4
+  floortex forest_grass_lush
+  open
+  light 0.0 -2.8 -4.0   0.30 0.38 0.48   13
+  light 0.0 -2.8  4.0   0.24 0.32 0.42   13
+  door south  south  0
+  door east   east   5
+  door west   west   5
+  prop tree2 -1.9 0.5  7.0   0 0.6 0   0.30 0.30 0.30
+  prop tree2  1.7 0.5  7.2   0 2.9 0   0.28 0.28 0.28
+
+  interact cylinder  -1.6 0.10 0.0   0 0 0   0.85 0.55 0.85   name well
+    do say A well.|You can't see the bottom.
+
+
+# A gate standing on its own, with nothing either side of it
+room Gate_Clearing
+  size 16 6
+  height 4
+  floortex forest_grass_dry
+  open
+  light -4.0 -2.8 0.0   0.28 0.36 0.46   13
+  light  4.0 -2.8 0.0   0.24 0.32 0.42   13
+  door east   east    1
+  door north  north  -5
+  prop tree  -6.400 0.500 -1.400   0.000 1.300 0.000   0.360 0.360 0.360
+  prop tree2  -4.932 0.500 -2.100   0.000 3.400 0.000   0.320 0.320 0.320
+  interact gate  -0.072 0.600 1.594  0.000 3.142 0.000  0.224 0.248 1.990  name gate
+    when noflag quest_gate
+    do say A gate, there's a padlock on it.|It will not move without a key.
+    do take key 1
+    do say The key from the tent turns in it.
+    do flag quest_gate
+    when flag quest_gate
+    do sound lever
+    do move gate  -0.072 0.231 4.126 over 1.100 toggle
+    do rotate gate  0.000 87.026 0.000 over 0.600 toggle
+    do say You swing the gate.
+  prop cube  -0.177 -0.805 -1.804   0.000 0.000 0.000   1.316 1.316 1.316
+
+
+
+# Somebody drove in here, which cannot be done
+room Car_Clearing
+  size 15 10
+  height 4
+  floortex forest_grass_dry
+  open
+  light -4.0 -2.8 1.0   0.30 0.38 0.48   13
+  light  4.0 -2.8 0.0   0.24 0.32 0.42   13
+  door west   west   2
+  door south  south  4
+  prop tree  -5.4 0.5 -3.6   0 0.9 0   0.34 0.34 0.34
+  prop tree2 -2.2 0.5  3.9   0 2.6 0   0.30 0.30 0.30
+  prop tree   6.4 0.5 -3.4   0 4.1 0   0.30 0.30 0.30
+
+  interact car  2.6 -0.85 1.6   0 1.42 0   0.40 0.40 0.40   name car
+    when flag saw_car
+    do say There is still no road.
+    when noflag saw_car
+    do say A car, it appears to be locked, but undamaged.
+    do say There is no road nearby.
+    do flag saw_car
+
+
+# Trees, and a turn east
+room Car_South
+  size 14 7
+  height 4
+  floortex forest_grass_dry
+  open
+  light -3.0 -2.8 0.0   0.28 0.36 0.46   12
+  light  3.5 -2.8 0.0   0.22 0.30 0.40   12
+  door north  north  -4
+  door east   east    0
+  prop tree  -0.6 0.5  1.6   0 1.4 0   0.38 0.38 0.38
+  prop tree2  1.4 0.5  2.0   0 3.7 0   0.34 0.34 0.34
+  prop rock   4.6 0.17 -2.0  0 0.6 0   0.48 0.48 0.48
+
+
+# A long climb north toward the camp
+room Ridge
+  size 6 15
+  height 4
+  floortex forest_grass_dry
+  open
+  light 0.0 -2.8 -4.0   0.28 0.36 0.46   13
+  light 0.0 -2.8  4.0   0.22 0.30 0.40   13
+  door west   west  -4
+  door north  north  0
+  prop tree2 -1.939 0.500 2.333   0.000 2.000 0.000   0.340 0.340 0.340
+  prop tree  1.836 0.500 -2.924   0.000 4.600 0.000   0.300 0.300 0.300
+  prop tree  2.102 0.500 1.864   0.000 0.000 0.000   0.309 0.309 0.309
+  prop tree  1.415 0.500 -5.173   0.000 0.000 0.000   0.295 0.295 0.295
+  prop tree2 -2.346 0.500 -0.202   0.000 0.000 0.000   0.314 0.314 0.314
+  prop tree  2.361 0.500 5.761   0.000 0.000 0.000   0.296 0.296 0.296
+
+
+# Somebody camped here. The key is on the ground beside the tent
+room Tent_Camp
+  size 18 13
+  height 4
+  floortex forest_grass_lush
+  open
+  light -4.0 -3.0  1.0   0.34 0.40 0.46   15
+  light  5.0 -3.0 -1.0   0.24 0.32 0.42   15
+  door south  south   3
+  door east   east   -4
+  door north  north  -6
+  prop tree  5.400 0.500 4.600   0.000 1.100 0.000   0.420 0.420 0.420
+  prop tree2 7.000 0.500 3.800   0.000 3.300 0.000   0.380 0.380 0.380
+  prop tree  -7.400 0.500 -3.600   0.000 0.800 0.000   0.360 0.360 0.360
+  interact cube  -1.000 -0.100 0.600   0.000 0.300 0.000   1.400 1.000 1.300  name tent
+    do say A tent, still pegged out and still dry inside.
+    do say Whoever put it up meant to come back.
+  interact cube  -3.509 0.440 -4.116   0.000 0.850 0.000   0.220 0.060 0.090  name key
+    when item key
+    do say The grass is molded in the shape of the key.
+    when noitem key
+    do say A key, lying as if it was dropped.
+    do sound stone
+    do hide self
+    do flag took_key
+    do give key 1
+    do say You received a key.
+  prop tree2 -7.954 0.500 -0.799   0.000 0.000 0.000   0.353 0.353 0.353
+  prop tree  -8.146 0.500 2.546   0.000 0.000 0.000   0.357 0.357 0.357
+  prop tree  -2.607 0.500 6.219   0.000 0.000 0.000   0.358 0.358 0.358
+  prop tree  -0.001 0.500 5.454   0.000 0.000 0.000   0.369 0.369 0.369
+  prop tree  2.671 0.500 5.377   0.000 0.000 0.000   0.362 0.362 0.362
+  prop tree  -0.718 0.500 -6.293   0.000 0.000 0.000   0.398 0.398 0.398
+
+
+
+
+# East off the camp
+room Camp_East
+  size 14 5
+  height 4
+  floortex forest_grass_dry
+  open
+  light -3.0 -2.8 0.0   0.26 0.34 0.44   12
+  light  3.0 -2.8 0.0   0.22 0.30 0.40   12
+  door west   west   0
+  door south  south  5
+  prop tree  -1.600 0.500 2.377   0.000 2.700 0.000   0.260 0.260 0.260
+  prop tree  2.377 0.500 2.882   0.000 0.400 0.000   0.314 0.314 0.314
+  prop tree  0.315 0.500 2.486   0.000 0.000 0.000   0.283 0.283 0.283
+  prop tree  -3.506 0.500 2.310   0.000 0.000 0.000   0.299 0.299 0.299
+  prop tree  4.755 0.500 2.391   0.000 0.000 0.000   0.300 0.300 0.300
+  prop tree2 -5.645 0.500 1.816   0.000 0.000 0.000   0.278 0.278 0.278
+  prop tree2 0.926 0.500 -2.450   0.000 0.000 0.000   0.376 0.376 0.376
+  prop tree2 -3.467 0.500 -2.674   0.000 0.000 0.000   0.289 0.289 0.289
+
+
+# Turning back south again
+room Camp_South
+  size 14 6
+  height 4
+  floortex forest_grass_dry
+  open
+  light -3.0 -2.8 0.0   0.26 0.34 0.44   12
+  light  3.0 -2.8 0.0   0.22 0.30 0.40   12
+  door north  north  0
+  door south  south  4
+  prop tree  -4.923 0.500 1.750   0.000 1.700 0.000   0.300 0.300 0.300
+  prop tree2 0.931 0.500 -2.817   0.000 4.200 0.000   0.280 0.280 0.280
+  prop tree  -1.212 0.500 -2.472   0.000 0.000 0.000   0.296 0.296 0.296
+  prop tree  -2.429 0.500 -0.207   0.000 0.000 0.000   0.289 0.289 0.289
+  prop tree  -2.605 0.500 1.895   0.000 0.000 0.000   0.319 0.319 0.319
+  prop tree2 -4.371 0.500 -1.175   0.000 0.000 0.000   0.279 0.279 0.279
+  prop tree2 -3.242 0.500 -2.828   0.000 0.000 0.000   0.313 0.313 0.313
+
+
+# A ring of mushrooms, and a wall with nothing on the other side of it
+room Ring
+  size 14 15
+  height 4
+  floortex forest_grass_lush
+  open
+  light -3.0 -3.0  0.0   0.30 0.34 0.40   14
+  light  3.0 -3.0  0.0   0.22 0.26 0.34   14
+  door north  north  -3
+  door west   west   -3
+
+  # The wall closes the east side off and goes nowhere either way along it
+  prop cube  6.2 -1.20 0.0   0 0 0   0.35 1.75 7.20   name wall
+
+  prop cylinder  -2.00 0.44  0.00   0 0 0   0.18 0.10 0.18
+  prop cylinder  -1.24 0.44  1.57   0 0 0   0.18 0.10 0.18
+  prop cylinder   0.62 0.44  1.90   0 0 0   0.18 0.10 0.18
+  prop cylinder   1.80 0.44  0.87   0 0 0   0.18 0.10 0.18
+  prop cylinder   1.80 0.44 -0.87   0 0 0   0.18 0.10 0.18
+  prop cylinder   0.62 0.44 -1.90   0 0 0   0.18 0.10 0.18
+  prop cylinder  -1.24 0.44 -1.57   0 0 0   0.18 0.10 0.18
+
+  interact cylinder  0.00 0.44 0.00   0 0 0   0.18 0.10 0.18   name mushrooms
+    do say Mushrooms are grown in a ring.
+    do say You don't like the one in the middle.
+
+  # F05: pressing E does nothing you can see, and it starts walking after you
+  interact tree  -4.80 0.50 4.20   0 0.9 0   0.34 0.34 0.34   name walker
+    do say It is a tree. Almost like the one in the Foyer.
+    do flag tree_walks
+
+
+# Trees grown in a shape, on the way round to the ring
+room Hollow
+  size 14 15
+  height 4
+  floortex forest_grass_lush
+  open
+  light -3.0 -3.0  2.0   0.28 0.36 0.46   14
+  light  3.0 -3.0 -2.0   0.22 0.30 0.40   14
+  door east   east   4
+  door west   west   0
+  prop tree  -2.405 0.500 3.636   0.000 0.600 0.000   0.400 0.400 0.400
+  prop tree  -0.200 0.500 3.143   0.000 2.300 0.000   0.400 0.400 0.400
+  prop tree  1.841 0.500 3.471   0.000 4.000 0.000   0.400 0.400 0.400
+  prop tree  -2.138 0.500 -1.876   0.000 1.500 0.000   0.220 0.220 0.220
+  prop tree  -0.460 0.500 -2.290   0.000 3.100 0.000   0.257 0.257 0.257
+  prop tree  1.548 0.500 -2.263   0.000 5.500 0.000   0.262 0.262 0.262
+  prop tree2 5.946 0.500 -6.905   0.000 0.000 0.000   0.361 0.361 0.361
+  prop tree  5.477 0.500 -4.524   0.000 0.000 0.000   0.318 0.318 0.318
+  prop tree  6.951 0.500 -2.145   0.000 0.000 0.000   0.349 0.349 0.349
+  prop tree  7.034 0.500 1.057   0.000 0.000 0.000   0.339 0.339 0.339
+  prop tree  6.130 0.500 6.879   0.000 0.000 0.000   0.380 0.380 0.380
+  prop tree2 3.568 0.500 6.898   0.000 0.000 0.000   0.345 0.345 0.345
+  prop tree  -5.891 0.500 -3.793   0.000 0.000 0.000   0.343 0.343 0.343
+  prop tree2 -3.728 0.500 -5.363   0.000 0.000 0.000   0.294 0.294 0.294
+  prop grass  -1.197 0.500 1.339   0.000 0.000 0.000   1.000 1.000 1.000  pass
+  prop grass  -0.368 0.500 1.618   0.000 0.000 0.000   1.000 1.000 1.000  pass
+  prop grass  -1.275 0.500 -0.121   0.000 0.406 0.000   1.000 1.000 1.000  pass
+  prop grass  0.461 0.500 0.237   0.000 0.000 0.000   1.000 1.000 1.000  pass
+  prop grass  1.043 0.500 1.788   0.000 0.000 0.000   1.000 1.000 1.000  pass
+  prop rock  3.026 0.500 -5.225   0.000 0.000 0.000   1.000 1.000 1.000
+
+
+# The last of the trees before the water
+room Tall_Trees
+  size 16 10
+  height 4
+  floortex forest_grass_lush
+  open
+  light -4.0 -3.0  0.0   0.28 0.36 0.46   14
+  light  4.0 -3.0  0.0   0.22 0.30 0.40   14
+  door south  south  5
+  door west   west  -4
+  door north  north -5
+  prop tree  -0.207 0.500 1.498   0.000 2.500 0.000   0.520 0.520 0.520
+  prop tree  1.240 0.500 3.471   0.000 4.300 0.000   0.500 0.500 0.500
+  prop tree  0.486 0.500 -1.600   0.000 1.800 0.000   0.480 0.480 0.480
+  prop tree  6.551 0.500 1.599   0.000 3.600 0.000   0.340 0.340 0.340
+  prop water  15.475 0.500 0.520   0.000 0.000 0.000   7.482 7.482 7.482
+  prop rock  5.357 0.500 5.665   0.000 -0.424 0.000   1.000 1.000 1.000
+  prop flat_vase  5.682 0.500 3.748   0.000 0.000 0.000   1.000 1.000 1.000
+  prop tree2  1.433 0.500 2.985   0.000 0.000 0.000   0.488 0.488 0.488
+  prop tree2  1.240 0.500 0.289   0.000 0.000 0.000   0.483 0.483 0.483
+  prop tree2  2.242 0.500 5.411   0.000 0.000 0.000   0.468 0.468 0.468
+  prop tree2  -0.868 0.500 -1.446   0.000 0.000 0.000   0.489 0.489 0.489
+
+
+# The near bank. The water runs north to south and only the bridge crosses it
+room Bank_West
+  size 14 5
+  height 4
+  floortex forest_grass_lush
+  open
+  light -3.0 -2.8 0.0   0.28 0.36 0.46   12
+  light  3.0 -2.8 0.0   0.24 0.32 0.42   12
+  door south  south -4
+  door east   east   0
+  prop tree2 -4.832 0.500 2.066   0.000 1.200 0.000   0.280 0.280 0.280
+  prop tree2 -0.968 0.500 -2.256   0.000 3.800 0.000   0.260 0.260 0.260
+  prop tree  1.180 0.500 -2.459   0.000 0.000 0.000   0.287 0.287 0.287
+  prop tree  3.354 0.500 -2.604   0.000 0.000 0.000   0.283 0.283 0.283
+  prop tree  -0.299 0.500 2.424   0.000 0.000 0.000   0.309 0.309 0.309
+  prop tree  3.104 0.500 2.347   0.000 0.000 0.000   0.309 0.309 0.309
+
+
+# Over the water. There is nothing to fall into and no way in either
+room Bridge
+  size 14 5
+  height 4
+  floortex wood_flooring
+  open
+  light -3.0 -2.8 0.0   0.32 0.40 0.50   13
+  light  3.0 -2.8 0.0   0.26 0.34 0.46   13
+  door west  west  0
+  door east  east  0
+  fence
+  interact water  0.000 0.869 0.000   0.000 0.000 0.000   10.056 10.056 10.056
+    do say The water is not moving.
+    do say It's like ice, only it shouldn't be.
+
+
+
+# The far bank, and the house is already in sight
+room Bank_East
+  size 14 5
+  height 4
+  floortex forest_grass_lush
+  open
+  light -3.0 -2.8 0.0   0.26 0.34 0.44   12
+  light  3.0 -2.8 0.0   0.22 0.30 0.40   12
+  door west  west  0
+  door east  east  0
+  prop tree2 -3.600 0.500 1.400   0.000 2.100 0.000   0.320 0.320 0.320
+  prop rock  3.200 0.170 -1.200   0.000 0.700 0.000   0.440 0.440 0.440
+
+  interact cube  5.000 -0.700 1.600   0.000 0.000 0.000   0.300 1.200 0.100  name front_door
+    when noflag took_key
+    do say The door is shut, and it is the only shut door in the forest.
+    when flag took_key
+    do say The key from the tent turns in it.
+    do sound lever
+    do flag opened_house
+
+  prop tree2 -1.484 0.500 1.677   0.000 0.000 0.000   0.300 0.300 0.300
+  prop tree  0.743 0.500 1.450   0.000 0.000 0.000   0.307 0.307 0.307
+  prop tree  3.623 0.500 1.364   0.000 0.000 0.000   0.285 0.285 0.285
+  prop tree  -2.297 0.500 -1.875   0.000 0.000 0.000   0.291 0.291 0.291
+
+
+# The one room down here that says what it is
+room House
+  size 17 16
+  height 4
+
+  # X12: a camera on a stand, turned in on the room
+  prop cube  6.500 0.050 -6.500   0 -0.785 0   0.050 0.450 0.050
+  interact cube  6.500 -0.520 -6.500   0 -0.785 0   0.160 0.110 0.220  name station
+  do sound menu_accept
+  floortex wood_flooring
+  showname
+  light -4.0 -3.0  3.0   0.55 0.50 0.42   14
+  light  4.0 -3.0 -3.0   0.32 0.34 0.44   14
+  door west  west  0
+  door on    east  0
+  prop flat_vase  -5.0 0.5 -5.0   0 0.4 0   1.00 1.00 1.00
+  prop flat_vase   6.0 0.5  4.4   0 2.2 0   1.00 1.00 1.00
+  prop cube        0.0 0.10 2.0   0 0.15 0   1.60 0.40 0.90   name table
+
+
+# A doorway on the west wall that looks like the way on, and is not
+room False_Path
+  size 6 16
+  height 4
+  floortex forest_grass_dry
+  open
+  light 0.0 -2.8 -4.0   0.26 0.34 0.44   13
+  light 0.0 -2.8  4.0   0.22 0.30 0.40   13
+  door east  east  -1
+  door back  west  -5
+  door path  west   5
+  prop tree  -1.6 0.5  1.8   0 1.6 0   0.34 0.34 0.34
+  prop tree   1.8 0.5 -3.2   0 4.0 0   0.30 0.30 0.30
+
+
+# Trees between the shrine and the false path
+room Trees_West
+  size 14 5
+  height 4
+  floortex forest_grass_dry
+  open
+  light -3.0 -2.8 0.0   0.26 0.34 0.44   12
+  light  3.0 -2.8 0.0   0.22 0.30 0.40   12
+  door east  east  0
+  door west  west  0
+  prop tree   0.2 0.5  2.0   0 2.4 0   0.28 0.28 0.28
+  prop tree   3.4 0.5 -2.0   0 0.7 0   0.26 0.26 0.26
+
+
+# A shrine, and the only thing anyone built out here on purpose
+room Shrine_Path
+  size 6 16
+  height 4
+  floortex forest_grass_dry
+  open
+  light 0.0 -2.8 -4.0   0.34 0.32 0.36   13
+  light 0.0 -2.8  4.0   0.22 0.28 0.38   13
+  door east   east  -1
+  door west   west  -1
+  door south  south  0
+
+  interact cube  0.0 -0.30 5.4   0 0 0   0.55 0.85 0.55   name shrine
+    when flag saw_shrine
+    do say It has been kept clean since you were last here.
+    when noflag saw_shrine
+    do say This shrine appears to hold sentimental value.
+    do say Something was left on it and taken away again.
+    do flag saw_shrine
+
+
+# The end of the line west. There is nothing past the stump
+room Stump_End
+  size 13 5
+  height 4
+  floortex forest_grass_dry
+  open
+  light -3.0 -2.8 0.0   0.26 0.34 0.44   12
+  light  3.0 -2.8 0.0   0.20 0.28 0.38   12
+  door east  east  0
+  prop tree  0.839 0.500 2.068   0.000 1.900 0.000   0.340 0.340 0.340
+  prop tree2 3.521 0.500 -2.067   0.000 4.400 0.000   0.300 0.300 0.300
+  interact stump  -3.800 0.300 0.000   0.000 0.000 0.000   0.700 0.700 0.700  name stump
+    do say A rather round stump.|It's long enough to seat several people.
+    do say The rings do not go all the way around.
+  prop grass  -2.005 0.500 0.000   0.000 0.000 0.000   1.000 1.000 1.000  pass
+  prop grass  -2.498 0.500 1.187   0.000 0.000 0.000   1.000 1.000 1.000  pass
+  prop grass  -3.367 0.500 -1.456   0.000 0.000 0.000   1.000 1.000 1.000  pass
+  prop grass  -4.351 0.500 1.288   0.000 0.000 0.000   1.000 1.000 1.000  pass
+  prop tree2 -1.517 0.500 2.199   0.000 0.000 0.000   0.329 0.329 0.329
+  prop tree  -3.665 0.500 2.673   0.000 0.000 0.000   0.359 0.359 0.359
+  prop tree2 -5.909 0.500 1.642   0.000 0.000 0.000   0.364 0.364 0.364
+  prop tree2 -5.225 0.500 -1.929   0.000 0.000 0.000   0.360 0.360 0.360
+  prop tree  -0.234 0.500 -2.287   0.000 0.000 0.000   0.336 0.336 0.336
+
+
+
+# F01: it says Foyer, and everything else about it is wrong. One way east out of
+# the trees comes out in here, and only the lever lets him out again
+room Foyer
+  size 12 8
+  height 3
+  floortex forest_grass_dry
+  showname
+  light 0.0 -2.2 0.0   0.30 0.27 0.24   6
+  door out  south  0
+  interact tree  3.400 0.500 -2.200   0.000 2.400 0.000   0.300 0.300 0.300  name tree
+    do say My tree is in the wrong spot.
+
+  # The slab across the way out, and the lever on the far side that lifts it
+  prop cube  0.000 -0.650 -4.000   0.000 0.000 0.000   0.900 1.150 0.250  name gate
+  interact cube  1.400 0.100 1.500   0.000 0.000 0.000   0.150 0.400 0.150  name lever
+    when flag foyer_open
+    do say If you pulled it again...|You would never leave.
+    when noflag foyer_open
+    do say A lever...
+    do sound lever
+    do rotate self  -32 0 0  over 0.25
+    do move gate  0 -2.600 0  over 1.10
+    do flag foyer_open
+    do say Something lifts by the south wall.
+
+
+# F10: where a run starts when the game has stopped agreeing about where he is.
+# The controls are the wrong way round in here and nothing says so
+room NOT_HERE_NOT_ANYWHERE
+  size 9 9
+  height 3
+  floortex forest_grass_dry
+  showname
+  light 0.0 -2.4 0.0   0.20 0.20 0.26   6
+  door out  south  0
+  prop cube  0.000 -0.400 3.400   0.000 0.000 0.000   0.400 0.900 0.400
+  interact cylinder  0.000 0.300 0.000   0.000 0.000 0.000   0.700 0.300 0.700  name stump
+    do say The stump from the end of the west path.
+    do say It is sharper than it was before.
+
+
+link Start.on             Clearing_Trees.back
+link Clearing_Trees.west  Path_West.east
+link Clearing_Trees.east  Hollow.west
+link Path_West.west       Deep_Trees.east
+link Deep_Trees.north     Well_Path.south
+link Well_Path.west       Gate_Clearing.east
+link Well_Path.east       Car_Clearing.west
+link Gate_Clearing.north  Shrine_Path.south
+link Car_Clearing.south   Car_South.north
+link Car_South.east       Ridge.west
+link Ridge.north          Tent_Camp.south
+link Tent_Camp.east       Camp_East.west
+link Tent_Camp.north      Tall_Trees.south
+link Camp_East.south      Camp_South.north
+link Camp_South.south     Ring.north
+link Ring.west            Hollow.east
+link Tall_Trees.west      False_Path.east
+link Tall_Trees.north     Bank_West.south
+link Bank_West.east       Bridge.west
+link Bridge.east          Bank_East.west
+link Bank_East.east       House.west
+link False_Path.back      Trees_West.east
+link Trees_West.west      Shrine_Path.east
+link Shrine_Path.west     Stump_End.east

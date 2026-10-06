@@ -1,0 +1,37 @@
+# LeakSanitizer suppressions for serverNavGame
+#
+# Every entry here is a THIRD-PARTY leak (GPU driver / Vulkan loader / windowing /
+# ASan runtime) reproduced by running ./game under ASan on lavapipe. None of these
+# are application bugs. Verified 2026-07-08: the single frame that ASan attributed to
+# "game+0x282b28" resolves past the binary's _end (0x10e5e8) -> it is the lavapipe
+# JIT mis-attributed by ASan's fast frame-pointer unwinder, not real game code.
+#
+# A "leak:<substring>" entry suppresses a leak if the substring appears in ANY frame
+# of its allocation stack (function name, source file, or module name). Because most
+# driver frames only resolve to a MODULE name, run the audit with the slow unwinder
+# (ASAN_OPTIONS=fast_unwind_on_malloc=0) so these module names actually appear.
+
+# --- Vulkan loader ---
+leak:libvulkan
+
+# --- Mesa software Vulkan (lavapipe / llvmpipe) ICD, gallium, LLVM JIT ---
+leak:libvulkan_lvp
+leak:lvp_
+leak:swrast
+leak:libgallium
+leak:libLLVM
+leak:libdrm
+leak:libglapi
+leak:libvulkan_intel
+leak:libvulkan_radeon
+
+# --- X11 / XCB windowing (pulled in by GLFW) ---
+leak:libxcb
+leak:libX11
+leak:libxcb-
+
+# --- GLFW ---
+leak:libglfw
+
+# --- ASan / LSan runtime's own bookkeeping ---
+leak:libasan

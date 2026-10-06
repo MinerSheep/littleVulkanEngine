@@ -1,0 +1,151 @@
+#include "systems/point_light_system.hpp"
+
+// libs
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
+
+// std
+#include <array>
+#include <cassert>
+#include <stdexcept>
+#include <iostream>
+#include <map>
+#include <algorithm>
+
+namespace lve {
+  // we could render multiple lights through simple indexing with one draw call
+  // however multiple draw calls w push constant makes easier to add modifications to each light (+ shader code simpler)
+  struct PointLightPushConstant {
+    glm::vec4 position{};
+    glm::vec4 color{};
+    float radius;
+  };
+
+PointLightSystem::PointLightSystem(LveDevice& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout)
+    : lveDevice{device} {
+  createPipelineLayout(globalSetLayout);
+
+  // Good idea to check render pass compatibility here.  If its compatible then pipeline doesnt need
+  // to be recreated Since it can use the same blueprint for submitted framebuffers and be just fine
+  createPipeline(renderPass);
+}
+
+PointLightSystem::~PointLightSystem() {
+  // Dont forget to destroy the pipeline layout in destructor, all vk objects needs to do this
+  vkDestroyPipelineLayout(lveDevice.device(), pipelineLayout, nullptr);
+}
+
+void PointLightSystem::update(FrameInfo& frameInfo, GlobalUbo& ubo) {
+
+  std::sort(
+        frameInfo.lightItems.begin(),
+        frameInfo.lightItems.end(),
+        [](const LightRenderItem& a, const LightRenderItem& b) {
+            return a.distanceToCamera < b.distanceToCamera;
+        }
+    );
+    
+  int lightIndex = 0;
+  for (const auto& light : frameInfo.lightItems) {
+    // Out of light slots, so the rest of the scene goes dark instead of crashing
+    // The sort above put the nearest lights first, so the ones dropped here are
+    // the furthest away and the least missed
+    if (lightIndex >= MAX_LIGHTS) break;
+
+    // copy light to the ubo
+    ubo.pointLights[lightIndex].position = glm::vec4(light.position, 1.0f);
+    ubo.pointLights[lightIndex].color = glm::vec4(light.color, light.intensity);
+    lightIndex++;
+  }
+
+  ubo.numLights = lightIndex;
+}
+
+void PointLightSystem::render(FrameInfo& frameInfo) {
+    lvePipeline->bind(frameInfo.commandBuffer);
+    
+    // Every set overwritten must overwrite every set that comes after it
+    // Bind it once, now ALL gameobjects can use it without need for rebinding
+    vkCmdBindDescriptorSets(
+        frameInfo.commandBuffer,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        pipelineLayout,
+        0,
+        1,
+        &frameInfo.globalDescriptorSet,
+        0, // dynamic offsets
+        nullptr);
+
+    for (const auto& light : frameInfo.lightItems) {
+        PointLightPushConstant push{};
+        push.position = glm::vec4(light.position, 1.0f);
+        push.color = glm::vec4(light.color, light.intensity);
+        push.radius = light.radius;
+
+        // push the constants
+        vkCmdPushConstants(
+            frameInfo.commandBuffer,
+            pipelineLayout,
+            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+            0,
+            sizeof(PointLightPushConstant),
+            &push);
+
+            // Just like drawing a triangle, previously we used ubo info to draw it
+            // now we will use the push constant info to draw each light
+        vkCmdDraw(frameInfo.commandBuffer, 6, 1, 0, 0);
+    }
+}
+
+void PointLightSystem::createPipelineLayout(VkDescriptorSetLayout globalSetLayout) {
+  // This is us PREDEFINING our **push constant range**
+  // stageFlags set to both shaders
+  // size is set to a PREDEFINED struct of what we want our pushdata to contain
+  VkPushConstantRange pushConstantRange{};
+  pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+  pushConstantRange.offset = 0;  // (offset only used if you separate vertex and frag data)
+  pushConstantRange.size = sizeof(PointLightPushConstant);
+
+  std::vector<VkDescriptorSetLayout> descriptorSetLayouts{globalSetLayout};
+
+  VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+  pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+
+  // LAYOUTS - this is where we tell it about the descriptor set layout
+  // It can take multiple layouts in the descriptorSetLayouts vector, just needs to index into that
+  pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
+  pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
+
+  // Sends small data to shader programs
+  pipelineLayoutInfo.pushConstantRangeCount = 1;
+  pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+  if (vkCreatePipelineLayout(lveDevice.device(), &pipelineLayoutInfo, nullptr, &pipelineLayout) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create pipeline layout!");
+  }
+}
+
+void PointLightSystem::createPipeline(VkRenderPass renderPass) {
+  assert(pipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
+
+  PipelineConfigInfo pipelineConfig{};
+  LvePipeline::defaultPipelineConfigInfo(pipelineConfig);
+  LvePipeline::enableAlphaBlending(pipelineConfig);
+  
+  pipelineConfig.attributeDescriptions.clear();
+  pipelineConfig.bindingDescriptions.clear();
+  pipelineConfig.renderPass = renderPass;  // render pass describes structure and
+                                           // format of our frame buffer objects
+  pipelineConfig.pipelineLayout = pipelineLayout;
+
+  std::string exeDir = getExecutableDir();
+  lvePipeline = std::make_unique<LvePipeline>(
+      lveDevice,
+      exeDir + "/../shaders/point_light.vert.spv",
+      exeDir + "/../shaders/point_light.frag.spv",
+      pipelineConfig);
+}
+
+}  // namespace lve
