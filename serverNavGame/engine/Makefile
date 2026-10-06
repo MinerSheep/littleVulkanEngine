@@ -1,5 +1,7 @@
 include .env
 
+CXX ?= $(CROSS_COMPILE)g++
+AR  ?= $(CROSS_COMPILE)ar
 
 CFLAGS = -std=c++17 -I. -Ilibs -Iinclude -Ilibs/GameAnalytics -I$(VULKAN_SDK_PATH)/include -MMD -MP
 LDFLAGS = -Llibs/ubuntu-latest-gcc-Release -L$(VULKAN_SDK_PATH)/lib \
@@ -33,15 +35,15 @@ all: $(TARGET)
 # .o files left behind by sources that had since been renamed or deleted
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@mkdir -p $(dir $@)
-	g++ $(CFLAGS) -c $< -o $@
+	$(CXX) $(CFLAGS) -c $< -o $@
 
 $(TARGET): $(OBJECTS)
-	ar rcs $@ $(OBJECTS)
+	$(AR) rcs $@ $(OBJECTS)
 
 .PHONY: all test clean
 
 test: $(TARGET)
-	g++ $(CFLAGS) src/test_main.cpp $(TARGET) $(LDFLAGS) -o a.out
+	$(CXX) $(CFLAGS) src/test_main.cpp $(TARGET) $(LDFLAGS) -o a.out
 	./a.out
 
 clean:

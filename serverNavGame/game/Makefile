@@ -2,7 +2,7 @@
 
 include ../engine/.env
 
-CXX = g++
+CXX ?= $(CROSS_COMPILE)g++
 CXXFLAGS = -std=c++17 -Isrc -I../engine/include -I../engine/libs/include -I$(VULKAN_SDK_PATH)/include -g3 -O0 -fno-omit-frame-pointer -fsanitize=address -MMD -MP
 LDFLAGS = -L../engine -lvulkan_engine \
           -L$(VULKAN_SDK_PATH)/lib `pkg-config --libs glfw3` -lvulkan -L../engine/libs/ubuntu-latest-gcc-Release -lGameAnalytics -lcurl -L/usr/lib/x86_64-linux-gnu -lssl -lcrypto -lpthread -ldl \
