@@ -1,12 +1,19 @@
 #include "petscop/photo.hpp"
 
+#include <sys/stat.h>
+
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
-#include <dirent.h>
 #include <fstream>
 #include <sstream>
-#include <sys/stat.h>
+
+#ifdef _WIN32
+#include <direct.h>
+#include <windows.h>
+#else
+#include <dirent.h>
+#endif
 
 namespace petscop {
 
@@ -30,8 +37,10 @@ glm::vec3 colourOf(const std::string& hex) {
   if (hex.size() < 6) return glm::vec3(0.f);
 
   const long packed = std::strtol(hex.substr(0, 6).c_str(), nullptr, 16);
-  return glm::vec3(((packed >> 16) & 0xff) / 255.f, ((packed >> 8) & 0xff) / 255.f,
-                   (packed & 0xff) / 255.f);
+  return glm::vec3(
+      ((packed >> 16) & 0xff) / 255.f,
+      ((packed >> 8) & 0xff) / 255.f,
+      (packed & 0xff) / 255.f);
 }
 
 // The number a filed picture carries, or -1 when the name is not one of ours
@@ -97,6 +106,28 @@ bool readPhoto(const std::string& path, Photo& photo) {
 std::vector<std::string> photoFiles() {
   std::vector<std::string> found;
 
+#ifdef _WIN32
+
+  // Windows equivalent of opendir/readdir.
+  WIN32_FIND_DATAA data;
+  HANDLE handle = FindFirstFileA("saves/photos/photo_*", &data);
+
+  if (handle == INVALID_HANDLE_VALUE) return found;
+
+  do {
+    // Ignore directories.
+    if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+
+    const std::string name = data.cFileName;
+    if (numberOf(name) < 0) continue;
+
+    found.push_back(std::string(kPhotoFolder) + "/" + name);
+  } while (FindNextFileA(handle, &data));
+
+  FindClose(handle);
+
+#else
+
   DIR* folder = opendir(kPhotoFolder);
   if (!folder) return found;
 
@@ -105,14 +136,28 @@ std::vector<std::string> photoFiles() {
     if (numberOf(name) < 0) continue;
     found.push_back(std::string(kPhotoFolder) + "/" + name);
   }
+
   closedir(folder);
+
+#endif
 
   std::sort(found.begin(), found.end());
   return found;
 }
 
 bool filePhoto(const Photo& photo) {
+#ifdef _WIN32
+
+  // _mkdir() only creates one directory at a time, so make sure
+  // the parent "saves" directory exists first.
+  _mkdir("saves");
+  _mkdir(kPhotoFolder);
+
+#else
+
   mkdir(kPhotoFolder, 0755);
+
+#endif
 
   std::vector<std::string> already = photoFiles();
 

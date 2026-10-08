@@ -21,5 +21,5 @@ private:
  GameObject* viewerObject = nullptr;
  lve::KeyboardMovementController cameraController{};
 
- std::unordered_map<id_t, GameObject> gameObjects;
+ std::unordered_map<unsigned int, GameObject> gameObjects;
 };

@@ -29,7 +29,7 @@ private:
  GameObject* viewerObject = nullptr;
  lve::KeyboardMovementController cameraController{};
 
- std::unordered_map<id_t, GameObject> gameObjects;
+ std::unordered_map<unsigned int, GameObject> gameObjects;
  std::unordered_map<Vessel::id_t, GameObject::id_t> vesselMap;
 
  std::set<GameObject::id_t> top;

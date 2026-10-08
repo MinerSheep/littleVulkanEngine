@@ -5,7 +5,11 @@
 
 //libs
 #define TINYOBJLOADER_IMPLEMENTATION
+#ifdef _WIN32
+#include <tiny_obj_loader/tiny_obj_loader_windows.h>
+#else
 #include <tiny_obj_loader/tiny_obj_loader.h>
+#endif
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
 

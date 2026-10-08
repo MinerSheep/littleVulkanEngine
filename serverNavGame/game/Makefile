@@ -20,7 +20,7 @@ CXXFLAGS = -std=c++17 \
            -Isrc \
            -I../engine/include \
            -I../engine/libs/windows/include \
-           -I$(VULKAN_SDK_PATH)/include \
+           -I$(VK_SDK_PATH)/include \
            -g3 \
            -O0 \
            -fno-omit-frame-pointer \
@@ -29,7 +29,7 @@ CXXFLAGS = -std=c++17 \
 LDFLAGS = -L../engine \
           -L$(WINDOWS_LIBS)/lib \
           -L$(WINDOWS_LIBS)/GameAnalytics \
-          -L$(VULKAN_SDK_PATH)/lib \
+          -L$(VK_SDK_PATH)/lib \
           -lvulkan_engine_windows \
           -lglfw3 \
           -lvulkan-1 \
