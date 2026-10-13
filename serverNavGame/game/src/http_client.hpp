@@ -4,6 +4,7 @@
 #include <string>
 
 // Thin RAII wrapper around a *reusable* libcurl easy handle.
+// On Windows it wraps a WinHTTP session instead
 //
 // Construct one HttpClient at startup and reuse it for every request. The handle
 // is created once and the common transfer options -- timeouts, TLS
@@ -60,8 +61,8 @@ public:
 
 private:
     void     applyCommonOptions();
-    Response perform(const std::string& url);
+    Response perform(const std::string& url); // curl only
 
-    void*       handle_           = nullptr; // CURL* (opaque, keeps curl.h out of this header)
+    void*       handle_           = nullptr; // CURL*, or the WinHTTP session on Windows
     std::size_t maxResponseBytes_ = 0;
 };

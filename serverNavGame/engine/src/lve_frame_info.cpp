@@ -17,5 +17,5 @@ std::string getExecutableDir() {
     if (len != -1) buffer[len] = '\0';
 #endif
     std::string fullPath(buffer);
-    return fullPath.substr(0, fullPath.find_last_of('/'));
+    return fullPath.substr(0, fullPath.find_last_of("/\\"));
 }

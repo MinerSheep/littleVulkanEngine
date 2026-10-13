@@ -1,12 +1,31 @@
 #include <game_analytics_manager.hpp>
 
+#ifndef NO_GAMEANALYTICS
 #include "GameAnalytics/GameAnalytics.h"
+#else
+// Stand-in for builds without the GameAnalytics library
+// Every call does nothing and the event is dropped
+namespace gameanalytics {
+enum class EGAProgressionStatus { Start = 1, Complete = 2 };
+enum class EGAResourceFlowType { Source = 1, Sink = 2 };
+struct GameAnalytics {
+  template <class... A> static void configureAvailableResourceCurrencies(A&&...) {}
+  template <class... A> static void configureAvailableResourceItemTypes(A&&...) {}
+  template <class... A> static void configureBuild(A&&...) {}
+  template <class... A> static void initialize(A&&...) {}
+  template <class... A> static void addProgressionEvent(A&&...) {}
+  template <class... A> static void addResourceEvent(A&&...) {}
+  template <class... A> static void addDesignEvent(A&&...) {}
+};
+}  // namespace gameanalytics
+#endif
 
 // #include "version.h"
 #include <assert.h>
 
 #include <iostream>
 #include <string>
+#include <vector>
 
 std::string GameAnalyticsManager::GameKey() { return "b88854b0e543ea056b41b57203c31a6e"; }
 

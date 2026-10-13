@@ -48,17 +48,18 @@ if "%CLEAN%"=="1" (
 if "%BUILD%"=="1" (
     echo ^>^> building engine...
     make -C engine WINDOWS=1 CROSS_COMPILE=x86_64-w64-mingw32-
-    if errorlevel 1 exit /b %errorlevel%
+    if errorlevel 1 exit /b 1
 
     echo ^>^> building game...
     make -C game WINDOWS=1 CROSS_COMPILE=x86_64-w64-mingw32-
-    if errorlevel 1 exit /b %errorlevel%
+    if errorlevel 1 exit /b 1
 )
 
 echo ^>^> launching game.exe
 
+REM Runs in this window so a crash message stays on screen
 if exist "game\game.exe" (
-    start "" "game\game.exe"
+    "game\game.exe"
 ) else (
     echo Could not find game\game.exe
     exit /b 1

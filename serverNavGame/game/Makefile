@@ -26,24 +26,19 @@ CXXFLAGS = -std=c++17 \
            -fno-omit-frame-pointer \
            -MMD -MP
 
-LDFLAGS = -L../engine \
-		  -L$(WINDOWS_LIBS)/lib-mingw-w64 \
-          -L$(WINDOWS_LIBS)/windows-2022-cl-Release \
-          -L$(WINDOWS_LIBS)/curl-8.22.0_3-win64-mingw \
+# -static bakes in the MinGW runtime, leaving vulkan-1.dll as the only non-Windows DLL
+# HTTP goes through Windows' own WinHTTP, not curl
+LDFLAGS = -static \
+          -L../engine \
+          -L$(WINDOWS_LIBS)/lib-mingw-w64 \
           -L$(VK_SDK_PATH)/Lib \
           -lvulkan_engine_windows \
           -lglfw3 \
           -lvulkan-1 \
-          -lGameAnalytics \
-          -lcurl \
-          -lssl \
-          -lcrypto \
-          -lws2_32 \
+          -lwinhttp \
           -lgdi32 \
           -luser32 \
-          -lshell32 \
-          -lcrypt32 \
-          -lbcrypt
+          -lshell32
 
 OBJ_DIR = obj/windows
 TARGET = game.exe

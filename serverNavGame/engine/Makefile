@@ -21,23 +21,17 @@ CXXFLAGS = -std=c++17 \
            -Iinclude \
            -I$(WINDOWS_LIBS)/include \
            -I$(VK_SDK_PATH)/Include \
+           -DNO_GAMEANALYTICS \
            -MMD -MP
 
-LDFLAGS = -L$(WINDOWS_LIBS)/windows-2022-cl-Release \
-		  -L$(WINDOWS_LIBS)/lib-mingw-w64 \
+# GameAnalytics.lib is an MSVC build and MinGW can't link it
+LDFLAGS = -L$(WINDOWS_LIBS)/lib-mingw-w64 \
           -L$(VK_SDK_PATH)/lib \
           -lglfw3 \
           -lvulkan-1 \
-          -lGameAnalytics \
-          -lcurl \
-          -lssl \
-          -lcrypto \
-          -lws2_32 \
           -lgdi32 \
           -luser32 \
-          -lshell32 \
-          -lcrypt32 \
-          -lbcrypt
+          -lshell32
 
 OBJ_DIR = obj/windows
 TARGET = libvulkan_engine_windows.a
