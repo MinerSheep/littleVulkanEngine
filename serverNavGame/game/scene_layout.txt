@@ -1,0 +1,4 @@
+# serverNavGame scene layout v1
+# preset  tx ty tz  rx ry rz  sx sy sz
+fence  2.721 0.500 3.505  0.000 0.000 0.000  0.364 0.364 0.364
+fence  2.732 0.500 1.900  0.000 0.000 0.000  0.364 0.364 0.364

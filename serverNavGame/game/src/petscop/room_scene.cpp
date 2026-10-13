@@ -1,8 +1,13 @@
 #include "petscop/room_scene.hpp"
-#include "lve_engine.hpp"
-#include "lve_console.hpp"
 
 #include <sys/stat.h>
+
+#include "lve_console.hpp"
+#include "lve_engine.hpp"
+
+#ifdef _WIN32
+#include <direct.h>
+#endif
 
 #include <cmath>
 #include <cstdlib>
@@ -50,12 +55,19 @@ int readProgressArea(const std::string& path) {
 
 void writeProgressArea(const std::string& path, int area) {
   for (std::size_t i = 1; i < path.size(); i++) {
-    if (path[i] == '/') mkdir(path.substr(0, i).c_str(), 0755);
+    if (path[i] == '/') {
+#ifdef _WIN32
+      _mkdir(path.substr(0, i).c_str());
+#else
+      mkdir(path.substr(0, i).c_str(), 0755);
+#endif
+    }
   }
+
   GameAnalyticsManager::Get().CompleteLevel();
   GameAnalyticsManager::Get().levelName = kAreas[area].name;
   GameAnalyticsManager::Get().StartLevel();
-  
+
   std::ofstream out(path);
   if (out) out << "area " << kAreas[area].name << "\n";
 }
@@ -76,18 +88,16 @@ void RoomScene::loadModels() {
   // Where the last run left off. A marker naming an area whose save has been
   // deleted drops back to area one, so clearing saves/ starts the game over
   areaIndex = readProgressArea(petscop::defaultSaveDirectory() + progressPath);
-  if (areaIndex > 0 && !fileExists(kAreas[areaIndex].save))
-  {
+  if (areaIndex > 0 && !fileExists(kAreas[areaIndex].save)) {
     areaIndex = 0;
-    GameAnalyticsManager::Get().levelName = kAreas[areaIndex].name; 
+    GameAnalyticsManager::Get().levelName = kAreas[areaIndex].name;
     GameAnalyticsManager::Get().StartLevel();
-  } 
+  }
   mapPath = kAreas[areaIndex].map;
   savePath = kAreas[areaIndex].save;
 
   std::string error;
-  if (!petscop::loadMap(mapPath, map, error)) 
-    throw std::runtime_error("[petscop] " + error);
+  if (!petscop::loadMap(mapPath, map, error)) throw std::runtime_error("[petscop] " + error);
 
   // Every mesh in the map is loaded and stored permanently
   // A door is preloaded, and swapped in place of every door
@@ -306,7 +316,6 @@ void RoomScene::enterRoom(int roomIndex, int arriveDoor) {
   collisions.addDynamic(player, playerCollider, playerBody);
 
   // He comes out standing in a doorway, so that one waits until he steps off it
-  // Without this he would be sent straight back where he came from
   for (Door& door : doors) door.armed = true;
   if (arrived) doors[arriveDoor].armed = false;
 
@@ -490,36 +499,38 @@ void RoomScene::updateWallVisibility() {
   }
 }
 
-void RoomScene::setConsoleCommands() 
-{
+void RoomScene::setConsoleCommands() {
   lve::LveConsole& console = lve::LveEngine::instance().getConsole();
 
-  console.registerCommand("camera", "camera follow|lock|unlock", [this](const auto& a) -> std::string {
-    if (a.size() != 1) return "usage: camera follow|lock|unlock";
+  console.registerCommand(
+      "camera",
+      "camera follow|lock|unlock",
+      [this](const auto& a) -> std::string {
+        if (a.size() != 1) return "usage: camera follow|lock|unlock";
 
-    if (a[0] == "follow") {
-      events.camLock = false;
-      events.camFollow = !events.camFollow;
-      return "camera unlocked";
-    }
-    if (a[0] == "lock") {
-      events.setCamLock(true, events.camEye, events.camLook);
-      events.camLock = true;
-      return "camera locked";
-    }
-    if (a[0] == "unlock") {
-      events.camLock = false;
-      return "camera unlocked";
-    }
+        if (a[0] == "follow") {
+          events.camLock = false;
+          events.camFollow = !events.camFollow;
+          return "camera unlocked";
+        }
+        if (a[0] == "lock") {
+          events.setCamLock(true, events.camEye, events.camLook);
+          events.camLock = true;
+          return "camera locked";
+        }
+        if (a[0] == "unlock") {
+          events.camLock = false;
+          return "camera unlocked";
+        }
 
-    return "usage: camera follow|lock|unlock";
-  });
+        return "usage: camera follow|lock|unlock";
+      });
 
   console.registerCommand("tp", "tp <room>", [this](const auto& a) -> std::string {
     if (a.size() != 1) return "usage: tp <room>";
     for (int i = 0; i < map.rooms.size(); i++) {
       if (map.rooms[i].name == a[0]) {
-        enterRoom(i); 
+        enterRoom(i);
         return "entered room " + a[0];
       }
     }
@@ -529,7 +540,8 @@ void RoomScene::setConsoleCommands()
 
   console.registerCommand("flag", "flag <name> <true|false>", [this](const auto& a) -> std::string {
     bool v;
-    if (a.size() != 2 || !lve::LveConsole::parseBool(a[1], v)) return "usage: flag <name> <true|false>";
+    if (a.size() != 2 || !lve::LveConsole::parseBool(a[1], v))
+      return "usage: flag <name> <true|false>";
     state.setFlag(a[0], v);
 
     return a[0] + " = " + (v ? "true" : "false");
@@ -554,7 +566,7 @@ void RoomScene::emitHoverBox() {
   if (nearProp < 0 || nearProp >= static_cast<int>(props.size())) return;
 
   const ColliderComponent::Aabb& box = props[nearProp].collider.worldBox();
-  
+
   const float topY = glm::max(box.min.y, groundY - hoverMaxHeight);
   const float bob = hoverBob * std::sin(clock * hoverBobSpeed);
   const glm::vec3 world{box.center().x, topY - hoverLift - bob, box.center().z};
@@ -562,8 +574,13 @@ void RoomScene::emitHoverBox() {
   const glm::vec4 clip = camera.getProjection() * camera.getView() * glm::vec4(world, 1.f);
   if (clip.w <= 1e-4f) return;
 
-  petscop::emitHoverPrompt(UIrenderItems, *textRenderer, glm::vec2(clip.x / clip.w, clip.y / clip.w),
-                           "E", hoverDotHeight, 1.f);
+  petscop::emitHoverPrompt(
+      UIrenderItems,
+      *textRenderer,
+      glm::vec2(clip.x / clip.w, clip.y / clip.w),
+      "E",
+      hoverDotHeight,
+      1.f);
 }
 
 // The room floats over a backdrop that never stops moving
@@ -576,8 +593,12 @@ void RoomScene::emitBackground() {
 
   // The unit quad runs 0 to 1
   // doubling it and shifting it covers the whole screen, the same way the fade quad does
-  backgroundItems.push_back({glm::mat2(2.f, 0.f, 0.f, 2.f), glm::vec2(-1.f),
-                             events.background(bgWash), 1.f, textRenderer->quad()});
+  backgroundItems.push_back(
+      {glm::mat2(2.f, 0.f, 0.f, 2.f),
+       glm::vec2(-1.f),
+       events.background(bgWash),
+       1.f,
+       textRenderer->quad()});
 
   // How much screen one bar owns, and how far along its slot it has slid
   // fmod wraps the slide inside a single slot, so when it snaps back to zero
@@ -635,17 +656,16 @@ void RoomScene::update(float dt) {
     petscop::Photo shown;
     if (petscop::readPhoto(photoPaths[menu.photoIndex], shown)) {
       photoPicture = shown.picture;
-      menu.photoCaption = displayName(shown.room) + "   " +
-                          std::to_string(menu.photoIndex + 1) + "/" +
-                          std::to_string(photoPaths.size());
+      menu.photoCaption = displayName(shown.room) + "   " + std::to_string(menu.photoIndex + 1) +
+                          "/" + std::to_string(photoPaths.size());
     }
   }
   menu.photoPicture = &photoPicture;
 
   // It does not open mid fade, with the room already going
-  const petscop::PauseMenu::Choice picked =
-      (phase == Phase::Playing || menu.isOpen()) ? menu.update(window)
-                                                 : petscop::PauseMenu::Choice::None;
+  const petscop::PauseMenu::Choice picked = (phase == Phase::Playing || menu.isOpen())
+                                                ? menu.update(window)
+                                                : petscop::PauseMenu::Choice::None;
   if (picked == petscop::PauseMenu::Choice::Back) events.onSettingsClosed();
   if (picked == petscop::PauseMenu::Choice::Leave) glfwSetWindowShouldClose(window, GLFW_TRUE);
 
@@ -654,8 +674,9 @@ void RoomScene::update(float dt) {
   if (phase == Phase::Playing && !paused) {
     const bool jumpDown = glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
     if (jumpDown && !jumpPrevDown && playerBody && playerBody->grounded) {
-
-      playerBody->addForce(glm::vec3(0.f, -jumpSpeed, 0.f), RigidbodyComponent::ForceMode::VelocityChange);
+      playerBody->addForce(
+          glm::vec3(0.f, -jumpSpeed, 0.f),
+          RigidbodyComponent::ForceMode::VelocityChange);
       playerBody->grounded = false;
     }
     jumpPrevDown = jumpDown;
@@ -677,23 +698,23 @@ void RoomScene::update(float dt) {
 
     // A held door is a wall you cannot walk out through, not just a dead trigger
     // One door on its own can be plugged too, for a way on that is not open yet
-    const bool sealed = events.locksDoors();  
-    for (std::size_t i = 0; i < doors.size(); i++)
-    {
+    const bool sealed = events.locksDoors();
+    for (std::size_t i = 0; i < doors.size(); i++) {
       bool locked = sealed || events.sealedDoor(static_cast<int>(i));
       doors[i].trigger.enabled = !locked;
       doors[i].blocker.enabled = locked;
     }
-    
+
     TransformComponent* body = player.getComponent<TransformComponent>();
-    // watch.begin(currentRoom >= 0 ? map.rooms[currentRoom].name : "nowhere", body->translation, dt);
+    // watch.begin(currentRoom >= 0 ? map.rooms[currentRoom].name : "nowhere", body->translation,
+    // dt);
 
     // Whether he was standing on something, read before the move clears it
     const bool standing = playerBody && playerBody->grounded;
 
     player.updateComponents(dt);
     // watch.afterMove(body->translation, playerBody ? playerBody->velocity : glm::vec3(0.f),
-                    // standing);
+    // standing);
 
     // He has moved and his box has followed, so shove him back out of the walls
     collisions.settleAll();
@@ -809,8 +830,11 @@ void RoomScene::update(float dt) {
   }
   events.cameraOverride(cameraEye, cameraLook);
   camera.setViewTarget(cameraEye, cameraLook);
-  camera.setPerspectiveProjection(glm::radians(50.f), lve::LveEngine::instance().getAspectRatio(),
-                                  0.1f, 100.f);
+  camera.setPerspectiveProjection(
+      glm::radians(50.f),
+      lve::LveEngine::instance().getAspectRatio(),
+      0.1f,
+      100.f);
 
   // --- draw lists, rebuilt each frame for the engine to pack into a FrameInfo --
   skinnedRenderItems.clear();
@@ -880,8 +904,7 @@ void RoomScene::update(float dt) {
     if (currentRoom >= 0 && !events.titled(title) && map.rooms[currentRoom].showName)
       title = displayName(map.rooms[currentRoom].name);
     if (!title.empty())
-      textRenderer->emit(UIrenderItems, title, glm::vec2(-0.95f, -0.93f), 0.035f,
-                         glm::vec3(0.85f));
+      textRenderer->emit(UIrenderItems, title, glm::vec2(-0.95f, -0.93f), 0.035f, glm::vec3(0.85f));
 
     if (phase == Phase::Playing && !paused) {
       emitHoverBox();
@@ -894,8 +917,12 @@ void RoomScene::update(float dt) {
     if (fade > 0.f) {
       // One quad over the whole screen
       // Pushed last, because UI draws in the order it is handed over
-      UIrenderItems.push_back({glm::mat2(2.f, 0.f, 0.f, 2.f), glm::vec2(-1.f), glm::vec3(0.f), fade,
-                               textRenderer->quad()});
+      UIrenderItems.push_back(
+          {glm::mat2(2.f, 0.f, 0.f, 2.f),
+           glm::vec2(-1.f),
+           glm::vec3(0.f),
+           fade,
+           textRenderer->quad()});
     }
 
     // X03: over the whole screen and over everything else, for this frame only

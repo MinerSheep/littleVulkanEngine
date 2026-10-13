@@ -1,6 +1,10 @@
 #include "petscop/save_file.hpp"
 
+#if defined(_WIN32)
+#include <direct.h>
+#else
 #include <sys/stat.h>
+#endif
 
 #include <cstdlib>
 #include <fstream>
@@ -26,7 +30,13 @@ const int saveVersion = 1;
 // Makes every folder ahead of the file name
 void makeFolders(const std::string& path) {
   for (std::size_t i = 1; i < path.size(); i++) {
-    if (path[i] == '/') mkdir(path.substr(0, i).c_str(), 0755);
+    if (path[i] == '/') {
+#if defined(_WIN32)
+      _mkdir(path.substr(0, i).c_str());
+#else
+      mkdir(path.substr(0, i).c_str(), 0755);
+#endif
+    }
   }
 }
 
@@ -142,8 +152,10 @@ bool writeSave(const std::string& path, const GameState& state) {
 
   if (!state.other.room.empty()) out << "other room " << state.other.room << "\n";
   if (state.other.seed != 0) out << "other seed " << state.other.seed << "\n";
+
   for (const std::pair<const std::string, int>& held : state.other.pocket)
     out << "other item " << held.first << " " << held.second << "\n";
+
   for (const std::string& line : state.other.trace) out << "other did " << line << "\n";
 
   for (const std::string& flag : state.flags) out << "flag " << flag << "\n";
@@ -153,14 +165,20 @@ bool writeSave(const std::string& path, const GameState& state) {
 
   for (const std::pair<const std::string, PropMemory>& entry : state.memories) {
     const PropMemory& memory = entry.second;
+
     out << "prop " << entry.first << "  ";
+
     writeVec3(out, memory.translation);
     out << "  ";
+
     writeVec3(out, memory.rotation);
     out << "  ";
+
     writeVec3(out, memory.scale);
     out << "  hidden " << (memory.hidden ? 1 : 0) << "  flips";
+
     for (char flip : memory.flipped) out << " " << (flip != 0 ? 1 : 0);
+
     out << "\n";
   }
 

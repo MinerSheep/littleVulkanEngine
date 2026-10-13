@@ -27,9 +27,10 @@ CXXFLAGS = -std=c++17 \
            -MMD -MP
 
 LDFLAGS = -L../engine \
-          -L$(WINDOWS_LIBS)/lib \
-          -L$(WINDOWS_LIBS)/GameAnalytics \
-          -L$(VK_SDK_PATH)/lib \
+		  -L$(WINDOWS_LIBS)/lib-mingw-w64 \
+          -L$(WINDOWS_LIBS)/windows-2022-cl-Release \
+          -L$(WINDOWS_LIBS)/curl-8.22.0_3-win64-mingw \
+          -L$(VK_SDK_PATH)/Lib \
           -lvulkan_engine_windows \
           -lglfw3 \
           -lvulkan-1 \
