@@ -94,10 +94,28 @@ cd ../game && make          # -> game/game
 ./game/game
 ```
 
-Scenes load models with CWD-relative paths like `"models/hilt1.obj"`, and there is no `game/models/`.
-Running `./game` from inside `game/` throws `Cannot open file [models/...]` in the OBJ scene's
-`loadModels()`, which `main` catches and turns into exit code 1 *before the skinned scene ever loads*.
-Shaders resolve either way, because they go through `getExecutableDir() + "/../shaders"`.
+Scenes load models, maps and sounds with CWD-relative paths like `"models/hilt1.obj"`. `main` now
+`chdir`s to the folder above the binary before anything loads, so the game finds them from any CWD
+(this is what lets a player double-click `game\game.exe`).
+
+## Packaging a release
+
+`./package.sh` (run in WSL) builds both platforms with `RELEASE=1` and writes
+`dist/serverNavGame-linux.zip` and `dist/serverNavGame-windows.zip`. The asset list is in `tools/package.py`.
+
+- `RELEASE=1` → `-O2 -DNDEBUG -s`, no ASan, its own `obj/*-release` dirs and `game_release` /
+  `*_release.a` outputs, so it never clobbers the debug build. **`NDEBUG` is required**: without it
+  `LveDevice` insists on validation layers and throws on any machine without the Vulkan SDK.
+- **Windows is cross-built in WSL** with `x86_64-w64-mingw32-g++-posix` (GCC 13). The native
+  `C:\mingw64` that `play.bat` uses is GCC 8.1, whose `<filesystem>` does not compile, so it cannot
+  build `game/src/mri/`. `play.bat` is broken until that MinGW is upgraded.
+- Linux ships `lib/libglfw.so.3` beside the binary (found through `RUNPATH $ORIGIN/../lib`); it
+  still needs glibc ≥ 2.38, libvulkan and libcurl from the system.
+- `scans/` is not shipped. The MRI scene shows its load-failure message instead.
+
+Saves go through `petscop::defaultSavePath()`: `%APPDATA%/petscop/saves/` on Windows,
+`$XDG_DATA_HOME` or `~/.local/share/petscop/saves/` on Linux. Photos (`saves/photos`) and scan
+reports (`saves/reports`) are still CWD-relative, so they land beside the game.
 
 ## Layout
 

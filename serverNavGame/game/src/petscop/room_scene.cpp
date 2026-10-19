@@ -87,8 +87,8 @@ std::string displayName(const std::string& ident) {
 void RoomScene::loadModels() {
   // Where the last run left off. A marker naming an area whose save has been
   // deleted drops back to area one, so clearing saves/ starts the game over
-  areaIndex = readProgressArea(petscop::defaultSaveDirectory() + progressPath);
-  if (areaIndex > 0 && !fileExists(kAreas[areaIndex].save)) {
+  areaIndex = readProgressArea(petscop::defaultSavePath(progressPath));
+  if (areaIndex > 0 && !fileExists(petscop::defaultSavePath(kAreas[areaIndex].save))) {
     areaIndex = 0;
     GameAnalyticsManager::Get().levelName = kAreas[areaIndex].name;
     GameAnalyticsManager::Get().StartLevel();
@@ -104,8 +104,8 @@ void RoomScene::loadModels() {
   models.preload(map.presets);
 
   // No file yet is a new game, not a fault
-  if (petscop::readSave(petscop::defaultSaveDirectory() + savePath, state))
-    std::cout << "[petscop] loaded save '" << petscop::defaultSaveDirectory() + savePath
+  if (petscop::readSave(petscop::defaultSavePath(savePath), state))
+    std::cout << "[petscop] loaded save '" << petscop::defaultSavePath(savePath)
               << "': " << state.items.size() << " item(s), " << state.flags.size() << " flag(s)"
               << std::endl;
 
@@ -373,7 +373,7 @@ void RoomScene::keepRoomBed() {
 // The save, stamped with the time, so he knows how long you were gone
 void RoomScene::save() {
   state.lastPlayed = petscop::nowSeconds();
-  petscop::writeSave(petscop::defaultSaveDirectory() + savePath, state);
+  petscop::writeSave(petscop::defaultSavePath(savePath), state);
 }
 
 // He gets an hour for every hour the game was shut
@@ -418,11 +418,11 @@ void RoomScene::enterArea(int area) {
 
   // The new area starts from its own save, never the last one's flags
   state = petscop::GameState{};
-  petscop::readSave(petscop::defaultSaveDirectory() + savePath, state);
+  petscop::readSave(petscop::defaultSavePath(savePath), state);
 
   // Save and marker land together, so the two can never disagree about where he is
   save();
-  writeProgressArea(petscop::defaultSaveDirectory() + progressPath, area);
+  writeProgressArea(petscop::defaultSavePath(progressPath), area);
 
   std::cout << "[petscop] area '" << kAreas[area].name << "' from " << mapPath << std::endl;
   enterRoom(startingRoom(), -1);

@@ -3,6 +3,7 @@
 include ../engine/.env
 
 WINDOWS ?= 0
+RELEASE ?= 0
 
 CXX ?= $(CROSS_COMPILE)g++
 
@@ -87,6 +88,18 @@ TARGET = game
 
 endif
 
+# RELEASE=1 is the build handed to players: optimised, no ASan, validation layers off
+# Linux looks for the libraries packed beside it in lib/
+ifeq ($(RELEASE),1)
+CXXFLAGS := $(filter-out -g3 -O0 -fsanitize=address,$(CXXFLAGS)) -O2 -DNDEBUG
+LDFLAGS := $(patsubst -lvulkan_engine%,-lvulkan_engine%_release,$(LDFLAGS)) -s
+ifneq ($(WINDOWS),1)
+LDFLAGS += -Wl,-rpath,'$$ORIGIN/../lib'
+endif
+OBJ_DIR := $(OBJ_DIR)-release
+TARGET := $(subst game,game_release,$(TARGET))
+endif
+
 
 SOURCES = $(shell find $(SRC_DIR) -type f -name "*.cpp")
 OBJECTS = $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SOURCES))
@@ -103,28 +116,28 @@ all: $(TARGET)
 # ---------------------------------------------------------------------------
 
 ifeq ($(WINDOWS),1)
+ENGINE_LIB = ../engine/libvulkan_engine_windows.a
+else
+ENGINE_LIB = ../engine/libvulkan_engine.a
+endif
 
-../engine/libvulkan_engine_windows.a:
+ifeq ($(RELEASE),1)
+ENGINE_LIB := $(ENGINE_LIB:.a=_release.a)
+endif
+
+$(ENGINE_LIB):
 	$(MAKE) -C ../engine \
 		CROSS_COMPILE=$(CROSS_COMPILE) \
-		WINDOWS=1 \
+		WINDOWS=$(WINDOWS) \
+		RELEASE=$(RELEASE) \
 		VULKAN_SDK_PATH="$(VULKAN_SDK_PATH)"
-
-else
-
-../engine/libvulkan_engine.a:
-	$(MAKE) -C ../engine \
-		WINDOWS=0 \
-		VULKAN_SDK_PATH="$(VULKAN_SDK_PATH)"
-
-endif
 
 
 # ---------------------------------------------------------------------------
 # Link game
 # ---------------------------------------------------------------------------
 
-$(TARGET): $(OBJECTS) $(if $(filter 1,$(WINDOWS)),../engine/libvulkan_engine_windows.a,../engine/libvulkan_engine.a)
+$(TARGET): $(OBJECTS) $(ENGINE_LIB)
 	$(CXX) $(CXXFLAGS) -o $@ $(OBJECTS) $(LDFLAGS)
 
 
@@ -143,3 +156,4 @@ clean:
 	rm -rf obj
 	rm -f game
 	rm -f game.exe
+	rm -f game_release game_release.exe

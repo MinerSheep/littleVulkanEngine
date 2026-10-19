@@ -1,6 +1,7 @@
 include .env
 
 WINDOWS ?= 0
+RELEASE ?= 0
 
 CXX ?= $(CROSS_COMPILE)g++
 AR  ?= $(CROSS_COMPILE)ar
@@ -67,6 +68,14 @@ TARGET = libvulkan_engine.a
 
 endif
 
+# RELEASE=1 is the build handed to players: optimised, validation layers off
+# It keeps its own objects and library beside the everyday build
+ifeq ($(RELEASE),1)
+CXXFLAGS += -O2 -DNDEBUG
+OBJ_DIR := $(OBJ_DIR)-release
+TARGET := $(TARGET:.a=_release.a)
+endif
+
 
 SOURCES = $(shell find $(SRC_DIR) -type f -name "*.cpp")
 OBJECTS = $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SOURCES))
@@ -99,3 +108,4 @@ clean:
 	rm -f *.o
 	rm -f libvulkan_engine.a
 	rm -f libvulkan_engine_windows.a
+	rm -f libvulkan_engine_release.a libvulkan_engine_windows_release.a
