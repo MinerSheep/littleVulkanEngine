@@ -932,12 +932,7 @@ void EventDirector::update(float dt, bool playing, int startedProp) {
 
   // debug command to skip all progress steps
   if (glfwGetKey(window, GLFW_KEY_F1) == GLFW_PRESS)
-    for(auto& quest : quests)
-    {
-      GameAnalyticsManager::Get().StepCompleted(quest);
-
-      stage.state->setFlag(quest, true);
-    }
+    for (auto& quest : quests) stage.state->setFlag(quest, true);
 
   wasMoving = moved;
   moved = false;

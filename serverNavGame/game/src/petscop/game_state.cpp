@@ -21,18 +21,20 @@ bool GameState::hasFlag(const std::string& name) const { return flags.count(name
 void GameState::setFlag(const std::string& name, bool on) {
   static std::set<std::string> ranThisSession;
 
-  // Ran this session makes it so events can only get enabled once per session (prevent gameanalytic event spam)
-  if (on && ranThisSession.find(name) == ranThisSession.end())
-  {
-    if (EventDirector::inQuestsList(name))
-      GameAnalyticsManager::Get().StepCompleted(name);
-
-    GameAnalyticsManager::Get().PlayerEvent(EventDirector::roomName, name); 
-    // ProgressionCompleted(GameAnalyticsManager::Get().CurrentMap(), name);
-    flags.insert(name);
-    ranThisSession.insert(name);
+  if (!on) {
+    flags.erase(name);
+    return;
   }
-  else flags.erase(name);
+  flags.insert(name);
+
+  // Analytics hear about each flag once a session, however often it is set
+  if (!ranThisSession.insert(name).second) return;
+
+  if (EventDirector::inQuestsList(name))
+    GameAnalyticsManager::Get().StepCompleted(name);
+
+  GameAnalyticsManager::Get().PlayerEvent(EventDirector::roomName, name);
+  // ProgressionCompleted(GameAnalyticsManager::Get().CurrentMap(), name);
 }
 
 int GameState::itemCount(const std::string& name) const {
